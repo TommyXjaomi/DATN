@@ -59,13 +59,11 @@ export default function ExerciseResultPage() {
       <AppLayout>
         <PageContainer>
           <EmptyState
-            icon={<Target className="h-12 w-12 text-muted-foreground" />}
+            icon={Target}
             title={t('results_not_found')}
             description={t('results_not_found_description') || "Không tìm thấy kết quả bài tập"}
-            action={{
-              label: t('back_to_exercises') || "Quay lại bài tập",
-              onClick: () => router.push("/exercises/list")
-            }}
+            actionLabel={t('back_to_exercises') || "Quay lại bài tập"}
+            actionOnClick={() => router.push("/exercises/list")}
           />
         </PageContainer>
       </AppLayout>

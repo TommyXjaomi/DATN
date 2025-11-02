@@ -92,24 +92,20 @@ export default function CoursesPage() {
           </>
         ) : error ? (
           <EmptyState
-            icon={<BookOpen className="h-12 w-12 text-muted-foreground" />}
+            icon={BookOpen}
             title={error}
             description={t('please_try_again_later') || "Please try again later"}
-            action={{
-              label: t('try_again') || "Try Again",
-              onClick: fetchCourses
-            }}
+            actionLabel={t('try_again') || "Try Again"}
+            actionOnClick={fetchCourses}
             className="mt-8"
           />
         ) : courses.length === 0 ? (
           <EmptyState
-            icon={<BookOpen className="h-12 w-12 text-muted-foreground" />}
+            icon={BookOpen}
             title={tCourses('no_courses_found_matching_your_criteria')}
             description={tCourses('try_adjusting_your_filters') || "Try adjusting your filters or search terms"}
-            action={{
-              label: t('clear_filters') || "Clear Filters",
-              onClick: () => handleFiltersChange({})
-            }}
+            actionLabel={t('clear_filters') || "Clear Filters"}
+            actionOnClick={() => handleFiltersChange({})}
             className="mt-8"
           />
         ) : (

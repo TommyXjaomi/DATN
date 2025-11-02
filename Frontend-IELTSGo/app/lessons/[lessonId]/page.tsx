@@ -113,13 +113,11 @@ export default function LessonDetailPage() {
       <AppLayout>
         <PageContainer>
           <EmptyState
-            icon={<BookOpen className="h-12 w-12 text-muted-foreground" />}
+            icon={BookOpen}
             title={t('lesson_not_found') || "Lesson not found"}
             description={t('lesson_not_found_description') || "The lesson you are looking for does not exist"}
-            action={{
-              label: t('go_back') || "Go Back",
-              onClick: () => router.back()
-            }}
+            actionLabel={t('go_back') || "Go Back"}
+            actionOnClick={() => router.back()}
           />
         </PageContainer>
       </AppLayout>

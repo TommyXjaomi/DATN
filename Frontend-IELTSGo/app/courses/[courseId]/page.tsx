@@ -166,13 +166,11 @@ export default function CourseDetailPage() {
       <AppLayout>
         <PageContainer>
           <EmptyState
-            icon={<BookOpen className="h-12 w-12 text-muted-foreground" />}
+            icon={BookOpen}
             title={tCourses('course_not_found')}
             description={tCourses('course_not_found_description') || "This course may have been removed or does not exist"}
-            action={{
-              label: tCourses('back_to_courses') || "Back to Courses",
-              onClick: () => router.push("/courses")
-            }}
+            actionLabel={tCourses('back_to_courses') || "Back to Courses"}
+            actionOnClick={() => router.push("/courses")}
           />
         </PageContainer>
       </AppLayout>

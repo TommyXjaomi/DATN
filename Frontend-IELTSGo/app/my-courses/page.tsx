@@ -213,13 +213,11 @@ export default function MyCoursesPage() {
               <PageLoading translationKey="loading" />
             ) : enrolledCourses.length === 0 ? (
               <EmptyState
-                icon={<BookOpen className="h-12 w-12 text-muted-foreground" />}
+                icon={BookOpen}
                 title={t('no_courses_yet')}
                 description={t('start_your_ielts_journey_by_enrolling_in_a')}
-                action={{
-                  label: t('browse_courses') || "Browse Courses",
-                  onClick: () => router.push('/courses')
-                }}
+                actionLabel={t('browse_courses') || "Browse Courses"}
+                actionOnClick={() => router.push('/courses')}
               />
             ) : (
               <div className="grid grid-cols-1 gap-4">
@@ -348,13 +346,11 @@ export default function MyCoursesPage() {
               <PageLoading translationKey="loading" />
             ) : inProgressCourses.length === 0 ? (
               <EmptyState
-                icon={<PlayCircle className="h-12 w-12 text-muted-foreground" />}
+                icon={PlayCircle}
                 title={t('no_in_progress_courses') || "No courses in progress"}
                 description={t('no_in_progress_courses_description') || "Start a course to see your progress here"}
-                action={{
-                  label: t('browse_courses') || "Browse Courses",
-                  onClick: () => router.push('/courses')
-                }}
+                actionLabel={t('browse_courses') || "Browse Courses"}
+                actionOnClick={() => router.push('/courses')}
               />
             ) : (
               <div className="grid grid-cols-1 gap-4">

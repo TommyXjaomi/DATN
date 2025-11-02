@@ -116,24 +116,20 @@ export default function ExercisesListPage() {
           </>
         ) : error ? (
           <EmptyState
-            icon={<Target className="h-12 w-12 text-muted-foreground" />}
+            icon={Target}
             title={error}
             description={tCommon('please_try_again_later') || "Please try again later"}
-            action={{
-              label: tCommon('try_again') || "Try Again",
-              onClick: fetchExercises
-            }}
+            actionLabel={tCommon('try_again') || "Try Again"}
+            actionOnClick={fetchExercises}
             className="mt-8"
           />
         ) : exercises.length === 0 ? (
           <EmptyState
-            icon={<Target className="h-12 w-12 text-muted-foreground" />}
+            icon={Target}
             title={t('no_exercises_found_matching_your_criteri')}
             description={tCommon('try_adjusting_your_filters') || "Try adjusting your filters or search terms"}
-            action={{
-              label: tCommon('clear_filters') || "Clear Filters",
-              onClick: () => handleFiltersChange({})
-            }}
+            actionLabel={tCommon('clear_filters') || "Clear Filters"}
+            actionOnClick={() => handleFiltersChange({})}
             className="mt-8"
           />
         ) : (

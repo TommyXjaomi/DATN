@@ -207,13 +207,11 @@ export default function MyExercisesPage() {
               </div>
             ) : submissions.length === 0 ? (
               <EmptyState
-                icon={<Target className="h-12 w-12 text-muted-foreground" />}
+                icon={Target}
                 title={t('no_exercises_yet')}
                 description={t('start_practicing_by_attempting')}
-                action={{
-                  label: t('browse_exercises'),
-                  onClick: () => router.push('/exercises/list')
-                }}
+                actionLabel={t('browse_exercises')}
+                actionOnClick={() => router.push('/exercises/list')}
               />
             ) : (
               <div className="grid grid-cols-1 gap-4">
@@ -234,13 +232,11 @@ export default function MyExercisesPage() {
           <TabsContent value="in-progress" className="space-y-4">
             {inProgressSubmissions.length === 0 ? (
               <EmptyState
-                icon={<PlayCircle className="h-12 w-12 text-muted-foreground" />}
+                icon={PlayCircle}
                 title={t('no_exercises_in_progress')}
                 description={t('start_practicing_to_see_progress')}
-                action={{
-                  label: t('browse_exercises'),
-                  onClick: () => router.push('/exercises/list')
-                }}
+                actionLabel={t('browse_exercises')}
+                actionOnClick={() => router.push('/exercises/list')}
               />
             ) : (
               <div className="grid grid-cols-1 gap-4">
@@ -261,13 +257,11 @@ export default function MyExercisesPage() {
           <TabsContent value="completed" className="space-y-4">
             {completedSubmissions.length === 0 ? (
               <EmptyState
-                icon={<Award className="h-12 w-12 text-muted-foreground" />}
+                icon={Award}
                 title={t('no_completed_exercises_yet')}
                 description={t('complete_your_first_exercise')}
-                action={{
-                  label: t('browse_exercises'),
-                  onClick: () => router.push('/exercises/list')
-                }}
+                actionLabel={t('browse_exercises')}
+                actionOnClick={() => router.push('/exercises/list')}
               />
             ) : (
               <div className="grid grid-cols-1 gap-4">

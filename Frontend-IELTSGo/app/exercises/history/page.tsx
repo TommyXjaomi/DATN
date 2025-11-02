@@ -162,13 +162,11 @@ export default function ExerciseHistoryPage() {
           </div>
         ) : submissions.length === 0 ? (
           <EmptyState
-            icon={<Target className="h-12 w-12 text-muted-foreground" />}
+            icon={Target}
             title={t('no_attempts_yet')}
             description={t('no_attempts_description') || "Bắt đầu luyện tập để xem lịch sử của bạn"}
-            action={{
-              label: t('browse_exercises'),
-              onClick: () => router.push("/exercises/list")
-            }}
+            actionLabel={t('browse_exercises')}
+            actionOnClick={() => router.push("/exercises/list")}
           />
         ) : (
           <div className="space-y-4">

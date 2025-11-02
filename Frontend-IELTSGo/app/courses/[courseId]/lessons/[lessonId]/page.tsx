@@ -503,13 +503,11 @@ export default function LessonPlayerPage() {
       <AppLayout showSidebar={false} showFooter={false}>
         <PageContainer>
           <EmptyState
-            icon={<BookOpen className="h-12 w-12 text-muted-foreground" />}
+            icon={BookOpen}
             title={t('lesson_not_found') || "Lesson not found"}
             description={t('lesson_not_found_description') || "The lesson you are looking for does not exist"}
-            action={{
-              label: t('back_to_course') || "Back to Course",
-              onClick: () => router.push(`/courses/${params.courseId}`)
-            }}
+            actionLabel={t('back_to_course') || "Back to Course"}
+            actionOnClick={() => router.push(`/courses/${params.courseId}`)}
           />
         </PageContainer>
       </AppLayout>

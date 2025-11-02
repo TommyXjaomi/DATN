@@ -186,7 +186,7 @@
 #### 📸 Screenshot 3.1: My Courses - Tab "All"
 **URL**: `http://localhost:3000/my-courses`
 
-![My Courses](screenshots/03-courses/01_my_courses.png)
+![My Courses](screenshots/03-courses/01_my_courses_all_tab.png)
 
 **Mô tả**:
 - PageHeader với "My Courses" title
@@ -203,7 +203,7 @@
 #### 📸 Screenshot 3.2: My Courses - Tab "In Progress"
 **URL**: `http://localhost:3000/my-courses`
 
-![My Courses - In Progress](screenshots/03-courses/04_my_courses_in_progress.png)
+![My Courses - In Progress](screenshots/03-courses/04_my_courses_in_progress_tab.png)
 
 **Hành động**:
 1. Click tab "In Progress"
@@ -243,7 +243,7 @@
 #### 📸 Screenshot 3.4: Course Detail - Curriculum Tab
 **URL**: `http://localhost:3000/courses/[courseId]`
 
-![Course Detail](screenshots/03-courses/03_course_detail.png)
+![Course Detail](screenshots/03-courses/03_course_detail_curriculum_tab.png)
 
 **Mô tả**:
 - Course header với image, title, description
@@ -270,7 +270,7 @@
 #### 📸 Screenshot 3.6: Course Detail - About Tab
 **URL**: `http://localhost:3000/courses/[courseId]`
 
-![Course Detail About](screenshots/03-courses/07_course_detail_about_tab.png)
+![Course Detail About](screenshots/03-courses/08_course_detail_about_tab.png)
 
 **Hành động**:
 1. Từ Course Detail, click tab "About"
@@ -292,7 +292,7 @@
 #### 📸 Screenshot 3.8: My Courses - Completed Tab
 **URL**: `http://localhost:3000/my-courses`
 
-![My Courses Completed](screenshots/03-courses/06_my_courses_completed_tab.png)
+![My Courses Completed](screenshots/03-courses/05_my_courses_completed_tab.png)
 
 **Hành động**:
 1. Click tab "Completed"
@@ -394,7 +394,7 @@
 #### 📸 Screenshot 4.6: My Exercises - Completed Tab
 **URL**: `http://localhost:3000/my-exercises`
 
-![My Exercises Completed](screenshots/04-exercises/06_my_exercises_completed_tab.png)
+![My Exercises Completed](screenshots/04-exercises/03_my_exercises_completed_tab.png)
 
 **Hành động**:
 1. Click tab "Completed"
@@ -424,14 +424,14 @@
 
 ---
 
-#### 📸 Screenshot 4.5: My Exercises
+#### 📸 Screenshot 4.5: My Exercises - Tab "All"
 **URL**: `http://localhost:3000/my-exercises`
 
-![My Exercises](screenshots/04-exercises/02_my_exercises.png)
+![My Exercises](screenshots/04-exercises/01_my_exercises_all_tab.png)
 
 **Mô tả**:
 - PageHeader "My Exercises"
-- Tabs: All, In Progress, Completed, Not Started
+- Tabs: All, In Progress, Completed
 - Submission cards với:
   - Exercise title
   - Status badge
@@ -441,10 +441,17 @@
 
 **Hành động**:
 1. Truy cập `/my-exercises`
-2. Switch giữa các tabs
-3. **Chụp**: 
-   - Tab "In Progress"
-   - Tab "Completed" với scores
+
+---
+
+#### 📸 Screenshot 4.5a: My Exercises - Tab "In Progress"
+**URL**: `http://localhost:3000/my-exercises`
+
+![My Exercises In Progress](screenshots/04-exercises/02_my_exercises_in_progress_tab.png)
+
+**Hành động**:
+1. Click tab "In Progress"
+2. **Chụp**: Exercises đang làm
 
 ---
 
