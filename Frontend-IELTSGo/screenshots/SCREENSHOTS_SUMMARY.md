@@ -1,0 +1,111 @@
+# 📸 Tổng hợp Screenshots Demo - Phần Học Viên
+
+## ✅ Đã chụp thành công: 20 ảnh
+
+### 📁 Cấu trúc thư mục
+
+```
+screenshots/
+├── 01-public/              ✅ 4 ảnh
+│   ├── 01_homepage_logged_out.png
+│   ├── 02_register_form.png
+│   ├── 03_login_form.png
+│   └── 04_homepage_logged_in.png
+│
+├── 02-dashboard/            ✅ 1 ảnh
+│   └── 01_dashboard_overview.png
+│
+├── 03-courses/              ✅ 3 ảnh
+│   ├── 01_my_courses.png
+│   ├── 02_browse_courses.png
+│   └── 03_course_detail.png
+│
+├── 04-exercises/            ✅ 4 ảnh
+│   ├── 01_exercises_list.png
+│   ├── 02_my_exercises.png
+│   ├── 03_exercise_history.png
+│   └── 04_exercise_detail.png
+│
+├── 05-progress/             ✅ 2 ảnh
+│   ├── 01_progress_analytics.png
+│   └── 02_study_history.png
+│
+├── 06-tools/                ✅ 3 ảnh
+│   ├── 01_goals.png
+│   ├── 02_reminders.png
+│   └── 03_achievements.png
+│
+├── 07-social/               ✅ 2 ảnh
+│   ├── 01_notifications.png
+│   └── 02_leaderboard.png
+│
+└── 08-profile/              ✅ 2 ảnh
+    ├── 01_profile.png
+    └── 02_settings.png
+```
+
+## 📋 Danh sách đầy đủ các trang đã chụp
+
+### Public & Auth (4 ảnh)
+- ✅ Homepage (chưa đăng nhập)
+- ✅ Homepage (đã đăng nhập)
+- ✅ Đăng ký
+- ✅ Đăng nhập
+
+### Dashboard & Overview (1 ảnh)
+- ✅ Dashboard với stats và charts
+
+### Courses (3 ảnh)
+- ✅ My Courses
+- ✅ Browse Courses
+- ✅ Course Detail
+
+### Exercises (4 ảnh)
+- ✅ Exercises List
+- ✅ My Exercises
+- ✅ Exercise History
+- ✅ Exercise Detail
+
+### Progress & Analytics (2 ảnh)
+- ✅ Progress Analytics
+- ✅ Study History
+
+### Tools (3 ảnh)
+- ✅ Goals
+- ✅ Reminders
+- ✅ Achievements
+
+### Social (2 ảnh)
+- ✅ Notifications
+- ✅ Leaderboard
+
+### Profile & Settings (2 ảnh)
+- ✅ Profile Settings
+- ✅ Settings
+
+## 🔄 Script Copy ảnh
+
+Nếu cần copy lại ảnh từ temp folder:
+```bash
+cd Frontend-IELTSGo
+./scripts/copy-screenshots.sh
+```
+
+## 📝 Ghi chú
+
+- Tất cả ảnh được chụp với viewport 1920x1080
+- Format: PNG (full page screenshots)
+- Ảnh được lưu tự động vào thư mục `screenshots/` trong project
+- Naming convention: `[number]_[section]_[page]_[description].png`
+- File DEMO_SCENARIO.md đã được cập nhật với các ảnh đã chụp
+
+## ⚠️ Các trang chưa chụp (có thể bổ sung sau)
+
+Nếu cần chụp thêm:
+- Lesson Detail (Video player)
+- Take Exercise (đang làm bài)
+- Exercise Result (kết quả)
+- My Courses (In Progress tab)
+- User Profile (public view)
+
+Xem file `DEMO_SCENARIO.md` để có kịch bản chi tiết cho các trang này và cập nhật ảnh đã chụp.

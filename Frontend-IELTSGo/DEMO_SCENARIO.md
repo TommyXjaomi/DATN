@@ -65,6 +65,8 @@
 #### 📸 Screenshot 1.1: Homepage - Không đăng nhập
 **URL**: `http://localhost:3000/`
 
+![Homepage - Logged Out](screenshots/01-public/01_homepage_logged_out.png)
+
 **Mô tả**:
 - Hero section với branding IELTSGo
 - Features grid (4 cards)
@@ -85,6 +87,8 @@
 #### 📸 Screenshot 1.2: Homepage - Đã đăng nhập
 **URL**: `http://localhost:3000/` (khi đã login)
 
+![Homepage - Logged In](screenshots/01-public/04_homepage_logged_in.png)
+
 **Mô tả**:
 - Hero section với greeting personal
 - Các nút quick action (Dashboard, My Courses, Practice Exercises)
@@ -98,6 +102,8 @@
 
 #### 📸 Screenshot 1.3: Đăng ký (Register)
 **URL**: `http://localhost:3000/register`
+
+![Register Form](screenshots/01-public/02_register_form.png)
 
 **Mô tả**:
 - Form đăng ký với validation
@@ -116,6 +122,8 @@
 
 #### 📸 Screenshot 1.4: Đăng nhập (Login)
 **URL**: `http://localhost:3000/login`
+
+![Login Form](screenshots/01-public/03_login_form.png)
 
 **Mô tả**:
 - Form đăng nhập
@@ -136,6 +144,8 @@
 
 #### 📸 Screenshot 2.1: Dashboard - Overview
 **URL**: `http://localhost:3000/dashboard`
+
+![Dashboard Overview](screenshots/02-dashboard/01_dashboard_overview.png)
 
 **Mô tả**:
 - PageHeader với welcome message và time range filters
@@ -176,6 +186,8 @@
 #### 📸 Screenshot 3.1: My Courses - Tab "All"
 **URL**: `http://localhost:3000/my-courses`
 
+![My Courses](screenshots/03-courses/01_my_courses.png)
+
 **Mô tả**:
 - PageHeader với "My Courses" title
 - Tabs: All, In Progress, Completed, Not Started
@@ -199,6 +211,8 @@
 
 #### 📸 Screenshot 3.3: Browse Courses
 **URL**: `http://localhost:3000/courses`
+
+![Browse Courses](screenshots/03-courses/02_browse_courses.png)
 
 **Mô tả**:
 - PageHeader "Explore Courses"
@@ -226,6 +240,8 @@
 
 #### 📸 Screenshot 3.4: Course Detail
 **URL**: `http://localhost:3000/courses/[courseId]`
+
+![Course Detail](screenshots/03-courses/03_course_detail.png)
 
 **Mô tả**:
 - Course header với image, title, description
@@ -276,6 +292,8 @@
 #### 📸 Screenshot 4.1: Exercises List
 **URL**: `http://localhost:3000/exercises/list`
 
+![Exercises List](screenshots/04-exercises/01_exercises_list.png)
+
 **Mô tả**:
 - PageHeader "Exercises"
 - Filters:
@@ -294,6 +312,8 @@
 
 #### 📸 Screenshot 4.2: Exercise Detail
 **URL**: `http://localhost:3000/exercises/[exerciseId]`
+
+![Exercise Detail](screenshots/04-exercises/04_exercise_detail.png)
 
 **Mô tả**:
 - Exercise header với badges (skill, difficulty, type)
@@ -355,6 +375,8 @@
 #### 📸 Screenshot 4.5: My Exercises
 **URL**: `http://localhost:3000/my-exercises`
 
+![My Exercises](screenshots/04-exercises/02_my_exercises.png)
+
 **Mô tả**:
 - PageHeader "My Exercises"
 - Tabs: All, In Progress, Completed, Not Started
@@ -377,6 +399,8 @@
 #### 📸 Screenshot 4.6: Exercise History
 **URL**: `http://localhost:3000/exercises/history`
 
+![Exercise History](screenshots/04-exercises/03_exercise_history.png)
+
 **Mô tả**:
 - List tất cả submissions đã làm
 - Filter options
@@ -392,6 +416,8 @@
 
 #### 📸 Screenshot 5.1: Progress Analytics
 **URL**: `http://localhost:3000/progress`
+
+![Progress Analytics](screenshots/05-progress/01_progress_analytics.png)
 
 **Mô tả**:
 - PageHeader với time range filters (7d, 30d, 90d, All Time)
@@ -420,6 +446,8 @@
 #### 📸 Screenshot 5.2: Study History
 **URL**: `http://localhost:3000/history`
 
+![Study History](screenshots/05-progress/02_study_history.png)
+
 **Mô tả**:
 - Timeline của các hoạt động học tập
 - Filters (type, date range)
@@ -434,6 +462,8 @@
 
 #### 📸 Screenshot 6.1: Goals
 **URL**: `http://localhost:3000/goals`
+
+![Goals](screenshots/06-tools/01_goals.png)
 
 **Mô tả**:
 - PageHeader với "Create Goal" button
@@ -451,6 +481,8 @@
 
 #### 📸 Screenshot 6.2: Reminders
 **URL**: `http://localhost:3000/reminders`
+
+![Reminders](screenshots/06-tools/02_reminders.png)
 
 **Mô tả**:
 - PageHeader với "Create Reminder" button
@@ -478,6 +510,8 @@
 #### 📸 Screenshot 7.1: Achievements
 **URL**: `http://localhost:3000/achievements`
 
+![Achievements](screenshots/06-tools/03_achievements.png)
+
 **Mô tả**:
 - PageHeader
 - Tabs: Earned, Available
@@ -499,6 +533,8 @@
 
 #### 📸 Screenshot 7.2: Notifications
 **URL**: `http://localhost:3000/notifications`
+
+![Notifications](screenshots/07-social/01_notifications.png)
 
 **Mô tả**:
 - PageHeader với "Mark All Read" button
@@ -523,6 +559,8 @@
 #### 📸 Screenshot 7.3: Leaderboard
 **URL**: `http://localhost:3000/leaderboard`
 
+![Leaderboard](screenshots/07-social/02_leaderboard.png)
+
 **Mô tả**:
 - PageHeader với time filters (Today, This Week, This Month, All Time)
 - Leaderboard table với:
@@ -544,6 +582,8 @@
 
 #### 📸 Screenshot 8.1: Profile (My Profile)
 **URL**: `http://localhost:3000/profile`
+
+![Profile](screenshots/08-profile/01_profile.png)
 
 **Mô tả**:
 - Profile information form:
@@ -584,6 +624,8 @@
 
 #### 📸 Screenshot 8.3: Settings
 **URL**: `http://localhost:3000/settings`
+
+![Settings](screenshots/08-profile/02_settings.png)
 
 **Mô tả**:
 - Language selector
@@ -825,30 +867,30 @@
 ## ✅ CHECKLIST FINAL
 
 ### Student Pages (22 screenshots)
-- [ ] Homepage (not logged in)
-- [ ] Homepage (logged in)
-- [ ] Register
-- [ ] Login
-- [ ] Dashboard
-- [ ] My Courses (All tab)
+- [x] Homepage (not logged in) ✅
+- [x] Homepage (logged in) ✅
+- [x] Register ✅
+- [x] Login ✅
+- [x] Dashboard ✅
+- [x] My Courses (All tab) ✅
 - [ ] My Courses (In Progress tab)
-- [ ] Browse Courses
-- [ ] Course Detail
+- [x] Browse Courses ✅
+- [x] Course Detail ✅
 - [ ] Lesson Detail
-- [ ] Exercises List
-- [ ] Exercise Detail
+- [x] Exercises List ✅
+- [x] Exercise Detail ✅
 - [ ] Take Exercise
 - [ ] Exercise Result
-- [ ] My Exercises
-- [ ] Exercise History
-- [ ] Progress Analytics
-- [ ] Goals
-- [ ] Reminders
-- [ ] Achievements
-- [ ] Notifications
-- [ ] Leaderboard
-- [ ] Profile
-- [ ] Settings
+- [x] My Exercises ✅
+- [x] Exercise History ✅
+- [x] Progress Analytics ✅
+- [x] Goals ✅
+- [x] Reminders ✅
+- [x] Achievements ✅
+- [x] Notifications ✅
+- [x] Leaderboard ✅
+- [x] Profile ✅
+- [x] Settings ✅
 - [ ] User Profile (public)
 
 ### Instructor Pages (7 screenshots)
