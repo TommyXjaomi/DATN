@@ -1,4 +1,5 @@
 import { apiClient } from "./apiClient"
+import { apiCache } from "@/lib/utils/api-cache"
 
 interface ApiResponse<T> {
   success: boolean
@@ -52,44 +53,62 @@ export interface AchievementsResponse {
 export const achievementsApi = {
   // Get all available achievements
   getAllAchievements: async (): Promise<Achievement[]> => {
+    const cacheKey = apiCache.generateKey('/user/achievements')
+    
+    // Check cache first
+    const cached = apiCache.get<Achievement[]>(cacheKey)
+    if (cached) {
+      return cached
+    }
+
     const response = await apiClient.get<ApiResponse<AchievementsResponse | AchievementWithProgress[]>>("/user/achievements")
     const data = response.data.data
     
     // Backend returns {achievements: AchievementWithProgress[], count: number}
+    let result: Achievement[] = []
     if (data && typeof data === 'object' && 'achievements' in data) {
       const achievementsWithProgress = (data as AchievementsResponse).achievements as AchievementWithProgress[]
       // Flatten: extract achievement from AchievementWithProgress
-      return achievementsWithProgress.map(item => 
+      result = achievementsWithProgress.map(item => 
+        'achievement' in item ? item.achievement : item as unknown as Achievement
+      )
+    } else if (Array.isArray(data)) {
+      // Handle array response (if backend returns array directly)
+      result = data.map(item => 
         'achievement' in item ? item.achievement : item as unknown as Achievement
       )
     }
     
-    // Handle array response (if backend returns array directly)
-    if (Array.isArray(data)) {
-      return data.map(item => 
-        'achievement' in item ? item.achievement : item as unknown as Achievement
-      )
-    }
-    
-    return []
+    // Cache for 60 seconds (achievements don't change frequently)
+    apiCache.set(cacheKey, result, 60000)
+    return result
   },
 
   // Get earned achievements
   getEarnedAchievements: async (): Promise<UserAchievement[]> => {
+    const cacheKey = apiCache.generateKey('/user/achievements/earned')
+    
+    // Check cache first
+    const cached = apiCache.get<UserAchievement[]>(cacheKey)
+    if (cached) {
+      return cached
+    }
+
     const response = await apiClient.get<ApiResponse<UserAchievement[] | AchievementsResponse>>("/user/achievements/earned")
     const data = response.data.data
     
     // Handle different response structures
+    let result: UserAchievement[] = []
     if (Array.isArray(data)) {
-      return data
+      result = data
+    } else if (data && typeof data === 'object' && 'achievements' in data) {
+      // Handle {achievements: [], count: number}
+      result = (data as AchievementsResponse).achievements as UserAchievement[] || []
     }
     
-    // Handle {achievements: [], count: number}
-    if (data && typeof data === 'object' && 'achievements' in data) {
-      return (data as AchievementsResponse).achievements as UserAchievement[] || []
-    }
-    
-    return []
+    // Cache for 60 seconds (earned achievements don't change frequently)
+    apiCache.set(cacheKey, result, 60000)
+    return result
   },
 }
 

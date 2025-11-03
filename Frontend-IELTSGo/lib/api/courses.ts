@@ -96,7 +96,7 @@ export const coursesApi = {
     return result
   },
 
-  // Get single course by ID with full details (modules and lessons)
+  // Get single course by ID with full details (modules and lessons) - WITH CACHING
   getCourseById: async (id: string): Promise<{
     course: Course
     modules: Array<{
@@ -106,8 +106,16 @@ export const coursesApi = {
     is_enrolled: boolean
     enrollment_details?: any
   }> => {
+    const cacheKey = apiCache.generateKey(`/courses/${id}`)
+    const cached = apiCache.get(cacheKey)
+    if (cached) return cached
+
     const response = await apiClient.get<ApiResponse<any>>(`/courses/${id}`)
-    return response.data.data
+    const result = response.data.data
+    
+    // Cache for 60 seconds (course detail is less likely to change)
+    apiCache.set(cacheKey, result, 60000)
+    return result
   },
 
   // Alias for getCourseById (for consistency)
@@ -130,7 +138,7 @@ export const coursesApi = {
     return allLessons
   },
 
-  // Get single lesson
+  // Get single lesson - WITH CACHING
   getLessonById: async (
     lessonId: string
   ): Promise<{
@@ -138,6 +146,10 @@ export const coursesApi = {
     videos: any[]
     materials: any[]
   }> => {
+    const cacheKey = apiCache.generateKey(`/lessons/${lessonId}`)
+    const cached = apiCache.get(cacheKey)
+    if (cached) return cached
+
     try {
       const response = await apiClient.get<
         ApiResponse<{
@@ -148,16 +160,19 @@ export const coursesApi = {
       >(`/lessons/${lessonId}`)
 
       if (response.data.success && response.data.data) {
-        return {
+        const result = {
           lesson: response.data.data.lesson,
           videos: response.data.data.videos || [],
           materials: response.data.data.materials || [],
         }
+        
+        // Cache for 60 seconds
+        apiCache.set(cacheKey, result, 60000)
+        return result
       }
 
       throw new Error('Failed to fetch lesson')
     } catch (error) {
-      console.error('Error fetching lesson:', error)
       throw error
     }
   },

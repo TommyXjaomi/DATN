@@ -1,6 +1,6 @@
 "use client"
 
-import { useState, useEffect } from "react"
+import { useState, useEffect, lazy, Suspense, useCallback, useMemo } from "react"
 import { useParams, useRouter } from "next/navigation"
 import Image from "next/image"
 import { AppLayout } from "@/components/layout/app-layout"
@@ -16,12 +16,14 @@ import { coursesApi } from "@/lib/api/courses"
 import { useAuth } from "@/lib/contexts/auth-context"
 import type { Course, Module, LessonProgress } from "@/types"
 import { formatDuration, formatNumber } from "@/lib/utils/format"
-import { ReviewList } from "@/components/course/review-list"
-import { ReviewForm } from "@/components/course/review-form"
 import { useTranslations } from '@/lib/i18n'
 import { useToastWithI18n } from "@/lib/hooks/use-toast-with-i18n"
 import { PageLoading } from "@/components/ui/page-loading"
 import { EmptyState } from "@/components/ui/empty-state"
+
+// Lazy load heavy components to improve initial load time
+const ReviewList = lazy(() => import("@/components/course/review-list").then(m => ({ default: m.ReviewList })))
+const ReviewForm = lazy(() => import("@/components/course/review-form").then(m => ({ default: m.ReviewForm })))
 
 export default function CourseDetailPage() {
 
@@ -59,9 +61,6 @@ export default function CourseDetailPage() {
             exercises: moduleData.exercises || []  // NEW: Include exercises
           }))
           setModules(formattedModules)
-          console.log('[DEBUG] Loaded modules:', formattedModules)
-        } else {
-          console.warn('[DEBUG] No modules in course detail response')
         }
 
         // ✅ Fetch lesson progress if enrolled
@@ -77,14 +76,13 @@ export default function CourseDetailPage() {
                 progressMap[p.lesson_id] = p
               })
               setLessonProgressMap(progressMap)
-              console.log('[Course Detail] ✅ Loaded lesson progress:', progressMap)
             }
           } catch (error) {
-            console.log('[Course Detail] No lesson progress yet:', error)
+            // Silent fail - no progress yet
           }
         }
       } catch (error) {
-        console.error("[v0] Failed to fetch course:", error)
+        // Error handled by UI
       } finally {
         setLoading(false)
       }
@@ -93,7 +91,7 @@ export default function CourseDetailPage() {
     fetchCourseData()
   }, [params.courseId, user])
 
-  const handleEnroll = async () => {
+  const handleEnroll = useCallback(async () => {
     if (!user) {
       router.push("/login")
       return
@@ -103,9 +101,6 @@ export default function CourseDetailPage() {
       setEnrolling(true)
       // Get courseId and ensure it's a string
       const courseId = Array.isArray(params.courseId) ? params.courseId[0] : params.courseId
-      console.log('[DEBUG] Full params:', params)
-      console.log('[DEBUG] Enrolling in course:', courseId)
-      console.log('[DEBUG] CourseId type:', typeof courseId)
       
       if (!courseId) {
         throw new Error('Course ID is missing')
@@ -113,11 +108,7 @@ export default function CourseDetailPage() {
       
       await coursesApi.enrollCourse(courseId)
       setIsEnrolled(true)
-      console.log('[DEBUG] Enrollment successful')
     } catch (error: any) {
-      console.error("[v0] Failed to enroll:", error)
-      console.error("[DEBUG] Error response:", error.response?.data)
-      
       const errorData = error.response?.data?.error
       
       if (errorData?.details === "this course requires payment") {
@@ -130,26 +121,19 @@ export default function CourseDetailPage() {
     } finally {
       setEnrolling(false)
     }
-  }
+  }, [user, router, params.courseId, toast, tCourses])
 
-  const handleStartLearning = () => {
-    console.log('[DEBUG] handleStartLearning called', {
-      modulesLength: modules.length,
-      modulesWithLessons: modules.filter(m => m.lessons && m.lessons.length > 0).length
-    })
-    
+  const handleStartLearning = useCallback(() => {
     // Find first module that has lessons
     const moduleWithLessons = modules.find(m => m.lessons && m.lessons.length > 0)
     
     if (moduleWithLessons && moduleWithLessons.lessons && moduleWithLessons.lessons.length > 0) {
       const lessonId = moduleWithLessons.lessons[0].id
-      console.log('[DEBUG] Navigating to lesson:', lessonId, 'in module:', moduleWithLessons.title)
       router.push(`/courses/${params.courseId}/lessons/${lessonId}`)
     } else {
-      console.warn('[DEBUG] No lessons available to start')
       toast.info(tCourses('no_lessons_available') || "Chưa có bài học nào. Nội dung đang được cập nhật.")
     }
-  }
+  }, [modules, params.courseId, router, toast, tCourses])
 
   if (loading) {
     return (
@@ -539,22 +523,26 @@ export default function CourseDetailPage() {
               {/* Review Form - Left column (only if enrolled) */}
               {isEnrolled && (
                 <div className="lg:col-span-1">
-                  <ReviewForm 
-                    courseId={params.courseId as string}
-                    onSuccess={() => {
-                      // Refresh review list immediately after successful submission
-                      setReviewRefreshTrigger(prev => prev + 1)
-                    }}
-                  />
+                  <Suspense fallback={<Card><CardContent className="p-6"><div className="h-[300px] flex items-center justify-center">Loading review form...</div></CardContent></Card>}>
+                    <ReviewForm 
+                      courseId={params.courseId as string}
+                      onSuccess={() => {
+                        // Refresh review list immediately after successful submission
+                        setReviewRefreshTrigger(prev => prev + 1)
+                      }}
+                    />
+                  </Suspense>
                 </div>
               )}
 
               {/* Review List - Right column (takes full width if not enrolled) */}
               <div className={isEnrolled ? "lg:col-span-2" : "lg:col-span-3"}>
-                <ReviewList 
-                  courseId={params.courseId as string} 
-                  refreshTrigger={reviewRefreshTrigger}
-                />
+                <Suspense fallback={<Card><CardContent className="p-6"><div className="h-[400px] flex items-center justify-center">Loading reviews...</div></CardContent></Card>}>
+                  <ReviewList 
+                    courseId={params.courseId as string} 
+                    refreshTrigger={reviewRefreshTrigger}
+                  />
+                </Suspense>
               </div>
             </div>
 
