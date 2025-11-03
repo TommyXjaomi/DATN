@@ -31,17 +31,6 @@ export function AchievementCard({ achievement, earned, earnedAt }: AchievementCa
     const type = achievement.criteria_type
     const value = achievement.criteria_value
     
-    // Debug in development
-    if (process.env.NODE_ENV === 'development' && (!type || type === 'unknown')) {
-      console.warn('[AchievementCard] Missing or invalid criteria_type:', {
-        id: achievement.id,
-        name: achievement.name,
-        criteria_type: type,
-        criteria_value: value,
-        achievement: achievement
-      })
-    }
-    
     // If no type, return default message
     if (!type || type === 'unknown') {
       return t('criteria_default', { type: 'unknown', value: value || 0 })

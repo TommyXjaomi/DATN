@@ -92,8 +92,6 @@ export default function LessonPlayerPage() {
         payload.is_completed = true
       }
 
-      console.log('[Lesson Player] Sending progress:', payload)
-
       if (data.useKeepalive) {
         // Use fetch with keepalive for page unload
         const token = getToken()
@@ -111,23 +109,14 @@ export default function LessonPlayerPage() {
       } else {
         await coursesApi.updateLessonProgress(params.lessonId as string, payload)
       }
-
-      console.log('[Lesson Player] Progress sent successfully')
     } catch (error) {
-      console.error('[Lesson Player] Failed to send progress:', error)
+      // Silent fail - progress will retry on next update
     }
   }
 
   // Check if this is a YouTube video
   const isYouTube = videos.length > 0 && videos[0]?.video_provider?.toLowerCase() === 'youtube' && videos[0]?.video_id
   const youtubeVideoId = isYouTube ? videos[0].video_id : ''
-  
-  console.log('🎥 [Lesson Player] Component render:', {
-    hasVideos: videos.length > 0,
-    isYouTube,
-    youtubeVideoId,
-    videoProvider: videos[0]?.video_provider,
-  })
 
   // ✅ Memoize onProgressUpdate để tránh re-render loop
   const handleProgressUpdate = useCallback((data: {
@@ -142,12 +131,6 @@ export default function LessonPlayerPage() {
     // ❌ REMOVED: setCurrentTime/setDuration cause re-render loop!
     // ✅ Use youtubeProgress.currentTime/duration directly instead
     
-    console.log('[YouTube Hook] Progress:', {
-      accumulatedTime: data.accumulatedTime,
-      lastPosition: data.lastPosition,
-      watchedSeconds: data.watchedSeconds,
-    })
-    
     // ✅ Dùng accumulated time từ hook (thời gian thực sự xem)
     // Send progress to backend với last position + video stats
     const payload: any = {
@@ -158,17 +141,11 @@ export default function LessonPlayerPage() {
       last_position_seconds: data.lastPosition, // ✅ Lưu vị trí để resume
     }
     
-    console.log('[Lesson Player] Sending YouTube progress:', payload)
-    
-    // Update lesson progress
+    // Update lesson progress (silent fail - will retry on next update)
     coursesApi.updateLessonProgress(params.lessonId as string, payload)
-      .then(() => {
-        console.log('[Lesson Player] YouTube progress sent successfully')
-        
-        // ℹ️ Video tracking removed - lesson progress already includes all video metrics
-        // (watched_seconds, total_seconds, last_position, etc.)
+      .catch(() => {
+        // Silent fail - progress will retry on next update
       })
-      .catch((error) => console.error('[Lesson Player] Failed to send YouTube progress:', error))
   }, [params.lessonId, videos])
 
   // Initialize YouTube player and tracking (only for YouTube videos)
@@ -184,39 +161,24 @@ export default function LessonPlayerPage() {
   })
 
   useEffect(() => {
-    console.log('[Lesson Player] 🎬 useEffect triggered for lesson:', params.lessonId)
-    
     const fetchLessonData = async () => {
       try {
         setLoading(true)
-        console.log('[Lesson Player] 🔍 Fetching lesson data...')
         
         // Fix: getLessonById only takes lessonId, not courseId
         const lessonData = await coursesApi.getLessonById(params.lessonId as string)
-        console.log('[Lesson Player] ✅ Lesson data received:', {
-          lesson: lessonData.lesson?.title,
-          videosCount: lessonData.videos?.length,
-          firstVideo: lessonData.videos?.[0]
-        })
         
         setLesson(lessonData.lesson)
         setVideos(lessonData.videos || [])
 
-        console.log('[Lesson Player] Video data:', lessonData.videos)
-        console.log('[Lesson Player] Is YouTube?', lessonData.videos?.[0]?.video_provider, lessonData.videos?.[0]?.video_id)
-
         // ✅ Load last position để resume watching (BEFORE rendering player)
         try {
           const progress = await coursesApi.getLessonProgress(params.lessonId as string)
-          console.log('[Lesson Player] 📊 Progress response:', progress)
           if (progress && progress.last_position_seconds > 0) {
-            console.log('[Lesson Player] 🔄 Found saved position:', progress.last_position_seconds, 'seconds')
             setLastPosition(progress.last_position_seconds)
-          } else {
-            console.log('[Lesson Player] ⏭️ Starting from beginning (progress:', progress, 'last_position:', progress?.last_position_seconds, ')')
           }
         } catch (error) {
-          console.log('[Lesson Player] ❌ No previous progress found, starting from beginning:', error)
+          // Silent fail - no progress yet, start from beginning
         }
         
         // ✅ Mark progress as loaded so player can initialize with correct startPosition
@@ -230,9 +192,8 @@ export default function LessonPlayerPage() {
         if (token && courseDetail && courseDetail.is_enrolled === false) {
           try {
             await coursesApi.enrollCourse(params.courseId as string)
-            console.log('[Lesson Player] Auto-enrolled to course:', params.courseId)
           } catch (enErr) {
-            console.warn('[Lesson Player] Failed to auto-enroll:', enErr)
+            // Silent fail - user can enroll manually
           }
         }
         
@@ -258,7 +219,7 @@ export default function LessonPlayerPage() {
         // const lessonNotes = await coursesApi.getLessonNotes(params.courseId as string, params.lessonId as string)
         // setNotes(lessonNotes)
       } catch (error) {
-        console.error("[v0] Failed to fetch lesson:", error)
+        // Error handled by UI
       } finally {
         setLoading(false)
       }
@@ -277,7 +238,6 @@ export default function LessonPlayerPage() {
     // ✅ Apply playback speed from user preferences
     if (playbackSpeed && playbackSpeed !== 1.0) {
       video.playbackRate = playbackSpeed
-      console.log('[HTML5 Video] 🎚️ Playback speed set to:', playbackSpeed)
     }
 
     const handleTimeUpdate = () => {
@@ -439,7 +399,7 @@ export default function LessonPlayerPage() {
         // User can manually navigate to next lesson
       }
     } catch (error) {
-      console.error("[v0] Failed to complete lesson:", error)
+      // Silent fail - progress will be saved on next update
     }
   }
 

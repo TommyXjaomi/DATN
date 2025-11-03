@@ -201,8 +201,8 @@ func (s *UserService) GetProgressStats(userID uuid.UUID) (*models.ProgressStatsR
 		return nil, err
 	}
 
-	// Get recent sessions
-	recentSessions, err := s.repo.GetRecentSessions(userID, 10)
+	// Get recent sessions (just 10 most recent for dashboard, page 1)
+	recentSessions, _, err := s.repo.GetRecentSessions(userID, 1, 10)
 	if err != nil {
 		log.Printf("⚠️  Warning: Failed to get recent sessions: %v", err)
 		recentSessions = []models.StudySession{}
@@ -261,11 +261,15 @@ func (s *UserService) EndStudySession(sessionID uuid.UUID, req *models.EndSessio
 }
 
 // GetStudyHistory gets study history for a user
-func (s *UserService) GetStudyHistory(userID uuid.UUID, limit int) ([]models.StudySession, error) {
-	if limit <= 0 || limit > 100 {
+func (s *UserService) GetStudyHistory(userID uuid.UUID, page, limit int) ([]models.StudySession, int, error) {
+	// Validate pagination params
+	if page < 1 {
+		page = 1
+	}
+	if limit <= 0 || limit > 200 {
 		limit = 20 // Default limit
 	}
-	return s.repo.GetRecentSessions(userID, limit)
+	return s.repo.GetRecentSessions(userID, page, limit)
 }
 
 // ============= Study Goals =============
