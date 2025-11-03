@@ -7,9 +7,13 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Input } from "@/components/ui/input"
 import { Textarea } from "@/components/ui/textarea"
 import { Label } from "@/components/ui/label"
+import { PageLoading } from "@/components/ui/page-loading"
 import { coursesApi } from "@/lib/api/courses"
 import { useToast } from "@/hooks/use-toast"
 import { useAuth } from "@/lib/contexts/auth-context"
+import { getCardVariant } from "@/lib/utils/card-variants"
+import { cn } from "@/lib/utils"
+import { useTranslations } from "@/lib/i18n"
 
 interface Review {
   id: string
@@ -27,6 +31,8 @@ interface ReviewFormProps {
 
 export function ReviewForm({ courseId, onSuccess }: ReviewFormProps) {
   const { user } = useAuth()
+  const t = useTranslations('common')
+  const tReviews = useTranslations('reviews')
   const [existingReview, setExistingReview] = useState<Review | null>(null)
   const [rating, setRating] = useState(0)
   const [hoverRating, setHoverRating] = useState(0)
@@ -75,8 +81,8 @@ export function ReviewForm({ courseId, onSuccess }: ReviewFormProps) {
     if (!existingReview && rating === 0) {
       toast({
         variant: "destructive",
-        title: "Lỗi",
-        description: "Vui lòng chọn số sao đánh giá.",
+        title: t('error'),
+        description: tReviews('rating_required') || "Vui lòng chọn số sao đánh giá.",
       })
       return
     }
@@ -109,8 +115,8 @@ export function ReviewForm({ courseId, onSuccess }: ReviewFormProps) {
         // If nothing changed, show message
         if (Object.keys(updateData).length === 0) {
           toast({
-            title: "Thông báo",
-            description: "Bạn chưa thay đổi gì trong đánh giá.",
+            title: t('notification') || "Thông báo",
+            description: tReviews('no_changes') || "Bạn chưa thay đổi gì trong đánh giá.",
           })
           return
         }
@@ -118,8 +124,8 @@ export function ReviewForm({ courseId, onSuccess }: ReviewFormProps) {
         await coursesApi.updateCourseReview(courseId, updateData)
 
         toast({
-          title: "Thành công",
-          description: "Đánh giá của bạn đã được cập nhật!",
+          title: t('success'),
+          description: tReviews('success_update') || "Đánh giá của bạn đã được cập nhật!",
         })
       } else {
         // Create new review
@@ -130,8 +136,8 @@ export function ReviewForm({ courseId, onSuccess }: ReviewFormProps) {
         })
 
         toast({
-          title: "Thành công",
-          description: "Đánh giá của bạn đã được đăng thành công!",
+          title: t('success'),
+          description: tReviews('success_submit') || "Đánh giá của bạn đã được đăng thành công!",
         })
 
         // Reset form (will be reloaded via onSuccess)
@@ -143,10 +149,12 @@ export function ReviewForm({ courseId, onSuccess }: ReviewFormProps) {
       onSuccess?.()
     } catch (error: any) {
       const errorMessage = error?.response?.data?.error?.message || 
-        (existingReview ? "Không thể cập nhật đánh giá" : "Không thể gửi đánh giá")
+        (existingReview 
+          ? (tReviews('error_update') || "Không thể cập nhật đánh giá")
+          : (tReviews('error_submit') || "Không thể gửi đánh giá"))
       toast({
         variant: "destructive",
-        title: "Lỗi",
+        title: t('error'),
         description: errorMessage,
       })
     } finally {
@@ -156,100 +164,134 @@ export function ReviewForm({ courseId, onSuccess }: ReviewFormProps) {
 
   if (loadingReview) {
     return (
-      <Card>
-        <CardContent className="py-8">
-          <p className="text-center text-muted-foreground">Đang tải...</p>
+      <Card className={cn(getCardVariant('default'))}>
+        <CardContent className="py-12">
+          <PageLoading translationKey="loading" />
         </CardContent>
       </Card>
     )
   }
 
   return (
-    <Card>
-      <CardHeader>
-        <div className="flex items-center gap-2">
-          {existingReview && <Edit2 className="w-5 h-5 text-primary" />}
-          <CardTitle>{existingReview ? "Chỉnh sửa đánh giá của bạn" : "Viết đánh giá của bạn"}</CardTitle>
+    <Card className={cn(
+      "bg-white dark:bg-card",
+      "border border-gray-200 dark:border-border",
+      "shadow-sm hover:shadow-md",
+      "transition-all duration-200",
+      "rounded-lg",
+      "sticky top-4"
+    )}>
+      <CardHeader className="px-3 py-2.5 border-b border-border/50">
+        <div className="flex items-center gap-1.5 mb-0.5">
+          {existingReview && <Edit2 className="w-4 h-4 text-primary" />}
+          <CardTitle className="text-base font-semibold">
+            {existingReview ? tReviews('edit_review') : tReviews('write_review')}
+          </CardTitle>
         </div>
-        <CardDescription>
+        <CardDescription className="text-xs text-muted-foreground">
           {existingReview 
-            ? "Bạn có thể cập nhật đánh giá của mình bất cứ lúc nào"
-            : "Chia sẻ trải nghiệm của bạn với khóa học này"
+            ? tReviews('edit_description')
+            : tReviews('write_description')
           }
         </CardDescription>
       </CardHeader>
-      <CardContent>
-        <form onSubmit={handleSubmit} className="space-y-4">
-          {/* Star Rating */}
+      <CardContent className="px-3 py-2.5">
+        <form onSubmit={handleSubmit} className="space-y-2">
+          {/* Star Rating - Compact */}
           <div className="space-y-2">
-            <Label>
-              Đánh giá của bạn
-              {existingReview && <span className="text-xs text-muted-foreground ml-2">(Có thể thay đổi)</span>}
+            <Label className="text-xs font-medium">
+              {tReviews('your_rating')}
+              {existingReview && (
+                <span className="text-[10px] text-muted-foreground ml-1.5 font-normal">
+                  {tReviews('can_change')}
+                </span>
+              )}
             </Label>
-            <div className="flex gap-1">
-              {Array.from({ length: 5 }).map((_, i) => {
-                const starValue = i + 1
-                return (
-                  <button
-                    key={i}
-                    type="button"
-                    onClick={() => setRating(starValue)}
-                    onMouseEnter={() => setHoverRating(starValue)}
-                    onMouseLeave={() => setHoverRating(0)}
-                    className="transition-transform hover:scale-110"
-                  >
-                    <Star
-                      className={`w-8 h-8 ${
-                        starValue <= (hoverRating || rating)
-                          ? "fill-yellow-400 text-yellow-400"
-                          : "text-gray-300"
-                      }`}
-                    />
-                  </button>
-                )
-              })}
+            <div className="flex items-center gap-2">
+              <div className="flex gap-0.5">
+                {Array.from({ length: 5 }).map((_, i) => {
+                  const starValue = i + 1
+                  return (
+                    <button
+                      key={i}
+                      type="button"
+                      onClick={() => setRating(starValue)}
+                      onMouseEnter={() => setHoverRating(starValue)}
+                      onMouseLeave={() => setHoverRating(0)}
+                      className="transition-all duration-200 hover:scale-110 active:scale-95"
+                      aria-label={`Đánh giá ${starValue} sao`}
+                    >
+                      <Star
+                        className={cn(
+                          "w-5 h-5 transition-colors",
+                          starValue <= (hoverRating || rating)
+                            ? "fill-yellow-400 text-yellow-400"
+                            : "text-gray-300 dark:text-gray-600"
+                        )}
+                      />
+                    </button>
+                  )
+                })}
+              </div>
+              {rating > 0 && (
+                <span className="text-xs font-medium text-muted-foreground">
+                  {rating}/5
+                </span>
+              )}
             </div>
             {existingReview && rating === 0 && (
-              <p className="text-xs text-muted-foreground">
-                Bạn đang giữ nguyên đánh giá {existingReview.rating} sao hiện tại
+              <p className="text-[10px] text-muted-foreground">
+                {tReviews('keep_current_rating', { rating: existingReview.rating }) || 
+                 `Bạn đang giữ nguyên đánh giá ${existingReview.rating} sao hiện tại`}
               </p>
             )}
           </div>
 
-          {/* Title */}
-          <div className="space-y-2">
-            <Label htmlFor="review-title">Tiêu đề (tùy chọn)</Label>
+          {/* Title - Compact */}
+          <div className="space-y-1.5">
+            <Label htmlFor="review-title" className="text-xs font-medium">
+              {tReviews('title_label')} <span className="text-muted-foreground font-normal text-[10px]">{tReviews('title_optional')}</span>
+            </Label>
             <Input
               id="review-title"
-              placeholder="Tóm tắt đánh giá của bạn"
+              placeholder={tReviews('title_placeholder')}
               value={title}
               onChange={(e) => setTitle(e.target.value)}
               maxLength={200}
+              className="h-8 text-sm"
             />
+            {title.length > 0 && (
+              <p className="text-[10px] text-muted-foreground text-right">
+                {title.length}/200
+              </p>
+            )}
           </div>
 
-          {/* Comment */}
-          <div className="space-y-2">
-            <Label htmlFor="review-comment">Nhận xét (tùy chọn)</Label>
+          {/* Comment - Compact */}
+          <div className="space-y-1.5">
+            <Label htmlFor="review-comment" className="text-xs font-medium">
+              {tReviews('comment_label')} <span className="text-muted-foreground font-normal text-[10px]">{tReviews('comment_optional')}</span>
+            </Label>
             <Textarea
               id="review-comment"
-              placeholder="Chia sẻ chi tiết về khóa học..."
+              placeholder={tReviews('comment_placeholder')}
               value={comment}
               onChange={(e) => setComment(e.target.value)}
               rows={4}
-              className="resize-none"
+              className="resize-none text-sm"
             />
           </div>
 
-          {/* Submit */}
+          {/* Submit - Compact */}
           <Button 
             type="submit" 
             disabled={submitting || (!existingReview && rating === 0)} 
-            className="w-full"
+            className="w-full h-9 text-sm font-medium shadow-sm"
+            size="sm"
           >
             {submitting 
-              ? (existingReview ? "Đang cập nhật..." : "Đang gửi...") 
-              : (existingReview ? "Cập nhật đánh giá" : "Gửi đánh giá")
+              ? (existingReview ? tReviews('updating') : tReviews('submitting')) 
+              : (existingReview ? tReviews('update') : tReviews('submit'))
             }
           </Button>
         </form>
