@@ -202,7 +202,7 @@ func (s *UserService) GetProgressStats(userID uuid.UUID) (*models.ProgressStatsR
 	}
 
 	// Get recent sessions
-	recentSessions, _, err := s.repo.GetRecentSessions(userID, 1, 10)
+	recentSessions, err := s.repo.GetRecentSessions(userID, 10)
 	if err != nil {
 		log.Printf("⚠️  Warning: Failed to get recent sessions: %v", err)
 		recentSessions = []models.StudySession{}
