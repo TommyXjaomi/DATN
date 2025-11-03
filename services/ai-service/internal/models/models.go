@@ -51,7 +51,8 @@ type WritingEvaluation struct {
 	CoherenceFeedback       *string                `json:"coherence_feedback" db:"coherence_feedback"`
 	AddressesAllParts       bool                   `json:"addresses_all_parts" db:"addresses_all_parts"`
 	TaskResponseFeedback    *string                `json:"task_response_feedback" db:"task_response_feedback"`
-	DetailedFeedback        string                 `json:"detailed_feedback" db:"detailed_feedback"`
+	DetailedFeedback        string                 `json:"detailed_feedback" db:"detailed_feedback"` // Legacy: plain text
+	DetailedFeedbackJSON    map[string]interface{}  `json:"detailed_feedback_json,omitempty" db:"detailed_feedback_json"` // Structured feedback with bilingual support (JSONB)
 	ImprovementSuggestions   []string               `json:"improvement_suggestions" db:"improvement_suggestions"`
 	AIModelName             *string                `json:"ai_model_name" db:"ai_model_name"`
 	AIModelVersion          *string                `json:"ai_model_version" db:"ai_model_version"`

@@ -76,7 +76,7 @@ func (s *AIService) SubmitWriting(userID uuid.UUID, req *models.WritingSubmissio
 	}
 
 	// Save evaluation
-	// Build detailed feedback from structured response (if detailed_feedback is string map)
+	// Build detailed feedback from structured response (backward compatibility: plain text)
 	detailedFeedbackText := fmt.Sprintf(`Task Achievement: %s
 
 Coherence & Cohesion: %s
@@ -84,11 +84,31 @@ Coherence & Cohesion: %s
 Lexical Resource: %s
 
 Grammatical Range: %s`,
-		evalResult.DetailedFeedback.TaskAchievement,
-		evalResult.DetailedFeedback.CoherenceCohesion,
-		evalResult.DetailedFeedback.LexicalResource,
-		evalResult.DetailedFeedback.GrammaticalRange,
+		evalResult.DetailedFeedback.TaskAchievement.VI,
+		evalResult.DetailedFeedback.CoherenceCohesion.VI,
+		evalResult.DetailedFeedback.LexicalResource.VI,
+		evalResult.DetailedFeedback.GrammaticalRange.VI,
 	)
+
+	// Build structured feedback JSON (bilingual)
+	detailedFeedbackJSON := map[string]interface{}{
+		"task_achievement": map[string]string{
+			"vi": evalResult.DetailedFeedback.TaskAchievement.VI,
+			"en": evalResult.DetailedFeedback.TaskAchievement.EN,
+		},
+		"coherence_cohesion": map[string]string{
+			"vi": evalResult.DetailedFeedback.CoherenceCohesion.VI,
+			"en": evalResult.DetailedFeedback.CoherenceCohesion.EN,
+		},
+		"lexical_resource": map[string]string{
+			"vi": evalResult.DetailedFeedback.LexicalResource.VI,
+			"en": evalResult.DetailedFeedback.LexicalResource.EN,
+		},
+		"grammatical_range": map[string]string{
+			"vi": evalResult.DetailedFeedback.GrammaticalRange.VI,
+			"en": evalResult.DetailedFeedback.GrammaticalRange.EN,
+		},
+	}
 
 	evaluation := &models.WritingEvaluation{
 		ID:                      uuid.New(),
@@ -101,6 +121,7 @@ Grammatical Range: %s`,
 		Strengths:               evalResult.Strengths,
 		Weaknesses:              evalResult.AreasForImprovement,
 		DetailedFeedback:        detailedFeedbackText + "\n\n" + evalResult.ExaminerFeedback,
+		DetailedFeedbackJSON:    detailedFeedbackJSON,
 		ImprovementSuggestions:   evalResult.AreasForImprovement,
 		AIModelName:             stringPtr("gpt-4o"),
 		CreatedAt:               time.Now(),

@@ -65,23 +65,54 @@ function WritingPromptContent() {
   }>({})
 
   useEffect(() => {
+    let isMounted = true
+    let abortController: AbortController | null = null
+
     const fetchPrompt = async () => {
+      if (!promptId) return
+
       try {
         setLoading(true)
+        
+        // Create abort controller for this request
+        abortController = new AbortController()
+        
         const data = await aiApi.getWritingPrompt(promptId)
+        
+        if (!isMounted) return
+        
         setPrompt(data)
       } catch (error: any) {
+        if (!isMounted) return
+        
+        // Don't show toast for aborted requests
+        if (error.name === 'AbortError' || error.name === 'CanceledError') {
+          return
+        }
+        
         console.error("[Writing Prompt] Failed to load:", error)
-        toast.error(error.response?.data?.error || "Failed to load prompt")
+        
+        // Only show error toast for actual errors (not 429 rate limit during retry)
+        if (error.response?.status !== 429) {
+          toast.error(error.response?.data?.error || "Failed to load prompt")
+        }
       } finally {
-        setLoading(false)
+        if (isMounted) {
+          setLoading(false)
+        }
       }
     }
 
-    if (promptId) {
-      fetchPrompt()
+    fetchPrompt()
+
+    return () => {
+      isMounted = false
+      if (abortController) {
+        abortController.abort()
+      }
     }
-  }, [promptId, toast])
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [promptId]) // Only depend on promptId, toast is stable
 
   useEffect(() => {
     const count = countWords(essayText)

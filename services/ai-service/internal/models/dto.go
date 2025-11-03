@@ -42,6 +42,12 @@ type SpeakingSubmissionResponse struct {
 	Evaluation *SpeakingEvaluation `json:"evaluation,omitempty"`
 }
 
+// FeedbackBilingual contains feedback in both Vietnamese and English
+type FeedbackBilingual struct {
+	VI string `json:"vi"`
+	EN string `json:"en"`
+}
+
 // OpenAI Evaluation Response (Writing)
 type OpenAIWritingEvaluation struct {
 	OverallBand     float64 `json:"overall_band"`
@@ -52,10 +58,10 @@ type OpenAIWritingEvaluation struct {
 		GrammaticalRange  float64 `json:"grammatical_range"`
 	} `json:"criteria_scores"`
 	DetailedFeedback struct {
-		TaskAchievement   string `json:"task_achievement"`
-		CoherenceCohesion string `json:"coherence_cohesion"`
-		LexicalResource   string `json:"lexical_resource"`
-		GrammaticalRange  string `json:"grammatical_range"`
+		TaskAchievement   FeedbackBilingual `json:"task_achievement"`
+		CoherenceCohesion FeedbackBilingual `json:"coherence_cohesion"`
+		LexicalResource   FeedbackBilingual `json:"lexical_resource"`
+		GrammaticalRange  FeedbackBilingual `json:"grammatical_range"`
 	} `json:"detailed_feedback"`
 	ExaminerFeedback        string   `json:"examiner_feedback"`
 	Strengths               []string `json:"strengths"`

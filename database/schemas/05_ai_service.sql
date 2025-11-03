@@ -97,6 +97,7 @@ CREATE TABLE writing_evaluations (
     
     -- Overall feedback
     detailed_feedback TEXT NOT NULL,
+    detailed_feedback_json JSONB, -- Structured bilingual feedback: {"task_achievement": {"vi": "...", "en": "..."}, ...}
     improvement_suggestions TEXT[],
     
     -- AI model info

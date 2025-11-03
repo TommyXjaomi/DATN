@@ -30,9 +30,16 @@ export const aiApi = {
 
   /**
    * Submit writing for evaluation
+   * Note: Returns immediately with submission ID, evaluation happens asynchronously
    */
   submitWriting: async (data: WritingSubmissionRequest): Promise<WritingSubmissionResponse> => {
-    const response = await apiClient.post<WritingSubmissionResponse>("/ai/writing/submit", data)
+    const response = await apiClient.post<WritingSubmissionResponse>(
+      "/ai/writing/submit", 
+      data,
+      {
+        timeout: 60000, // 60s timeout for AI evaluation
+      }
+    )
     return response.data
   },
 
@@ -93,6 +100,7 @@ export const aiApi = {
 
   /**
    * Submit speaking with audio file (multipart/form-data)
+   * Note: Returns immediately with submission ID, evaluation happens asynchronously
    */
   submitSpeaking: async (
     data: FormData
@@ -104,6 +112,7 @@ export const aiApi = {
         headers: {
           "Content-Type": "multipart/form-data",
         },
+        timeout: 90000, // 90s timeout for speaking (transcription + evaluation)
       }
     )
     return response.data

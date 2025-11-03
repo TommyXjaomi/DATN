@@ -8,7 +8,7 @@ const apiClient: AxiosInstance = axios.create({
   headers: {
     "Content-Type": "application/json",
   },
-  timeout: 15000, // Reduce timeout from 30s to 15s for faster failure
+  timeout: 15000, // Default timeout (AI evaluation uses custom timeout)
 })
 
 // Request interceptor - Add JWT token
@@ -72,12 +72,13 @@ apiClient.interceptors.response.use(
 
         // Handle other errors
     if (process.env.NODE_ENV === "development") {
-      // Don't log 404 errors for unimplemented endpoints
+        // Don't log 404 errors for unimplemented endpoints or expected 404s
       const is404UnimplementedEndpoint =
         error.response?.status === 404 && 
         (originalRequest.url?.includes("/progress") || 
          originalRequest.url?.includes("/admin/analytics") ||
-         originalRequest.url?.includes("/admin/activities"))
+         originalRequest.url?.includes("/admin/activities") ||
+         (originalRequest.url?.includes("/submissions/") && originalRequest.url?.includes("/result")))
 
       // Don't log 403 errors for private profiles (expected behavior)
       const is403PrivateProfile =

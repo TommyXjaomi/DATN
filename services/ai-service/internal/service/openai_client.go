@@ -171,10 +171,22 @@ IMPORTANT: Return your response in JSON format with this exact structure:
         "grammatical_range": float
     },
     "detailed_feedback": {
-        "task_achievement": "Detailed analysis covering how well the essay addresses the task, supports ideas, and maintains relevance. Include specific examples from the essay.",
-        "coherence_cohesion": "Detailed analysis of organization, logical flow, paragraphing, and use of linking devices. Include specific examples.",
-        "lexical_resource": "Detailed analysis of vocabulary range, precision, collocations, and appropriateness. Highlight specific word choices.",
-        "grammatical_range": "Detailed analysis of sentence variety, grammatical control, and error frequency. Point out specific structures."
+        "task_achievement": {
+            "vi": "Phân tích chi tiết về cách bài viết đáp ứng yêu cầu đề bài, hỗ trợ ý tưởng và duy trì sự liên quan. Bao gồm các ví dụ cụ thể từ bài viết.",
+            "en": "Detailed analysis covering how well the essay addresses the task, supports ideas, and maintains relevance. Include specific examples from the essay."
+        },
+        "coherence_cohesion": {
+            "vi": "Phân tích chi tiết về tổ chức, luồng logic, đoạn văn và việc sử dụng các từ nối. Bao gồm các ví dụ cụ thể.",
+            "en": "Detailed analysis of organization, logical flow, paragraphing, and use of linking devices. Include specific examples."
+        },
+        "lexical_resource": {
+            "vi": "Phân tích chi tiết về phạm vi từ vựng, độ chính xác, collocation và tính phù hợp. Làm nổi bật các lựa chọn từ cụ thể.",
+            "en": "Detailed analysis of vocabulary range, precision, collocations, and appropriateness. Highlight specific word choices."
+        },
+        "grammatical_range": {
+            "vi": "Phân tích chi tiết về sự đa dạng câu, kiểm soát ngữ pháp và tần suất lỗi. Chỉ ra các cấu trúc cụ thể.",
+            "en": "Detailed analysis of sentence variety, grammatical control, and error frequency. Point out specific structures."
+        }
     },
     "examiner_feedback": "A natural, 3-4 sentence summary written like a real IELTS examiner, covering strengths and areas for improvement.",
     "strengths": ["specific strength 1 in Vietnamese", "specific strength 2 in Vietnamese"],

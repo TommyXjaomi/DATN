@@ -72,6 +72,10 @@ func (r *AIRepository) CreateWritingEvaluation(eval *models.WritingEvaluation) e
 	// Keep JSON for JSONB columns
 	grammarErrorsJSON, _ := json.Marshal(eval.GrammarErrors)
 	vocabSuggestionsJSON, _ := json.Marshal(eval.VocabularySuggestions)
+	var detailedFeedbackJSONBytes []byte
+	if eval.DetailedFeedbackJSON != nil {
+		detailedFeedbackJSONBytes, _ = json.Marshal(eval.DetailedFeedbackJSON)
+	}
 
 	query := `
 		INSERT INTO writing_evaluations (
@@ -83,11 +87,11 @@ func (r *AIRepository) CreateWritingEvaluation(eval *models.WritingEvaluation) e
 			paragraph_count, has_introduction, has_conclusion,
 			structure_feedback, linking_words_used, coherence_feedback,
 			addresses_all_parts, task_response_feedback,
-			detailed_feedback, improvement_suggestions,
+			detailed_feedback, detailed_feedback_json, improvement_suggestions,
 			ai_model_name, ai_model_version, confidence_score, processing_time_ms
 		) VALUES (
 			$1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14,
-			$15, $16, $17, $18, $19, $20, $21, $22, $23, $24, $25, $26, $27, $28
+			$15, $16, $17, $18, $19, $20, $21, $22, $23, $24, $25, $26, $27, $28, $29
 		)
 	`
 	_, err := r.db.DB.Exec(query,
@@ -99,7 +103,7 @@ func (r *AIRepository) CreateWritingEvaluation(eval *models.WritingEvaluation) e
 		eval.ParagraphCount, eval.HasIntroduction, eval.HasConclusion,
 		eval.StructureFeedback, linkingWordsArray, eval.CoherenceFeedback,
 		eval.AddressesAllParts, eval.TaskResponseFeedback,
-		eval.DetailedFeedback, improvementsArray,
+		eval.DetailedFeedback, detailedFeedbackJSONBytes, improvementsArray,
 		eval.AIModelName, eval.AIModelVersion, eval.ConfidenceScore, eval.ProcessingTimeMs,
 	)
 	return err
@@ -108,9 +112,21 @@ func (r *AIRepository) CreateWritingEvaluation(eval *models.WritingEvaluation) e
 func (r *AIRepository) GetWritingEvaluation(submissionID uuid.UUID) (*models.WritingEvaluation, error) {
 	var eval models.WritingEvaluation
 	var strengthsJSON, weaknessesJSON, grammarErrorsJSON, vocabSuggestionsJSON sql.NullString
-	var linkingWordsJSON, improvementsJSON sql.NullString
+	var linkingWordsJSON, improvementsJSON, detailedFeedbackJSON sql.NullString
 
-	query := `SELECT * FROM writing_evaluations WHERE submission_id = $1`
+	query := `SELECT 
+		id, submission_id, overall_band_score,
+		task_achievement_score, coherence_cohesion_score,
+		lexical_resource_score, grammar_accuracy_score,
+		strengths, weaknesses, grammar_errors, grammar_error_count,
+		vocabulary_level, vocabulary_range_score, vocabulary_suggestions,
+		paragraph_count, has_introduction, has_conclusion,
+		structure_feedback, linking_words_used, coherence_feedback,
+		addresses_all_parts, task_response_feedback,
+		detailed_feedback, detailed_feedback_json, improvement_suggestions,
+		ai_model_name, ai_model_version, confidence_score,
+		processing_time_ms, created_at
+		FROM writing_evaluations WHERE submission_id = $1`
 	err := r.db.DB.QueryRow(query, submissionID).Scan(
 		&eval.ID, &eval.SubmissionID, &eval.OverallBandScore,
 		&eval.TaskAchievementScore, &eval.CoherenceCohesionScore,
@@ -120,7 +136,7 @@ func (r *AIRepository) GetWritingEvaluation(submissionID uuid.UUID) (*models.Wri
 		&eval.ParagraphCount, &eval.HasIntroduction, &eval.HasConclusion,
 		&eval.StructureFeedback, &linkingWordsJSON, &eval.CoherenceFeedback,
 		&eval.AddressesAllParts, &eval.TaskResponseFeedback,
-		&eval.DetailedFeedback, &improvementsJSON,
+		&eval.DetailedFeedback, &detailedFeedbackJSON, &improvementsJSON,
 		&eval.AIModelName, &eval.AIModelVersion, &eval.ConfidenceScore,
 		&eval.ProcessingTimeMs, &eval.CreatedAt,
 	)
@@ -146,6 +162,9 @@ func (r *AIRepository) GetWritingEvaluation(submissionID uuid.UUID) (*models.Wri
 	}
 	if improvementsJSON.Valid {
 		json.Unmarshal([]byte(improvementsJSON.String), &eval.ImprovementSuggestions)
+	}
+	if detailedFeedbackJSON.Valid {
+		json.Unmarshal([]byte(detailedFeedbackJSON.String), &eval.DetailedFeedbackJSON)
 	}
 
 	return &eval, nil

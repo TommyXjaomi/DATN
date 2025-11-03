@@ -3,7 +3,7 @@
 // Writing Submission
 export interface WritingSubmissionRequest {
   task_type: "task1" | "task2"
-  task_prompt_id?: string
+  task_prompt_id?: string | null
   task_prompt_text: string
   essay_text: string
   time_spent_seconds?: number
@@ -35,15 +35,29 @@ export interface WritingEvaluation {
   id: string
   submission_id: string
   overall_band_score: number
-  task_achievement: number
-  coherence_cohesion: number
-  lexical_resource: number
-  grammatical_range: number
+  // Backend returns fields with _score suffix
+  task_achievement_score?: number
+  coherence_cohesion_score?: number
+  lexical_resource_score?: number
+  grammar_accuracy_score?: number
+  // Legacy field names (for backward compatibility)
+  task_achievement?: number
+  coherence_cohesion?: number
+  lexical_resource?: number
+  grammatical_range?: number
   detailed_feedback: string
+  detailed_feedback_json?: {
+    task_achievement?: { vi: string; en: string }
+    coherence_cohesion?: { vi: string; en: string }
+    lexical_resource?: { vi: string; en: string }
+    grammatical_range?: { vi: string; en: string }
+  }
   strengths: string[]
-  areas_for_improvement: string[]
+  areas_for_improvement?: string[] // Backend may return 'weaknesses' instead
+  weaknesses?: string[] // Backend field name
+  improvement_suggestions?: string[]
   created_at: string
-  updated_at: string
+  updated_at?: string
 }
 
 export interface WritingSubmissionResponse {
@@ -91,11 +105,17 @@ export interface SpeakingEvaluation {
   id: string
   submission_id: string
   overall_band_score: number
-  fluency_coherence: number
-  lexical_resource: number
-  grammatical_range: number
-  pronunciation: number
-  detailed_feedback: {
+  // Backend returns fields with _score suffix
+  fluency_coherence_score?: number
+  lexical_resource_score?: number
+  grammar_accuracy_score?: number
+  pronunciation_score?: number
+  // Legacy field names (for backward compatibility)
+  fluency_coherence?: number
+  lexical_resource?: number
+  grammatical_range?: number
+  pronunciation?: number
+  detailed_feedback?: {
     fluency_coherence: {
       score: number
       analysis: string
@@ -113,16 +133,20 @@ export interface SpeakingEvaluation {
       analysis: string
     }
   }
-  examiner_feedback: string
+  examiner_feedback?: string
+  transcription?: string
   strengths: string[]
-  areas_for_improvement: string[]
+  areas_for_improvement?: string[]
+  weaknesses?: string[]
+  improvement_suggestions?: string[]
   speech_rate_wpm?: number
   pause_frequency?: number
   filler_words_count?: number
+  filler_words?: number
   hesitation_count?: number
   vocabulary_level?: string
   created_at: string
-  updated_at: string
+  updated_at?: string
 }
 
 export interface SpeakingSubmissionResponse {

@@ -1,6 +1,6 @@
 "use client"
 
-import { useState, useEffect, useCallback } from "react"
+import React, { useState, useEffect, useCallback, useRef } from "react"
 import { useParams, useRouter } from "next/navigation"
 import { AppLayout } from "@/components/layout/app-layout"
 import { PageContainer } from "@/components/layout/page-container"
@@ -9,7 +9,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
 import { Progress } from "@/components/ui/progress"
 import Image from "next/image"
-import { Clock, ChevronLeft, ChevronRight, Flag, Eye, EyeOff, Loader2 } from "lucide-react"
+import { Clock, ChevronLeft, ChevronRight, Flag, Eye, EyeOff, Loader2, CheckCircle2 } from "lucide-react"
 import { PageLoading } from "@/components/ui/page-loading"
 import { exercisesApi } from "@/lib/api/exercises"
 import { aiApi } from "@/lib/api/ai"
@@ -18,6 +18,7 @@ import { useTranslations } from '@/lib/i18n'
 import { useToastWithI18n } from "@/lib/hooks/use-toast-with-i18n"
 import { WritingExerciseForm, useWritingExerciseForm } from "@/components/exercises/writing-exercise-form"
 import { SpeakingExerciseForm, useSpeakingExerciseForm } from "@/components/exercises/speaking-exercise-form"
+import { AIEvaluationLoading } from "@/components/exercises/ai-evaluation-loading"
 
 interface ExerciseData {
   exercise: {
@@ -31,6 +32,7 @@ interface ExerciseData {
 export default function TakeExercisePage() {
 
   const t = useTranslations('exercises')
+  const tAI = useTranslations('ai')
   const toast = useToastWithI18n()
 
   const params = useParams()
@@ -51,6 +53,11 @@ export default function TakeExercisePage() {
   const [wordCount, setWordCount] = useState(0)
   const [audioFile, setAudioFile] = useState<File | null>(null)
   const [audioDuration, setAudioDuration] = useState<number>(0)
+  const [showEvaluationLoading, setShowEvaluationLoading] = useState(false)
+  const [evaluationProgress, setEvaluationProgress] = useState(0)
+  const [evaluationStep, setEvaluationStep] = useState(0)
+  const [currentAISubmissionId, setCurrentAISubmissionId] = useState<string | null>(null)
+  const pollingIntervalRef = useRef<NodeJS.Timeout | null>(null)
   
   // Helper function to count words
   const countWords = (text: string): number => {
@@ -99,6 +106,152 @@ export default function TakeExercisePage() {
   // Get current section
   const currentSection = currentQuestion?.sectionData
 
+  // Polling function to check writing submission status
+  const pollWritingSubmissionStatus = useCallback(async (submissionId: string) => {
+    let attempts = 0
+    const maxAttempts = 60 // Max 5 minutes (60 * 5s)
+    let currentStep = 0
+
+    const poll = async () => {
+      if (attempts >= maxAttempts) {
+        // Timeout - redirect anyway to show result page
+        setShowEvaluationLoading(false)
+        const resultUrl = `/exercises/${exerciseId}/result/${submissionId}?ai_submission_id=${currentAISubmissionId || submissionId}`
+        router.push(resultUrl)
+        if (pollingIntervalRef.current) {
+          clearInterval(pollingIntervalRef.current)
+          pollingIntervalRef.current = null
+        }
+        return
+      }
+
+      try {
+        const response = await aiApi.getWritingSubmission(submissionId)
+        
+        // Update progress based on status
+        if (response.submission.status === "pending") {
+          currentStep = 0
+          setEvaluationStep(0)
+        } else if (response.submission.status === "processing") {
+          currentStep = Math.min(2, attempts / 10) // Step 1-2 after 10-20 attempts
+          setEvaluationStep(Math.floor(currentStep))
+        } else if (response.submission.status === "completed") {
+          // Evaluation complete - navigate to result page
+          setShowEvaluationLoading(false)
+          if (pollingIntervalRef.current) {
+            clearInterval(pollingIntervalRef.current)
+            pollingIntervalRef.current = null
+          }
+          const resultUrl = `/exercises/${exerciseId}/result/${submissionId}?ai_submission_id=${submissionId}`
+          router.push(resultUrl)
+          return
+        } else if (response.submission.status === "failed") {
+          // Evaluation failed - still redirect to show error
+          setShowEvaluationLoading(false)
+          if (pollingIntervalRef.current) {
+            clearInterval(pollingIntervalRef.current)
+            pollingIntervalRef.current = null
+          }
+          const resultUrl = `/exercises/${exerciseId}/result/${submissionId}?ai_submission_id=${submissionId}`
+          router.push(resultUrl)
+          return
+        }
+
+        attempts++
+        setEvaluationProgress(Math.min(95, (attempts / maxAttempts) * 100))
+      } catch (error) {
+        console.error("[Polling] Failed to check status:", error)
+        attempts++
+        // Continue polling on error (might be temporary)
+      }
+    }
+
+    // Poll every 5 seconds
+    pollingIntervalRef.current = setInterval(poll, 5000)
+    
+    // Initial poll
+    poll()
+  }, [exerciseId, submissionId, router, currentAISubmissionId])
+
+  // Polling function to check speaking submission status
+  const pollSpeakingSubmissionStatus = useCallback(async (submissionId: string) => {
+    let attempts = 0
+    const maxAttempts = 72 // Max 6 minutes (72 * 5s) - speaking takes longer (transcription + evaluation)
+    let currentStep = 0
+
+    const poll = async () => {
+      if (attempts >= maxAttempts) {
+        // Timeout - redirect anyway to show result page
+        setShowEvaluationLoading(false)
+        const resultUrl = `/exercises/${exerciseId}/result/${submissionId}?ai_submission_id=${currentAISubmissionId || submissionId}`
+        router.push(resultUrl)
+        if (pollingIntervalRef.current) {
+          clearInterval(pollingIntervalRef.current)
+          pollingIntervalRef.current = null
+        }
+        return
+      }
+
+      try {
+        const response = await aiApi.getSpeakingSubmission(submissionId)
+        
+        // Update progress based on status
+        if (response.submission.status === "pending") {
+          currentStep = 0
+          setEvaluationStep(0)
+        } else if (response.submission.status === "transcribing") {
+          currentStep = 1
+          setEvaluationStep(1)
+        } else if (response.submission.status === "processing") {
+          currentStep = 2
+          setEvaluationStep(2)
+        } else if (response.submission.status === "completed") {
+          // Evaluation complete - navigate to result page
+          setShowEvaluationLoading(false)
+          if (pollingIntervalRef.current) {
+            clearInterval(pollingIntervalRef.current)
+            pollingIntervalRef.current = null
+          }
+          const resultUrl = `/exercises/${exerciseId}/result/${submissionId}?ai_submission_id=${submissionId}`
+          router.push(resultUrl)
+          return
+        } else if (response.submission.status === "failed") {
+          // Evaluation failed - still redirect to show error
+          setShowEvaluationLoading(false)
+          if (pollingIntervalRef.current) {
+            clearInterval(pollingIntervalRef.current)
+            pollingIntervalRef.current = null
+          }
+          const resultUrl = `/exercises/${exerciseId}/result/${submissionId}?ai_submission_id=${submissionId}`
+          router.push(resultUrl)
+          return
+        }
+
+        attempts++
+        setEvaluationProgress(Math.min(95, (attempts / maxAttempts) * 100))
+      } catch (error) {
+        console.error("[Polling] Failed to check status:", error)
+        attempts++
+        // Continue polling on error (might be temporary)
+      }
+    }
+
+    // Poll every 5 seconds
+    pollingIntervalRef.current = setInterval(poll, 5000)
+    
+    // Initial poll
+    poll()
+  }, [exerciseId, submissionId, router, currentAISubmissionId])
+
+  // Cleanup polling on unmount
+  useEffect(() => {
+    return () => {
+      if (pollingIntervalRef.current) {
+        clearInterval(pollingIntervalRef.current)
+        pollingIntervalRef.current = null
+      }
+    }
+  }, [])
 
   const handleAnswerChange = (questionId: string, answer: any) => {
     setAnswers(new Map(answers.set(questionId, answer)))
@@ -142,7 +295,197 @@ export default function TakeExercisePage() {
     try {
       setSubmitting(true)
 
-      // Format answers for API
+      // For Writing/Speaking exercises, submit to AI service first for evaluation
+      if (isAIExercise) {
+        const promptText = 
+          exerciseData.sections[0]?.section?.instructions || 
+          exerciseData.exercise.instructions || 
+          exerciseData.exercise.description || 
+          ""
+        
+        let aiSubmissionId: string | null = null
+
+        if (isWritingExercise) {
+          const titleLower = exerciseData.exercise.title?.toLowerCase() || ""
+          const taskType: "task1" | "task2" = (titleLower.includes("task 1") || titleLower.includes("task1")) ? "task1" : "task2"
+
+          // Validate essay before submitting
+          if (!essayText.trim()) {
+            toast.error(tAI('essay_required') || "Please enter your essay")
+            setSubmitting(false)
+            return
+          }
+
+          const minWords = taskType === "task1" ? 150 : 250
+          if (wordCount < minWords) {
+            const errorMsg = tAI('essay_word_count_below_min')
+              ?.replace('{wordCount}', wordCount.toString())
+              ?.replace('{taskType}', taskType === "task1" ? "Task 1" : "Task 2")
+              ?.replace('{minWords}', minWords.toString()) 
+              || `Word count must be at least ${minWords} words`
+            toast.error(errorMsg)
+            setSubmitting(false)
+            return
+          }
+
+          try {
+            // Validate prompt text is not empty
+            if (!promptText.trim()) {
+              toast.error(tAI("task_prompt_required") || "Task prompt is required")
+              setSubmitting(false)
+              return
+            }
+
+            // Prepare request payload - omit task_prompt_id if null
+            const payload: any = {
+              task_type: taskType,
+              task_prompt_text: promptText.trim(),
+              essay_text: essayText.trim(),
+            }
+            // Only include task_prompt_id if we have a valid ID (not null/undefined)
+            // When omitted, backend will create prompt from task_prompt_text
+
+            // Submit to AI service for evaluation
+            const aiResponse = await aiApi.submitWriting(payload)
+            aiSubmissionId = aiResponse.submission.id
+            setCurrentAISubmissionId(aiResponse.submission.id)
+
+            // Also submit to exercise service to record the attempt
+            await exercisesApi.submitAnswers(submissionId, [])
+
+            // Show loading screen and start polling
+            setShowEvaluationLoading(true)
+            setEvaluationStep(0) // Start at step 0
+            pollWritingSubmissionStatus(aiResponse.submission.id)
+          } catch (aiError: any) {
+            console.error("[AI Submission] Failed:", aiError)
+            const errorMessage = aiError.response?.data?.error || aiError.message || tAI("failed_to_submit_ai_evaluation") || "Failed to submit for AI evaluation"
+            
+            // Check if it's a timeout error
+            if (aiError.code === 'ECONNABORTED' || aiError.message?.includes('timeout')) {
+              // Submission might have succeeded but response timed out
+              // Try to check recent submissions
+              try {
+                const recentSubmissions = await aiApi.getWritingSubmissions(5, 0)
+                const recentSubmission = recentSubmissions.submissions.find((s) => {
+                  const submittedAt = new Date(s.submitted_at).getTime()
+                  const now = Date.now()
+                  return (now - submittedAt) < 10000 // Within 10 seconds
+                })
+                if (recentSubmission) {
+                  aiSubmissionId = recentSubmission.id
+                  setCurrentAISubmissionId(recentSubmission.id)
+                  setShowEvaluationLoading(true)
+                  setEvaluationStep(0)
+                  pollWritingSubmissionStatus(recentSubmission.id)
+                  await exercisesApi.submitAnswers(submissionId, [])
+                  return // Exit early, polling will handle navigation
+                }
+              } catch (pollError) {
+                console.error("[AI Submission] Failed to poll recent submissions:", pollError)
+              }
+            }
+            
+            console.error("[AI Submission] Error details:", {
+              status: aiError.response?.status,
+              error: errorMessage,
+              payload: {
+                task_type: taskType,
+                task_prompt_text_length: promptText.trim().length,
+                essay_text_length: essayText.trim().length,
+                word_count: wordCount
+              }
+            })
+            // If AI service fails, still submit to exercise service but show warning
+            await exercisesApi.submitAnswers(submissionId, [])
+            toast.error(`${errorMessage} (${tAI("exercise_attempt_recorded") || "Exercise attempt recorded"})`)
+          }
+        } else if (isSpeakingExercise) {
+          if (!audioFile) {
+            toast.error(tAI('audio_required') || "Please record or upload audio")
+            setSubmitting(false)
+            return
+          }
+
+          const titleLower = exerciseData.exercise.title?.toLowerCase() || ""
+          let partNumber: 1 | 2 | 3 = 1
+          if (titleLower.includes("part 2") || titleLower.includes("part2")) partNumber = 2
+          else if (titleLower.includes("part 3") || titleLower.includes("part3")) partNumber = 3
+
+          try {
+            // Validate prompt text is not empty
+            if (!promptText.trim()) {
+              toast.error(tAI("task_prompt_required") || "Task prompt is required")
+              setSubmitting(false)
+              return
+            }
+
+            // Create FormData for audio file
+            const formData = new FormData()
+            formData.append("part_number", partNumber.toString())
+            // Note: task_prompt_id is optional when task_prompt_text is provided
+            // Backend will handle creating prompt if needed
+            formData.append("task_prompt_text", promptText.trim())
+            formData.append("audio_file", audioFile)
+
+            // Submit to AI service for evaluation
+            const aiResponse = await aiApi.submitSpeaking(formData)
+            aiSubmissionId = aiResponse.submission.id
+            setCurrentAISubmissionId(aiResponse.submission.id)
+
+            // Also submit to exercise service to record the attempt
+            await exercisesApi.submitAnswers(submissionId, [])
+
+            // Show loading screen and start polling
+            setShowEvaluationLoading(true)
+            setEvaluationStep(0) // Start at step 0
+            pollSpeakingSubmissionStatus(aiResponse.submission.id)
+          } catch (aiError: any) {
+            console.error("[AI Submission] Failed:", aiError)
+            
+            // Check if it's a timeout error
+            if (aiError.code === 'ECONNABORTED' || aiError.message?.includes('timeout')) {
+              // Submission might have succeeded but response timed out
+              // Try to check recent submissions
+              try {
+                const recentSubmissions = await aiApi.getSpeakingSubmissions(5, 0)
+                const recentSubmission = recentSubmissions.submissions.find((s) => {
+                  const submittedAt = new Date(s.submitted_at).getTime()
+                  const now = Date.now()
+                  return (now - submittedAt) < 10000 // Within 10 seconds
+                })
+                if (recentSubmission) {
+                  aiSubmissionId = recentSubmission.id
+                  setCurrentAISubmissionId(recentSubmission.id)
+                  setShowEvaluationLoading(true)
+                  setEvaluationStep(0)
+                  pollSpeakingSubmissionStatus(recentSubmission.id)
+                  await exercisesApi.submitAnswers(submissionId, [])
+                  return // Exit early, polling will handle navigation
+                }
+              } catch (pollError) {
+                console.error("[AI Submission] Failed to poll recent submissions:", pollError)
+              }
+            }
+            
+            // If AI service fails, still submit to exercise service but show warning
+            await exercisesApi.submitAnswers(submissionId, [])
+            toast.error(aiError.response?.data?.error || tAI("failed_to_submit_ai_evaluation_but_recorded") || "Failed to submit for AI evaluation, but exercise attempt recorded")
+          }
+        }
+
+        // Only navigate if not showing loading screen (polling will handle navigation when complete)
+        if (!showEvaluationLoading && aiSubmissionId) {
+          const resultUrl = `/exercises/${exerciseId}/result/${submissionId}?ai_submission_id=${aiSubmissionId}`
+          router.push(resultUrl)
+        } else if (!showEvaluationLoading) {
+          // Fallback: navigate without AI submission ID
+          router.push(`/exercises/${exerciseId}/result/${submissionId}`)
+        }
+        return
+      }
+
+      // Original logic for Listening/Reading exercises with questions
       const formattedAnswers = Array.from(answers.entries()).map(([questionId, answer]) => {
         const question = allQuestions.find((q) => q.question.id === questionId)
 
@@ -223,8 +566,20 @@ export default function TakeExercisePage() {
     }
 
     return (
-      <AppLayout>
-        <PageContainer maxWidth="5xl" className="py-4">
+      <>
+        {/* AI Evaluation Loading Screen */}
+        {showEvaluationLoading && (
+          <AIEvaluationLoading
+            type={isWritingExercise ? "writing" : "speaking"}
+            submissionId={currentAISubmissionId || undefined}
+            progress={evaluationProgress}
+            currentStep={evaluationStep}
+            totalSteps={isWritingExercise ? 4 : 4}
+          />
+        )}
+        
+        <AppLayout>
+          <PageContainer maxWidth="5xl" className="py-4">
           {/* Header with Timer */}
           <Card className="mb-4">
             <CardContent className="py-4">
@@ -276,28 +631,51 @@ export default function TakeExercisePage() {
           )}
 
           {/* Submit Button */}
-          <div className="mt-6 flex justify-end">
-            <Button
-              onClick={handleSubmit}
-              disabled={
-                submitting || 
-                (isWritingExercise && (essayText.trim().length === 0 || wordCount < (taskType === "task1" ? 150 : 250))) || 
-                (isSpeakingExercise && !audioFile)
-              }
-              size="lg"
-            >
-              {submitting ? (
-                <>
-                  <Loader2 className="w-4 h-4 mr-2 animate-spin" />
-                  {t('submitting')}
-                </>
-              ) : (
-                t('submit_exercise')
-              )}
-            </Button>
-          </div>
+          <Card className="mt-6">
+            <CardContent className="py-4">
+              <div className="flex items-center justify-between">
+                <div className="flex-1">
+                  {submitting && (
+                    <div className="flex items-center gap-2 text-sm text-muted-foreground mb-2">
+                      <Loader2 className="w-4 h-4 animate-spin" />
+                      <span>{tAI('submitting') || "Đang nộp bài và đánh giá AI..."}</span>
+                    </div>
+                  )}
+                  <p className="text-sm text-muted-foreground">
+                    {isWritingExercise 
+                      ? (tAI('tip_check_grammar') || "Kiểm tra ngữ pháp và chính tả trước khi nộp")
+                      : (tAI('tip_speak_clearly') || "Đảm bảo đã ghi âm hoặc tải lên file audio")
+                    }
+                  </p>
+                </div>
+                <Button
+                  onClick={handleSubmit}
+                  disabled={
+                    submitting || 
+                    (isWritingExercise && (essayText.trim().length === 0 || wordCount < (taskType === "task1" ? 150 : 250))) || 
+                    (isSpeakingExercise && !audioFile)
+                  }
+                  size="lg"
+                  className="ml-4"
+                >
+                  {submitting ? (
+                    <>
+                      <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                      {tAI('submitting') || "Đang nộp..."}
+                    </>
+                  ) : (
+                    <>
+                      <CheckCircle2 className="w-4 h-4 mr-2" />
+                      {tAI('submit_for_evaluation') || "Nộp để đánh giá"}
+                    </>
+                  )}
+                </Button>
+              </div>
+            </CardContent>
+          </Card>
         </PageContainer>
       </AppLayout>
+      </>
     )
   }
 
