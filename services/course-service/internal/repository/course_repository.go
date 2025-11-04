@@ -637,8 +637,8 @@ func (r *CourseRepository) GetCourseEnrollments(courseID uuid.UUID) ([]models.Co
 func (r *CourseRepository) GetLessonProgress(userID, lessonID uuid.UUID) (*models.LessonProgress, error) {
 	query := `
 		SELECT id, user_id, lesson_id, course_id, status, progress_percentage,
-			   video_watched_seconds, video_total_seconds,
-			   last_position_seconds, completed_at, first_accessed_at, last_accessed_at
+			   COALESCE(video_watched_seconds, 0) as video_watched_seconds, video_total_seconds,
+			   COALESCE(last_position_seconds, 0) as last_position_seconds, completed_at, first_accessed_at, last_accessed_at
 		FROM lesson_progress
 		WHERE user_id = $1 AND lesson_id = $2
 	`
