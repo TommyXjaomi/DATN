@@ -14,6 +14,7 @@ type Exercise struct {
 	Description           *string    `json:"description,omitempty"`
 	ExerciseType          string     `json:"exercise_type"` // practice, mock_test, full_test, mini_test
 	SkillType             string     `json:"skill_type"`    // listening, reading
+	IELTSTestType         *string    `json:"ielts_test_type,omitempty"` // academic, general_training (only for Reading)
 	Difficulty            string     `json:"difficulty"`    // easy, medium, hard
 	IELTSLevel            *string    `json:"ielts_level,omitempty"`
 	TotalQuestions        int        `json:"total_questions"`
@@ -31,7 +32,7 @@ type Exercise struct {
 	IsFree                bool       `json:"is_free"`
 	IsPublished           bool       `json:"is_published"`
 	TotalAttempts         int        `json:"total_attempts"`
-	AverageScore          *float64   `json:"average_score,omitempty"`
+	AverageScore          *float64   `json:"average_score,omitempty"` // Average percentage (0-100) of all completed attempts
 	AverageCompletionTime *int       `json:"average_completion_time,omitempty"`
 	DisplayOrder          int        `json:"display_order"`
 	CreatedBy             uuid.UUID  `json:"created_by"`

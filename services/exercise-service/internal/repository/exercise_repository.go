@@ -9,6 +9,7 @@ import (
 	"time"
 
 	"github.com/bisosad1501/ielts-platform/exercise-service/internal/models"
+	"github.com/bisosad1501/ielts-platform/exercise-service/internal/utils"
 	"github.com/google/uuid"
 	"github.com/lib/pq"
 )
@@ -125,7 +126,7 @@ func (r *ExerciseRepository) GetExercises(query *models.ExerciseListQuery) ([]mo
 
 	selectQuery := fmt.Sprintf(`
 		SELECT 
-			e.id, e.title, e.slug, e.description, e.exercise_type, e.skill_type, e.difficulty,
+			e.id, e.title, e.slug, e.description, e.exercise_type, e.skill_type, e.ielts_test_type, e.difficulty,
 			e.ielts_level, 
 			COALESCE((
 				SELECT COUNT(*) FROM questions q 
@@ -156,7 +157,7 @@ func (r *ExerciseRepository) GetExercises(query *models.ExerciseListQuery) ([]mo
 	for rows.Next() {
 		var e models.Exercise
 		err := rows.Scan(
-			&e.ID, &e.Title, &e.Slug, &e.Description, &e.ExerciseType, &e.SkillType,
+			&e.ID, &e.Title, &e.Slug, &e.Description, &e.ExerciseType, &e.SkillType, &e.IELTSTestType,
 			&e.Difficulty, &e.IELTSLevel, &e.TotalQuestions, &e.TotalSections,
 			&e.TimeLimitMinutes, &e.ThumbnailURL, &e.AudioURL, &e.AudioDurationSeconds,
 			&e.AudioTranscript, &e.PassageCount, &e.CourseID, &e.ModuleID,
@@ -179,7 +180,7 @@ func (r *ExerciseRepository) GetExerciseByID(id uuid.UUID) (*models.ExerciseDeta
 	var exercise models.Exercise
 	err := r.db.QueryRow(`
 		SELECT 
-			e.id, e.title, e.slug, e.description, e.exercise_type, e.skill_type, e.difficulty,
+			e.id, e.title, e.slug, e.description, e.exercise_type, e.skill_type, e.ielts_test_type, e.difficulty,
 			e.ielts_level, 
 			COALESCE((
 				SELECT COUNT(*) FROM questions q 
@@ -196,7 +197,7 @@ func (r *ExerciseRepository) GetExerciseByID(id uuid.UUID) (*models.ExerciseDeta
 		WHERE e.id = $1 AND e.is_published = true
 	`, id).Scan(
 		&exercise.ID, &exercise.Title, &exercise.Slug, &exercise.Description,
-		&exercise.ExerciseType, &exercise.SkillType, &exercise.Difficulty,
+		&exercise.ExerciseType, &exercise.SkillType, &exercise.IELTSTestType, &exercise.Difficulty,
 		&exercise.IELTSLevel, &exercise.TotalQuestions, &exercise.TotalSections,
 		&exercise.TimeLimitMinutes, &exercise.ThumbnailURL, &exercise.AudioURL,
 		&exercise.AudioDurationSeconds, &exercise.AudioTranscript, &exercise.PassageCount,
@@ -462,7 +463,7 @@ func (r *ExerciseRepository) SaveSubmissionAnswers(submissionID uuid.UUID, answe
 				if err == nil {
 					// Case-insensitive comparison by default
 					userAnswer := strings.ToLower(strings.TrimSpace(*answer.TextAnswer))
-					answerText = strings.ToLower(answerText)
+					answerText = strings.ToLower(strings.TrimSpace(answerText))
 
 					// Check main answer
 					if userAnswer == answerText {
@@ -471,13 +472,18 @@ func (r *ExerciseRepository) SaveSubmissionAnswers(submissionID uuid.UUID, answe
 					} else {
 						// Check alternative answer variations
 						for _, alt := range answerVariations {
-							if strings.ToLower(alt) == userAnswer {
+							if strings.ToLower(strings.TrimSpace(alt)) == userAnswer {
 								isCorrect = true
 								pointsEarned = points
 								break
 							}
 						}
 					}
+				} else {
+					// Log warning when correct answer not found in database
+					log.Printf("[Exercise-Repo] ⚠️  WARNING: No correct answer found for question %s (question_id: %s). User answer: '%s'. Error: %v", 
+						answer.QuestionID, answer.QuestionID, *answer.TextAnswer, err)
+					// Answer will be marked as incorrect (isCorrect = false, pointsEarned = 0)
 				}
 			}
 		}
@@ -579,27 +585,84 @@ func (r *ExerciseRepository) CompleteSubmission(submissionID uuid.UUID) error {
 		score = 0.0
 	}
 
-	// Calculate IELTS band score (0-9 scale)
-	// Mapping: 0-4 correct = 0-3, 5-12 = 3.5-4.5, 13-20 = 5-6, 21-28 = 6.5-7.5, 29-35 = 8-8.5, 36-40 = 9
-	bandScore := 0.0
-	if totalQuestions > 0 {
-		correctPercentage := float64(correctCount) / float64(totalQuestions) * 100
-		switch {
-		case correctPercentage < 12.5: // 0-12.5%
-			bandScore = 0.0 + (correctPercentage / 12.5 * 3.0)
-		case correctPercentage < 30: // 12.5-30%
-			bandScore = 3.0 + ((correctPercentage - 12.5) / 17.5 * 1.5)
-		case correctPercentage < 50: // 30-50%
-			bandScore = 4.5 + ((correctPercentage - 30) / 20 * 1.0)
-		case correctPercentage < 70: // 50-70%
-			bandScore = 5.5 + ((correctPercentage - 50) / 20 * 1.5)
-		case correctPercentage < 85: // 70-85%
-			bandScore = 7.0 + ((correctPercentage - 70) / 15 * 1.0)
-		case correctPercentage < 95: // 85-95%
-			bandScore = 8.0 + ((correctPercentage - 85) / 10 * 0.5)
-		default: // 95-100%
-			bandScore = 8.5 + ((correctPercentage - 95) / 5 * 0.5)
+	// Calculate IELTS band score (0-9 scale) using official conversion table
+	// Get skill type and test type (Academic vs General Training) from exercise
+	// Priority: Use ielts_test_type field if available, otherwise detect from title/slug
+	var skillType string
+	var ieltsTestType *string
+	var exerciseTitle string
+	var exerciseSlug string
+	err = tx.QueryRow(`
+		SELECT skill_type, ielts_test_type, title, slug 
+		FROM exercises 
+		WHERE id = $1
+	`, exerciseID).Scan(&skillType, &ieltsTestType, &exerciseTitle, &exerciseSlug)
+	if err != nil {
+		// Fallback to "listening" if cannot determine
+		skillType = "listening"
+	}
+	
+	// Determine test type for Reading exercises
+	// Priority 1: Use ielts_test_type field if available (from database, most accurate)
+	// Priority 2: Detect from title/slug (fallback for exercises created before migration)
+	var testType string
+	if skillType == "reading" {
+		if ieltsTestType != nil && *ieltsTestType == "general_training" {
+			// Use database field (most accurate)
+			testType = "general_training"
+			log.Printf("[Exercise-Repo] Using General Training for Reading exercise %s (from ielts_test_type field)", exerciseID)
+		} else {
+			// Fallback: Detect from title/slug (for backward compatibility)
+			titleLower := strings.ToLower(exerciseTitle)
+			slugLower := strings.ToLower(exerciseSlug)
+			
+			// Check for explicit "general training" patterns
+			generalPatterns := []string{
+				"general training",
+				"general-training",
+				" general ",
+				" gt ",
+				"-gt",
+				"gt-",
+			}
+			
+			isGeneralTraining := false
+			for _, pattern := range generalPatterns {
+				if strings.Contains(titleLower, pattern) || strings.Contains(slugLower, pattern) {
+					isGeneralTraining = true
+					break
+				}
+			}
+			
+			// Also check for standalone "gt" (not part of another word)
+			if !isGeneralTraining {
+				// Check for " gt" (space before) or "gt " (space after) or at start/end
+				if strings.HasPrefix(titleLower, "gt ") || strings.HasSuffix(titleLower, " gt") ||
+				   strings.HasPrefix(slugLower, "gt-") || strings.HasSuffix(slugLower, "-gt") ||
+				   strings.Contains(titleLower, " gt ") || strings.Contains(slugLower, "-gt-") {
+					isGeneralTraining = true
+				}
+			}
+			
+			if isGeneralTraining {
+				testType = "general_training"
+				log.Printf("[Exercise-Repo] Detected General Training for Reading exercise %s (from title/slug: '%s', '%s')", 
+					exerciseID, exerciseTitle, exerciseSlug)
+			} else {
+				testType = "academic" // Default to Academic
+				log.Printf("[Exercise-Repo] Using Academic for Reading exercise %s (from title/slug: '%s', '%s')", 
+					exerciseID, exerciseTitle, exerciseSlug)
+			}
 		}
+	}
+	
+	// Use official IELTS conversion table (raw score → band score)
+	// Pass testType for Reading exercises to use correct conversion table
+	var bandScore float64
+	if testType != "" {
+		bandScore = utils.ConvertRawScoreToBandScore(skillType, correctCount, totalQuestions, testType)
+	} else {
+		bandScore = utils.ConvertRawScoreToBandScore(skillType, correctCount, totalQuestions)
 	}
 
 	// Calculate time spent (seconds since started)
@@ -784,16 +847,23 @@ func (r *ExerciseRepository) GetSubmissionResult(submissionID uuid.UUID) (*model
 		score = *submission.Score
 	}
 
-	// Calculate percentage from score and total points
-	percentage := 0.0
-	if exercise.TotalPoints != nil && *exercise.TotalPoints > 0 {
-		percentage = (score / *exercise.TotalPoints) * 100
-	}
+	// Score is already percentage (0-100), no need to recalculate
+	percentage := score
 
-	// Check if passed
+	// Check if passed (using percentage or band_score depending on passing_score type)
 	isPassed := false
 	if exercise.PassingScore != nil && *exercise.PassingScore > 0 {
-		isPassed = percentage >= *exercise.PassingScore
+		// If passing_score is < 10, it's likely a band score threshold
+		// Otherwise, it's a percentage threshold
+		if *exercise.PassingScore < 10 {
+			// Use band_score for comparison
+			if submission.BandScore != nil {
+				isPassed = *submission.BandScore >= *exercise.PassingScore
+			}
+		} else {
+			// Use percentage for comparison
+			isPassed = percentage >= *exercise.PassingScore
+		}
 	}
 
 	stats := &models.PerformanceStats{

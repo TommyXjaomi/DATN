@@ -4,6 +4,7 @@ import (
 	"database/sql"
 	"fmt"
 	"log"
+	"math"
 	"strings"
 	"time"
 
@@ -12,6 +13,30 @@ import (
 	"github.com/bisosad1501/DATN/services/user-service/internal/models"
 	"github.com/google/uuid"
 )
+
+// calculateIELTSOverallScore calculates overall band score using official IELTS rounding rules
+// Formula: (Listening + Reading + Writing + Speaking) / 4
+// Rounding rules:
+// - If ends in .25 → round UP to next .5
+// - If ends in .75 → round UP to next 1.0
+// - Otherwise → round DOWN to nearest .5 or 1.0
+func calculateIELTSOverallScore(average float64) float64 {
+	// Extract decimal part
+	decimal := average - math.Floor(average)
+	
+	// IELTS rounding rules
+	if decimal == 0.25 {
+		return math.Floor(average) + 0.5  // 6.25 → 6.5
+	} else if decimal == 0.75 {
+		return math.Floor(average) + 1.0  // 6.75 → 7.0
+	} else if decimal < 0.25 {
+		return math.Floor(average)         // 6.1 → 6.0
+	} else if decimal < 0.75 {
+		return math.Floor(average) + 0.5  // 6.6 → 6.5
+	} else {
+		return math.Floor(average) + 1.0  // 6.9 → 7.0
+	}
+}
 
 type UserRepository struct {
 	db     *database.Database
@@ -978,11 +1003,90 @@ func (r *UserRepository) UpdateLearningProgressAtomic(userID uuid.UUID, updates 
 		args = append(args, longestStreak)
 	}
 
+	// Handle skill-specific score updates for LearningProgress
+	if score, ok := updates["listening_score"].(float64); ok {
+		paramCount++
+		query += fmt.Sprintf(", listening_score = $%d", paramCount)
+		args = append(args, score)
+	}
+	if score, ok := updates["reading_score"].(float64); ok {
+		paramCount++
+		query += fmt.Sprintf(", reading_score = $%d", paramCount)
+		args = append(args, score)
+	}
+	if score, ok := updates["writing_score"].(float64); ok {
+		paramCount++
+		query += fmt.Sprintf(", writing_score = $%d", paramCount)
+		args = append(args, score)
+	}
+	if score, ok := updates["speaking_score"].(float64); ok {
+		paramCount++
+		query += fmt.Sprintf(", speaking_score = $%d", paramCount)
+		args = append(args, score)
+	}
+
 	// Handle direct updates
 	if lastStudyDate, ok := updates["last_study_date"].(time.Time); ok {
 		paramCount++
 		query += fmt.Sprintf(", last_study_date = $%d", paramCount)
 		args = append(args, lastStudyDate)
+	}
+
+	// Calculate overall_score based on the four skill scores (IELTS official formula)
+	// Only calculate if at least one skill score was updated
+	hasSkillScoreUpdate := updates["listening_score"] != nil || updates["reading_score"] != nil ||
+		updates["writing_score"] != nil || updates["speaking_score"] != nil
+
+	if hasSkillScoreUpdate {
+		// Fetch current progress to get all skill scores (including ones not being updated)
+		currentProgress, err := r.GetLearningProgress(userID)
+		if err != nil {
+			log.Printf("⚠️  Could not fetch current learning progress for overall score calculation: %v", err)
+			// Continue without updating overall score if we can't get current progress
+		} else {
+			// Collect all skill scores (use updated values if provided, otherwise current values)
+			var scores []float64
+			
+			if val, ok := updates["listening_score"].(float64); ok {
+				scores = append(scores, val)
+			} else if currentProgress.ListeningScore != nil {
+				scores = append(scores, *currentProgress.ListeningScore)
+			}
+			
+			if val, ok := updates["reading_score"].(float64); ok {
+				scores = append(scores, val)
+			} else if currentProgress.ReadingScore != nil {
+				scores = append(scores, *currentProgress.ReadingScore)
+			}
+			
+			if val, ok := updates["writing_score"].(float64); ok {
+				scores = append(scores, val)
+			} else if currentProgress.WritingScore != nil {
+				scores = append(scores, *currentProgress.WritingScore)
+			}
+			
+			if val, ok := updates["speaking_score"].(float64); ok {
+				scores = append(scores, val)
+			} else if currentProgress.SpeakingScore != nil {
+				scores = append(scores, *currentProgress.SpeakingScore)
+			}
+
+			// Calculate overall score if we have at least one skill score
+			if len(scores) > 0 {
+				total := 0.0
+				for _, s := range scores {
+					total += s
+				}
+				average := total / float64(len(scores))
+				
+				// Apply IELTS rounding rules
+				overallScore := calculateIELTSOverallScore(average)
+				
+				paramCount++
+				query += fmt.Sprintf(", overall_score = $%d", paramCount)
+				args = append(args, overallScore)
+			}
+		}
 	}
 
 	// Add WHERE clause

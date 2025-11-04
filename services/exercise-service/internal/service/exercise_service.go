@@ -241,10 +241,11 @@ func (s *ExerciseService) handleExerciseCompletion(submissionID uuid.UUID) {
 	exercise := result.Exercise
 	skillType := exercise.SkillType
 
-	// Extract score value (handle pointer)
-	score := 0.0
-	if submission.Score != nil {
-		score = *submission.Score
+	// Extract band score value (handle pointer)
+	// We use band_score (0-9) for all statistics and notifications
+	bandScore := 0.0
+	if submission.BandScore != nil {
+		bandScore = *submission.BandScore
 	}
 
 	// Calculate time spent (in minutes)
@@ -258,21 +259,59 @@ func (s *ExerciseService) handleExerciseCompletion(submissionID uuid.UUID) {
 	maxRetries := 3
 	retryDelay := time.Second
 
-	// 1. Update skill statistics in User Service (only if score > 0)
-	if score > 0 {
-		log.Printf("[Exercise-Service] Updating skill statistics in User Service...")
+	// Skip updates for AI exercises (Writing/Speaking) - AI Service will handle with band score
+	if skillType == "writing" || skillType == "speaking" {
+		log.Printf("[Exercise-Service] Skipping stats/progress updates for AI exercise (skill: %s) - AI Service will handle", skillType)
+	} else {
+			// 1. Update skill statistics in User Service (only if bandScore > 0)
+		// Note: We only update stats when bandScore > 0 to avoid creating stats with 0 scores
+		// This is by design - users need to get at least some correct answers to have meaningful statistics
+		if bandScore > 0 {
+			log.Printf("[Exercise-Service] Updating skill statistics in User Service (bandScore: %.1f)...", bandScore)
+			var lastErr error
+			for attempt := 1; attempt <= maxRetries; attempt++ {
+				err = s.userServiceClient.UpdateSkillStatistics(client.UpdateSkillStatsRequest{
+					UserID:         submission.UserID.String(),
+					SkillType:      skillType,
+					Score:          bandScore, // Send band score (0-9) instead of percentage
+					TimeMinutes:    timeMinutes,
+					IsCompleted:    true,
+					TotalPractices: 1,
+				})
+				if err == nil {
+					log.Printf("[Exercise-Service] SUCCESS: Updated skill statistics (attempt %d)", attempt)
+					break
+				}
+				lastErr = err
+				if attempt < maxRetries {
+					log.Printf("[Exercise-Service] Attempt %d failed, retrying in %v...", attempt, retryDelay)
+					time.Sleep(retryDelay)
+					retryDelay *= 2 // Exponential backoff
+				}
+			}
+			if lastErr != nil {
+				log.Printf("[Exercise-Service] ERROR: Failed to update skill stats after %d attempts: %v", maxRetries, lastErr)
+			}
+		} else {
+			log.Printf("[Exercise-Service] Skipping skill statistics update (bandScore = 0). User needs to get at least some correct answers to have meaningful statistics.")
+		}
+
+		// 2. Update overall progress in User Service
+		log.Printf("[Exercise-Service] Updating user progress in User Service...")
+		retryDelay = time.Second // Reset delay
 		var lastErr error
 		for attempt := 1; attempt <= maxRetries; attempt++ {
-			err = s.userServiceClient.UpdateSkillStatistics(client.UpdateSkillStatsRequest{
-				UserID:         submission.UserID.String(),
-				SkillType:      skillType,
-				Score:          score,
-				TimeMinutes:    timeMinutes,
-				IsCompleted:    true,
-				TotalPractices: 1,
+			err = s.userServiceClient.UpdateProgress(client.UpdateProgressRequest{
+				UserID:            submission.UserID.String(),
+				ExercisesComplete: 1,
+				StudyMinutes:      timeMinutes,
+				SkillType:         skillType,
+				SessionType:       "exercise",
+				ResourceID:        submission.ExerciseID.String(),
+				Score:             bandScore, // Send band score (0-9) instead of percentage
 			})
 			if err == nil {
-				log.Printf("[Exercise-Service] SUCCESS: Updated skill statistics (attempt %d)", attempt)
+				log.Printf("[Exercise-Service] SUCCESS: Updated user progress (attempt %d)", attempt)
 				break
 			}
 			lastErr = err
@@ -283,63 +322,37 @@ func (s *ExerciseService) handleExerciseCompletion(submissionID uuid.UUID) {
 			}
 		}
 		if lastErr != nil {
-			log.Printf("[Exercise-Service] ERROR: Failed to update skill stats after %d attempts: %v", maxRetries, lastErr)
+			log.Printf("[Exercise-Service] ERROR: Failed to update user progress after %d attempts: %v", maxRetries, lastErr)
 		}
-	} else {
-		log.Printf("[Exercise-Service] Skipping skill statistics update (score = 0)")
-	}
-
-	// 2. Update overall progress in User Service
-	log.Printf("[Exercise-Service] Updating user progress in User Service...")
-	retryDelay = time.Second // Reset delay
-	var lastErr error
-	for attempt := 1; attempt <= maxRetries; attempt++ {
-		err = s.userServiceClient.UpdateProgress(client.UpdateProgressRequest{
-			UserID:            submission.UserID.String(),
-			ExercisesComplete: 1,
-			StudyMinutes:      timeMinutes,
-			SkillType:         skillType,
-			SessionType:       "exercise",
-			ResourceID:        submission.ExerciseID.String(),
-			Score:             score,
-		})
-		if err == nil {
-			log.Printf("[Exercise-Service] SUCCESS: Updated user progress (attempt %d)", attempt)
-			break
-		}
-		lastErr = err
-		if attempt < maxRetries {
-			log.Printf("[Exercise-Service] Attempt %d failed, retrying in %v...", attempt, retryDelay)
-			time.Sleep(retryDelay)
-			retryDelay *= 2 // Exponential backoff
-		}
-	}
-	if lastErr != nil {
-		log.Printf("[Exercise-Service] ERROR: Failed to update user progress after %d attempts: %v", maxRetries, lastErr)
 	}
 
 	// 3. Send exercise result notification
-	log.Printf("[Exercise-Service] Sending exercise result notification...")
-	retryDelay = time.Second // Reset delay
-	lastErr = nil
-	for attempt := 1; attempt <= maxRetries; attempt++ {
-		err = s.notificationClient.SendExerciseResultNotification(
-			submission.UserID.String(),
-			exercise.Title,
-			score,
-		)
-		if err == nil {
-			log.Printf("[Exercise-Service] SUCCESS: Sent exercise result notification (attempt %d)", attempt)
-			break
+	// Skip notification for AI exercises (Writing/Speaking) - AI Service will send notification with band score
+	if skillType == "writing" || skillType == "speaking" {
+		log.Printf("[Exercise-Service] Skipping notification for AI exercise (skill: %s) - AI Service will send notification", skillType)
+	} else {
+		log.Printf("[Exercise-Service] Sending exercise result notification...")
+		retryDelay = time.Second // Reset delay
+		var lastErr error
+		for attempt := 1; attempt <= maxRetries; attempt++ {
+			err = s.notificationClient.SendExerciseResultNotification(
+				submission.UserID.String(),
+				exercise.Title,
+				bandScore, // Send band score (0-9) instead of percentage
+			)
+			if err == nil {
+				log.Printf("[Exercise-Service] SUCCESS: Sent exercise result notification (attempt %d)", attempt)
+				break
+			}
+			lastErr = err
+			if attempt < maxRetries {
+				log.Printf("[Exercise-Service] Attempt %d failed, retrying in %v...", attempt, retryDelay)
+				time.Sleep(retryDelay)
+				retryDelay *= 2 // Exponential backoff
+			}
 		}
-		lastErr = err
-		if attempt < maxRetries {
-			log.Printf("[Exercise-Service] Attempt %d failed, retrying in %v...", attempt, retryDelay)
-			time.Sleep(retryDelay)
-			retryDelay *= 2 // Exponential backoff
+		if lastErr != nil {
+			log.Printf("[Exercise-Service] ERROR: Failed to send notification after %d attempts: %v", maxRetries, lastErr)
 		}
-	}
-	if lastErr != nil {
-		log.Printf("[Exercise-Service] ERROR: Failed to send notification after %d attempts: %v", maxRetries, lastErr)
 	}
 }

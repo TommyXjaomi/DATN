@@ -1098,7 +1098,36 @@ func (s *UserService) UpdateSkillStatistics(userID uuid.UUID, skillType string, 
 	updateMap["last_practice_date"] = stats.LastPracticeDate
 	updateMap["last_practice_score"] = stats.LastPracticeScore
 
-	return s.repo.UpdateSkillStatistics(userID, skillType, updateMap)
+	// Update skill statistics
+	err = s.repo.UpdateSkillStatistics(userID, skillType, updateMap)
+	if err != nil {
+		return err
+	}
+
+	// Also update learning_progress.{skill}_score with the latest score
+	// This keeps learning_progress in sync with skill_statistics
+	if score, ok := updates["score"].(float64); ok {
+		progressUpdates := make(map[string]interface{})
+		// Map skill type to learning_progress field
+		switch skillType {
+		case "listening":
+			progressUpdates["listening_score"] = score
+		case "reading":
+			progressUpdates["reading_score"] = score
+		case "writing":
+			progressUpdates["writing_score"] = score
+		case "speaking":
+			progressUpdates["speaking_score"] = score
+		}
+		
+		// Update learning_progress with skill score
+		// This will also trigger overall_score recalculation
+		if len(progressUpdates) > 0 {
+			return s.UpdateProgress(userID, progressUpdates)
+		}
+	}
+
+	return nil
 }
 
 // StartSession starts a study session (internal)
