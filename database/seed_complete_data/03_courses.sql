@@ -1000,6 +1000,16 @@ SET
         JOIN lesson_videos lv ON lv.lesson_id = l.id
         WHERE l.course_id = c.id
     ),
+    -- Calculate duration_hours from ALL lesson durations (video + article + mixed)
+    -- This represents the TOTAL study time, not just video watching time
+    duration_hours = ROUND(
+        (
+            SELECT COALESCE(SUM(l.duration_minutes), 0) / 60.0
+            FROM lessons l
+            WHERE l.course_id = c.id AND l.duration_minutes IS NOT NULL
+        ),
+        2
+    ),
     -- Add meta fields if missing
     meta_title = COALESCE(NULLIF(meta_title, ''), title || ' | IELTS Learning Platform'),
     meta_description = COALESCE(NULLIF(meta_description, ''), LEFT(COALESCE(short_description, description), 160)),

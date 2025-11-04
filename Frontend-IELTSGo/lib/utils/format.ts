@@ -32,19 +32,45 @@ export function truncateText(text: string, maxLength: number): string {
 
 /**
  * Format duration in seconds to readable format
+ * Examples:
+ * - 3661 seconds → "1h 1m"
+ * - 390 seconds → "6m 30s"
+ * - 45 seconds → "45s"
  */
 export function formatDuration(seconds: number): string {
-  const hours = Math.floor(seconds / 3600)
-  const minutes = Math.floor((seconds % 3600) / 60)
-  const secs = seconds % 60
+  // Round to nearest second for consistent display
+  const totalSeconds = Math.round(seconds)
+  
+  const hours = Math.floor(totalSeconds / 3600)
+  const minutes = Math.floor((totalSeconds % 3600) / 60)
+  const secs = totalSeconds % 60
 
   if (hours > 0) {
+    // Show hours and minutes, round minutes (don't show seconds if > 1 hour)
     return `${hours}h ${minutes}m`
   } else if (minutes > 0) {
+    // Show minutes and seconds
     return `${minutes}m ${secs}s`
   } else {
+    // Show seconds only
     return `${secs}s`
   }
+}
+
+/**
+ * Format course duration from hours (database format) to seconds for display
+ * Ensures consistent calculation across all components
+ * @param durationHours - Duration in hours (from database, e.g., 1.5)
+ * @returns Duration in seconds (rounded)
+ */
+export function formatCourseDuration(durationHours: number | undefined | null): string {
+  if (!durationHours || durationHours <= 0) {
+    return "0m"
+  }
+  
+  // Convert hours to seconds and round to nearest second
+  const seconds = Math.round(durationHours * 3600)
+  return formatDuration(seconds)
 }
 
 /**

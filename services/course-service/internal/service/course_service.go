@@ -60,9 +60,6 @@ func (s *CourseService) GetCourseDetail(courseID uuid.UUID, userID *uuid.UUID) (
 		return nil, fmt.Errorf("failed to get modules: %w", err)
 	}
 
-	// 📊 Calculate total duration from lessons
-	var totalDurationMinutes int
-
 	// Get lessons and exercises for each module
 	var modulesWithLessons []models.ModuleWithLessons
 	for _, module := range modules {
@@ -76,11 +73,6 @@ func (s *CourseService) GetCourseDetail(courseID uuid.UUID, userID *uuid.UUID) (
 		// Load videos for each lesson
 		var lessonsWithVideos []models.LessonWithVideos
 		for _, lesson := range lessons {
-			// 📊 Add lesson duration to total (already computed with video duration in query)
-			if lesson.DurationMinutes != nil {
-				totalDurationMinutes += *lesson.DurationMinutes
-			}
-
 			lessonWithVideo := models.LessonWithVideos{
 				Lesson: lesson,
 			}
@@ -130,12 +122,15 @@ func (s *CourseService) GetCourseDetail(courseID uuid.UUID, userID *uuid.UUID) (
 		})
 	}
 
-	// 📊 Update course duration_hours from calculated total
-	if totalDurationMinutes > 0 {
-		durationHours := float64(totalDurationMinutes) / 60.0
-		course.DurationHours = &durationHours
-		log.Printf("[Course-Service] 📊 Calculated course duration: %d minutes = %.2f hours", totalDurationMinutes, durationHours)
-	}
+	// 📊 DON'T override duration_hours - use database value
+	// Database duration_hours is the SOURCE OF TRUTH, calculated from ALL lesson durations
+	// (video + article + mixed), representing TOTAL study time for the course
+	log.Printf("[Course-Service] ℹ️  Using database duration_hours: %.2f hours (total study time from all lessons)", func() float64 {
+		if course.DurationHours != nil {
+			return *course.DurationHours
+		}
+		return 0
+	}())
 
 	response := &models.CourseDetailResponse{
 		Course:  *course,

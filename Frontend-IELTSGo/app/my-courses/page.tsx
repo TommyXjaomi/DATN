@@ -27,7 +27,7 @@ import { useTranslations } from '@/lib/i18n'
 import { usePullToRefresh } from "@/lib/hooks/use-swipe-gestures"
 import { PageLoading } from "@/components/ui/page-loading"
 import { EmptyState } from "@/components/ui/empty-state"
-import { formatDuration, formatNumber } from "@/lib/utils/format"
+import { formatCourseDuration, formatNumber } from "@/lib/utils/format"
 
 // Lazy load heavy components to improve initial load time
 const HorizontalCardLayout = lazy(() => import("@/components/cards/base-card-layout").then(m => ({ default: m.HorizontalCardLayout })))
@@ -320,7 +320,7 @@ export default function MyCoursesPage() {
                           ) : course.duration_hours && course.duration_hours > 0 && (
                             <div className="flex items-center gap-1.5">
                               <Clock className="h-4 w-4 text-muted-foreground" aria-hidden="true" />
-                              <span className="text-sm">{formatDuration(Math.round(course.duration_hours * 3600))}</span>
+                              <span className="text-sm">{formatCourseDuration(course.duration_hours)}</span>
                             </div>
                           )}
                         </>
@@ -443,7 +443,7 @@ export default function MyCoursesPage() {
                           ) : course.duration_hours && course.duration_hours > 0 && (
                             <div className="flex items-center gap-1.5">
                               <Clock className="h-4 w-4 text-muted-foreground" aria-hidden="true" />
-                              <span className="text-sm">{formatDuration(Math.round(course.duration_hours * 3600))}</span>
+                              <span className="text-sm">{formatCourseDuration(course.duration_hours)}</span>
                             </div>
                           )}
                         </>
@@ -557,7 +557,7 @@ export default function MyCoursesPage() {
                           ) : course.duration_hours && course.duration_hours > 0 && (
                             <div className="flex items-center gap-1.5">
                               <Clock className="h-4 w-4 text-muted-foreground" aria-hidden="true" />
-                              <span className="text-sm">{formatDuration(Math.round(course.duration_hours * 3600))}</span>
+                              <span className="text-sm">{formatCourseDuration(course.duration_hours)}</span>
                             </div>
                           )}
                         </>

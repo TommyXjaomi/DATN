@@ -5,7 +5,7 @@ import { Clock, Users, Star, BookOpen, GraduationCap } from "lucide-react"
 import { Badge } from "@/components/ui/badge"
 import { VerticalCardLayout } from "@/components/cards/base-card-layout"
 import type { Course } from "@/types"
-import { formatDuration, formatNumber } from "@/lib/utils/format"
+import { formatCourseDuration, formatNumber } from "@/lib/utils/format"
 import { useTranslations } from '@/lib/i18n'
 import { cn } from "@/lib/utils"
 
@@ -119,7 +119,7 @@ function CourseCardComponent({ course, showProgress, progress, priority = false 
         <div className="flex items-center gap-1">
           <Clock className="w-4 h-4 text-muted-foreground" aria-hidden="true" />
           <span>
-            {formatDuration(durationHours * 60)}
+            {formatCourseDuration(durationHours)}
           </span>
         </div>
       </div>

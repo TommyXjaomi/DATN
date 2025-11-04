@@ -15,7 +15,7 @@ import { Users, Star, BookOpen, PlayCircle, FileText, CheckCircle, Loader2, Targ
 import { coursesApi } from "@/lib/api/courses"
 import { useAuth } from "@/lib/contexts/auth-context"
 import type { Course, Module, LessonProgress } from "@/types"
-import { formatDuration, formatNumber } from "@/lib/utils/format"
+import { formatCourseDuration, formatDuration, formatNumber } from "@/lib/utils/format"
 import { useTranslations } from '@/lib/i18n'
 import { useToastWithI18n } from "@/lib/hooks/use-toast-with-i18n"
 import { PageLoading } from "@/components/ui/page-loading"
@@ -292,7 +292,7 @@ export default function CourseDetailPage() {
                   <div className="space-y-3 text-sm">
                     <div className="flex items-center justify-between">
                       <span className="text-muted-foreground">{tCourses('duration')}</span>
-                      <span className="font-medium">{formatDuration((course.duration_hours || course.duration || 0) * 3600)}</span>
+                      <span className="font-medium">{formatCourseDuration(course.duration_hours || course.duration)}</span>
                     </div>
                     <div className="flex items-center justify-between">
                       <span className="text-muted-foreground">{tCourses('lessons')}</span>
