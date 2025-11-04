@@ -290,11 +290,19 @@ func (h *ExerciseHandler) GetMySubmissions(c *gin.Context) {
 		return
 	}
 
-	page, _ := strconv.Atoi(c.DefaultQuery("page", "1"))
-	limit, _ := strconv.Atoi(c.DefaultQuery("limit", "20"))
+	query := &models.MySubmissionsQuery{}
+	query.Page, _ = strconv.Atoi(c.DefaultQuery("page", "1"))
+	query.Limit, _ = strconv.Atoi(c.DefaultQuery("limit", "20"))
+	query.SkillType = c.Query("skill_type")
+	query.Status = c.Query("status")
+	query.SortBy = c.DefaultQuery("sort_by", "date")
+	query.SortOrder = c.DefaultQuery("sort_order", "desc")
+	query.DateFrom = c.Query("date_from")
+	query.DateTo = c.Query("date_to")
+	query.Search = c.Query("search")
 
 	userUUID, _ := uuid.Parse(userID.(string))
-	submissions, err := h.service.GetMySubmissions(userUUID, page, limit)
+	submissions, err := h.service.GetMySubmissions(userUUID, query)
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, Response{
 			Success: false,

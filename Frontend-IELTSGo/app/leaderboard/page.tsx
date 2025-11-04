@@ -3,6 +3,7 @@
 import React, { useState, useEffect, useCallback, useMemo } from "react"
 import { AppLayout } from "@/components/layout/app-layout"
 import { PageContainer } from "@/components/layout/page-container"
+import { PageHeader } from "@/components/layout/page-header"
 import { leaderboardApi } from "@/lib/api/notifications"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
@@ -125,48 +126,47 @@ export default function LeaderboardPage() {
 
   const maxPoints = leaderboard.length > 0 ? Math.max(...leaderboard.map((e) => e.total_points), 1) : 1
 
-  return (
-    <AppLayout>
-      <PageContainer maxWidth="6xl">
-        {/* Header Section */}
-        <div className="mb-8">
-          <h1 className="text-3xl font-bold tracking-tight mb-2">{t('leaderboard_title')}</h1>
-          <p className="text-base text-muted-foreground max-w-2xl">
-            {t('track_your_rank_and_compete')}
-          </p>
-        </div>
+  // Period tabs component for PageHeader centerContent
+  const periodTabs = useMemo(() => (
+    <Tabs value={period} onValueChange={(v) => handlePeriodChange(v as Period)}>
+      <TabsList className="inline-flex h-10 items-center justify-center rounded-lg bg-muted p-1 text-muted-foreground">
+        <TabsTrigger
+          value="daily"
+          className="data-[state=active]:bg-background data-[state=active]:text-foreground data-[state=active]:shadow-sm transition-all px-4 text-sm"
+        >
+          {t('today')}
+        </TabsTrigger>
+        <TabsTrigger
+          value="weekly"
+          className="data-[state=active]:bg-background data-[state=active]:text-foreground data-[state=active]:shadow-sm transition-all px-4 text-sm"
+        >
+          {t('this_week')}
+        </TabsTrigger>
+        <TabsTrigger
+          value="monthly"
+          className="data-[state=active]:bg-background data-[state=active]:text-foreground data-[state=active]:shadow-sm transition-all px-4 text-sm"
+        >
+          {t('this_month')}
+        </TabsTrigger>
+        <TabsTrigger
+          value="all-time"
+          className="data-[state=active]:bg-background data-[state=active]:text-foreground data-[state=active]:shadow-sm transition-all px-4 text-sm"
+        >
+          {t('all_time')}
+        </TabsTrigger>
+      </TabsList>
+    </Tabs>
+  ), [period, t])
 
-        {/* Period Tabs */}
-        <div className="mb-6">
-          <Tabs value={period} onValueChange={(v) => handlePeriodChange(v as Period)}>
-            <TabsList className="inline-flex h-11 items-center justify-center rounded-lg bg-muted p-1 text-muted-foreground w-full md:w-auto">
-              <TabsTrigger
-                value="daily"
-                className="data-[state=active]:bg-background data-[state=active]:text-foreground data-[state=active]:shadow-sm transition-all"
-              >
-                {t('today')}
-              </TabsTrigger>
-              <TabsTrigger
-                value="weekly"
-                className="data-[state=active]:bg-background data-[state=active]:text-foreground data-[state=active]:shadow-sm transition-all"
-              >
-                {t('this_week')}
-              </TabsTrigger>
-              <TabsTrigger
-                value="monthly"
-                className="data-[state=active]:bg-background data-[state=active]:text-foreground data-[state=active]:shadow-sm transition-all"
-              >
-                {t('this_month')}
-              </TabsTrigger>
-              <TabsTrigger
-                value="all-time"
-                className="data-[state=active]:bg-background data-[state=active]:text-foreground data-[state=active]:shadow-sm transition-all"
-              >
-                {t('all_time')}
-              </TabsTrigger>
-            </TabsList>
-          </Tabs>
-        </div>
+  return (
+    <AppLayout showSidebar={true} showFooter={false} hideNavbar={true} hideTopBar={true}>
+      <PageHeader
+        title={t('leaderboard_title')}
+        subtitle={t('track_your_rank_and_compete')}
+        centerContent={periodTabs}
+      />
+      <PageContainer maxWidth="6xl">
+
 
         {/* User Rank Card - Only show if user has rank */}
         {userRank && (

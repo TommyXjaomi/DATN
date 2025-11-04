@@ -113,16 +113,16 @@ func (s *NotificationService) CreateNotification(req *models.CreateNotificationR
 	return notification, nil
 }
 
-// GetNotifications retrieves notifications with pagination
-func (s *NotificationService) GetNotifications(userID uuid.UUID, isRead *bool, page, limit int) ([]models.Notification, int, error) {
-	if page < 1 {
-		page = 1
+// GetNotifications retrieves notifications with pagination and filters
+func (s *NotificationService) GetNotifications(userID uuid.UUID, query *models.NotificationListQuery) ([]models.Notification, int, error) {
+	if query.Page < 1 {
+		query.Page = 1
 	}
-	if limit < 1 || limit > 100 {
-		limit = 20
+	if query.Limit < 1 || query.Limit > 100 {
+		query.Limit = 20
 	}
 
-	notifications, totalItems, err := s.repo.GetNotifications(userID, isRead, page, limit)
+	notifications, totalItems, err := s.repo.GetNotifications(userID, query)
 	if err != nil {
 		return nil, 0, fmt.Errorf("failed to get notifications: %w", err)
 	}

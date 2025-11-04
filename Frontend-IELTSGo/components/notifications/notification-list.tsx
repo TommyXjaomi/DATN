@@ -86,7 +86,7 @@ export function NotificationList({ onMarkAllAsRead, onNotificationRead, newNotif
     try {
       setLoading(true)
       // Force refresh when dropdown opens to ensure fresh data
-      const response = await notificationsApi.getNotifications(1, 50, forceRefresh)
+      const response = await notificationsApi.getNotifications(undefined, 1, 50, forceRefresh)
       // Handle case where response might be undefined or missing notifications
       if (response && response.notifications) {
         setNotifications(response.notifications)

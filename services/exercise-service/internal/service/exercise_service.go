@@ -79,16 +79,16 @@ func (s *ExerciseService) GetSubmissionResult(submissionID uuid.UUID) (*models.S
 	return s.repo.GetSubmissionResult(submissionID)
 }
 
-// GetMySubmissions returns user's submission history
-func (s *ExerciseService) GetMySubmissions(userID uuid.UUID, page, limit int) (*models.MySubmissionsResponse, error) {
-	if page < 1 {
-		page = 1
+// GetMySubmissions returns user's submission history with filters
+func (s *ExerciseService) GetMySubmissions(userID uuid.UUID, query *models.MySubmissionsQuery) (*models.MySubmissionsResponse, error) {
+	if query.Page < 1 {
+		query.Page = 1
 	}
-	if limit < 1 || limit > 100 {
-		limit = 20
+	if query.Limit < 1 || query.Limit > 100 {
+		query.Limit = 20
 	}
 
-	return s.repo.GetUserSubmissions(userID, page, limit)
+	return s.repo.GetUserSubmissions(userID, query)
 }
 
 // CreateExercise creates new exercise (admin only)

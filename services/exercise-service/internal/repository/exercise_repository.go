@@ -918,21 +918,111 @@ func (r *ExerciseRepository) GetSubmissionResult(submissionID uuid.UUID) (*model
 	}, nil
 }
 
-// GetUserSubmissions returns user's submission history (uses user_exercise_attempts)
-func (r *ExerciseRepository) GetUserSubmissions(userID uuid.UUID, page, limit int) (*models.MySubmissionsResponse, error) {
-	offset := (page - 1) * limit
+// GetUserSubmissions returns user's submission history with filters (uses user_exercise_attempts)
+func (r *ExerciseRepository) GetUserSubmissions(userID uuid.UUID, query *models.MySubmissionsQuery) (*models.MySubmissionsResponse, error) {
+	where := []string{"a.user_id = $1"}
+	args := []interface{}{userID}
+	argCount := 1
+
+	// Filter by skill_type
+	if query.SkillType != "" {
+		skillTypes := strings.Split(strings.TrimSpace(query.SkillType), ",")
+		if len(skillTypes) == 1 {
+			argCount++
+			where = append(where, fmt.Sprintf("e.skill_type = $%d", argCount))
+			args = append(args, strings.TrimSpace(skillTypes[0]))
+		} else {
+			placeholders := []string{}
+			for _, skillType := range skillTypes {
+				argCount++
+				placeholders = append(placeholders, fmt.Sprintf("$%d", argCount))
+				args = append(args, strings.TrimSpace(skillType))
+			}
+			where = append(where, fmt.Sprintf("e.skill_type IN (%s)", strings.Join(placeholders, ", ")))
+		}
+	}
+
+	// Filter by status
+	if query.Status != "" {
+		statuses := strings.Split(strings.TrimSpace(query.Status), ",")
+		if len(statuses) == 1 {
+			argCount++
+			where = append(where, fmt.Sprintf("a.status = $%d", argCount))
+			args = append(args, strings.TrimSpace(statuses[0]))
+		} else {
+			placeholders := []string{}
+			for _, status := range statuses {
+				argCount++
+				placeholders = append(placeholders, fmt.Sprintf("$%d", argCount))
+				args = append(args, strings.TrimSpace(status))
+			}
+			where = append(where, fmt.Sprintf("a.status IN (%s)", strings.Join(placeholders, ", ")))
+		}
+	}
+
+	// Filter by date range
+	if query.DateFrom != "" {
+		argCount++
+		where = append(where, fmt.Sprintf("DATE(a.created_at) >= $%d", argCount))
+		args = append(args, query.DateFrom)
+	}
+	if query.DateTo != "" {
+		argCount++
+		where = append(where, fmt.Sprintf("DATE(a.created_at) <= $%d", argCount))
+		args = append(args, query.DateTo)
+	}
+
+	// Filter by search (exercise title)
+	if query.Search != "" {
+		argCount++
+		where = append(where, fmt.Sprintf("LOWER(e.title) LIKE LOWER($%d)", argCount))
+		args = append(args, "%"+query.Search+"%")
+	}
+
+	whereClause := strings.Join(where, " AND ")
 
 	// Get total count
+	countQuery := fmt.Sprintf(`
+		SELECT COUNT(*) 
+		FROM user_exercise_attempts a
+		JOIN exercises e ON e.id = a.exercise_id
+		WHERE %s
+	`, whereClause)
 	var total int
-	err := r.db.QueryRow(`
-		SELECT COUNT(*) FROM user_exercise_attempts WHERE user_id = $1
-	`, userID).Scan(&total)
+	err := r.db.QueryRow(countQuery, args...).Scan(&total)
 	if err != nil {
 		return nil, err
 	}
 
+	// Build ORDER BY clause
+	orderBy := "a.created_at DESC" // Default
+	if query.SortBy != "" {
+		sortOrder := "DESC"
+		if query.SortOrder == "asc" {
+			sortOrder = "ASC"
+		}
+
+		switch query.SortBy {
+		case "score":
+			orderBy = fmt.Sprintf("a.score %s NULLS LAST, a.created_at DESC", sortOrder)
+		case "band_score":
+			orderBy = fmt.Sprintf("a.band_score %s NULLS LAST, a.created_at DESC", sortOrder)
+		case "date":
+			fallthrough
+		default:
+			orderBy = fmt.Sprintf("a.created_at %s", sortOrder)
+		}
+	}
+
+	// Pagination
+	offset := (query.Page - 1) * query.Limit
+	argCount++
+	limitArg := argCount
+	argCount++
+	offsetArg := argCount
+
 	// Get attempts with exercise info
-	rows, err := r.db.Query(`
+	selectQuery := fmt.Sprintf(`
 		SELECT a.id, a.user_id, a.exercise_id, a.attempt_number, a.status,
 			a.total_questions, a.questions_answered, a.correct_answers, a.score, a.band_score,
 			a.time_limit_minutes, a.time_spent_seconds, a.started_at, a.completed_at,
@@ -946,10 +1036,14 @@ func (r *ExerciseRepository) GetUserSubmissions(userID uuid.UUID, page, limit in
 			e.created_at, e.updated_at
 		FROM user_exercise_attempts a
 		JOIN exercises e ON e.id = a.exercise_id
-		WHERE a.user_id = $1
-		ORDER BY a.created_at DESC
-		LIMIT $2 OFFSET $3
-	`, userID, limit, offset)
+		WHERE %s
+		ORDER BY %s
+		LIMIT $%d OFFSET $%d
+	`, whereClause, orderBy, limitArg, offsetArg)
+
+	args = append(args, query.Limit, offset)
+
+	rows, err := r.db.Query(selectQuery, args...)
 	if err != nil {
 		return nil, err
 	}

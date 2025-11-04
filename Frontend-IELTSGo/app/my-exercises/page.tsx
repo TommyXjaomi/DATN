@@ -20,7 +20,8 @@ import { PageLoading } from "@/components/ui/page-loading"
 import { SkeletonCard } from "@/components/ui/skeleton-card"
 import { EmptyState } from "@/components/ui/empty-state"
 import { ExerciseSubmissionCard } from "@/components/exercises/exercise-submission-card"
-import { exercisesApi } from "@/lib/api/exercises"
+import { exercisesApi, type SubmissionFilters } from "@/lib/api/exercises"
+import { SubmissionFiltersComponent } from "@/components/exercises/submission-filters"
 import { useAuth } from "@/lib/contexts/auth-context"
 import type { SubmissionWithExercise } from "@/types"
 import { useTranslations } from '@/lib/i18n'
@@ -35,12 +36,29 @@ export default function MyExercisesPage() {
   const [submissions, setSubmissions] = useState<SubmissionWithExercise[]>([])
   const [totalSubmissions, setTotalSubmissions] = useState(0)
   const [loading, setLoading] = useState(true)
+  // Default filter: chỉ hiển thị in_progress (active exercises)
+  const [filters, setFilters] = useState<SubmissionFilters>({
+    status: ['in_progress']
+  })
+  const [activeTab, setActiveTab] = useState<string>("in-progress")
+
+  // Memoize filter key to trigger refetch only when filters actually change
+  const filterKey = useMemo(() => {
+    return JSON.stringify({
+      skill: filters.skill?.sort().join(',') || '',
+      status: filters.status?.sort().join(',') || '',
+      sort_by: filters.sort_by || '',
+      sort_order: filters.sort_order || '',
+    })
+  }, [filters.skill, filters.status, filters.sort_by, filters.sort_order])
 
   // Memoize loadSubmissions to avoid unnecessary re-renders
   const loadSubmissions = useCallback(async () => {
     try {
       setLoading(true)
-      const data = await exercisesApi.getMySubmissions(1, 100) // Load all for stats calculation
+      // Load in_progress và completed để hiển thị trong tabs
+      const allFilters = { ...filters, status: undefined } // Load all để có stats
+      const data = await exercisesApi.getMySubmissions(allFilters, 1, 100) // Load all for stats calculation
       setSubmissions(data.submissions || [])
       setTotalSubmissions(data.total || 0)
     } catch (error) {
@@ -48,7 +66,7 @@ export default function MyExercisesPage() {
     } finally {
       setLoading(false)
     }
-  }, [])
+  }, [filters])
 
   // Pull to refresh - must be called before useEffect (Rules of Hooks)
   const { ref: pullToRefreshRef } = usePullToRefresh(() => {
@@ -61,7 +79,7 @@ export default function MyExercisesPage() {
     if (user) {
       loadSubmissions()
     }
-  }, [user, loadSubmissions])
+  }, [user, loadSubmissions, filterKey])
 
   // Memoize filtered submissions - MUST be before conditional return
   const { completedSubmissions, inProgressSubmissions } = useMemo(() => {
@@ -133,9 +151,31 @@ export default function MyExercisesPage() {
       <div ref={pullToRefreshRef as React.RefObject<HTMLDivElement>}>
       <PageHeader
         title={t('my_exercises')}
-        subtitle={t('track_your_practice_progress')}
+        subtitle={t('continue_your_active_exercises') || "Tiếp tục các bài tập đang thực hiện"}
+        rightActions={
+          <Button 
+            variant="outline" 
+            onClick={() => router.push('/exercises/history')}
+            className="text-sm"
+          >
+            {t('view_full_history') || "Xem tất cả lịch sử"}
+          </Button>
+        }
       />
       <PageContainer maxWidth="7xl">
+
+        {/* Filters - Only sort, NO search, NO status filter (always in_progress) */}
+        <div className="mb-6">
+          <SubmissionFiltersComponent 
+            filters={filters} 
+            onFiltersChange={(newFilters) => {
+              // Always keep status as in_progress for "My Exercises" page
+              setFilters({ ...newFilters, status: ['in_progress'] })
+            }}
+            hideStatusFilter={true} // Hide status filter in My Exercises page
+            // Don't pass onSearch - no search bar for My Exercises
+          />
+        </div>
 
         {/* Stats Cards */}
         <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mb-8">
@@ -191,47 +231,16 @@ export default function MyExercisesPage() {
         </div>
 
         {/* Exercises Tabs */}
-        <Tabs defaultValue="all" className="space-y-6">
+        <Tabs defaultValue="in-progress" className="space-y-6">
           <TabsList>
-            <TabsTrigger value="all">
-              {t('all_exercises')} ({submissions.length})
-            </TabsTrigger>
             <TabsTrigger value="in-progress">
               {t('in_progress')} ({inProgressSubmissions.length})
             </TabsTrigger>
-            <TabsTrigger value="completed">
-              {t('completed')} ({completedSubmissions.length})
+            <TabsTrigger value="recent-completed">
+              {t('recently_completed') || "Hoàn thành gần đây"} ({Math.min(completedSubmissions.length, 10)})
             </TabsTrigger>
           </TabsList>
 
-          <TabsContent value="all" className="space-y-4">
-            {loading ? (
-              <div className="flex items-center justify-center py-12">
-                <PageLoading translationKey="loading" size="md" />
-              </div>
-            ) : submissions.length === 0 ? (
-              <EmptyState
-                icon={Target}
-                title={t('no_exercises_yet')}
-                description={t('start_practicing_by_attempting')}
-                actionLabel={t('browse_exercises')}
-                actionOnClick={() => router.push('/exercises/list')}
-              />
-            ) : (
-              <div className="grid grid-cols-1 gap-4">
-                {submissions.map((item) => {
-                  const { submission, exercise } = item
-                  return (
-                    <ExerciseSubmissionCard
-                      key={submission.id}
-                      exercise={exercise}
-                      submission={submission}
-                    />
-                  )
-                })}
-              </div>
-            )}
-          </TabsContent>
 
           <TabsContent value="in-progress" className="space-y-4">
             {inProgressSubmissions.length === 0 ? (
@@ -258,7 +267,7 @@ export default function MyExercisesPage() {
             )}
           </TabsContent>
 
-          <TabsContent value="completed" className="space-y-4">
+          <TabsContent value="recent-completed" className="space-y-4">
             {completedSubmissions.length === 0 ? (
               <EmptyState
                 icon={Award}
@@ -268,18 +277,30 @@ export default function MyExercisesPage() {
                 actionOnClick={() => router.push('/exercises/list')}
               />
             ) : (
-              <div className="grid grid-cols-1 gap-4">
-                {completedSubmissions.map((item) => {
-                  const { submission, exercise } = item
-                  return (
-                    <ExerciseSubmissionCard
-                      key={submission.id}
-                      exercise={exercise}
-                      submission={submission}
-                    />
-                  )
-                })}
-              </div>
+              <>
+                <div className="grid grid-cols-1 gap-4">
+                  {completedSubmissions.slice(0, 10).map((item) => {
+                    const { submission, exercise } = item
+                    return (
+                      <ExerciseSubmissionCard
+                        key={submission.id}
+                        exercise={exercise}
+                        submission={submission}
+                      />
+                    )
+                  })}
+                </div>
+                {completedSubmissions.length > 10 && (
+                  <div className="mt-4 text-center">
+                    <Button 
+                      variant="outline" 
+                      onClick={() => router.push('/exercises/history')}
+                    >
+                      {t('view_all_completed') || "Xem tất cả đã hoàn thành"} ({completedSubmissions.length})
+                    </Button>
+                  </div>
+                )}
+              </>
             )}
           </TabsContent>
         </Tabs>

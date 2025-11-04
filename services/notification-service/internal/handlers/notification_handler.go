@@ -42,17 +42,41 @@ func (h *NotificationHandler) GetMyNotifications(c *gin.Context) {
 	uid := userID.(uuid.UUID)
 
 	// Parse query parameters
-	var isRead *bool
+	query := &models.NotificationListQuery{}
+	
+	// Parse page with validation
+	pageStr := c.DefaultQuery("page", "1")
+	page, err := strconv.Atoi(pageStr)
+	if err != nil || page < 1 {
+		page = 1
+	}
+	query.Page = page
+	
+	// Parse limit with validation
+	limitStr := c.DefaultQuery("limit", "20")
+	limit, err := strconv.Atoi(limitStr)
+	if err != nil || limit < 1 {
+		limit = 20
+	}
+	if limit > 100 {
+		limit = 100 // Max limit to prevent abuse
+	}
+	query.Limit = limit
+	
+	query.Type = c.Query("type")
+	query.Category = c.Query("category")
+	query.SortBy = c.DefaultQuery("sort_by", "date")
+	query.SortOrder = c.DefaultQuery("sort_order", "desc")
+	query.DateFrom = c.Query("date_from")
+	query.DateTo = c.Query("date_to")
+
 	if isReadStr := c.Query("is_read"); isReadStr != "" {
 		val := isReadStr == "true"
-		isRead = &val
+		query.IsRead = &val
 	}
 
-	page, _ := strconv.Atoi(c.DefaultQuery("page", "1"))
-	limit, _ := strconv.Atoi(c.DefaultQuery("limit", "20"))
-
 	// Get notifications
-	notifications, totalItems, err := h.service.GetNotifications(uid, isRead, page, limit)
+	notifications, totalItems, err := h.service.GetNotifications(uid, query)
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, models.ErrorResponse{
 			Error:   "internal_error",
@@ -69,13 +93,13 @@ func (h *NotificationHandler) GetMyNotifications(c *gin.Context) {
 	}
 
 	// Calculate pagination
-	totalPages := int(math.Ceil(float64(totalItems) / float64(limit)))
+	totalPages := int(math.Ceil(float64(totalItems) / float64(query.Limit)))
 
 	c.JSON(http.StatusOK, models.NotificationListResponse{
 		Notifications: notifResponses,
 		Pagination: models.PaginationResponse{
-			Page:       page,
-			Limit:      limit,
+			Page:       query.Page,
+			Limit:      query.Limit,
 			TotalItems: totalItems,
 			TotalPages: totalPages,
 		},

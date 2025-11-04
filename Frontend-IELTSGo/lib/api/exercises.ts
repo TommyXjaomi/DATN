@@ -2,13 +2,14 @@ import { apiClient } from "./apiClient"
 import { apiCache } from "@/lib/utils/api-cache"
 import type { Exercise, ExerciseSubmission, ExerciseResult } from "@/types"
 
-export interface ExerciseFilters {
+export interface SubmissionFilters {
   skill?: string[]
-  type?: string[]
-  difficulty?: string[]
-  search?: string
-  sort?: "newest" | "popular" | "difficulty" | "title"
-  sort_order?: "asc" | "desc"
+  status?: string[]
+  sort_by?: 'date' | 'score' | 'band_score'
+  sort_order?: 'asc' | 'desc'
+  date_from?: string // YYYY-MM-DD
+  date_to?: string   // YYYY-MM-DD
+  search?: string    // Search by exercise title
 }
 
 export interface PaginatedResponse<T> {
@@ -123,12 +124,38 @@ export const exercisesApi = {
     return response.data.data
   },
 
-  // Get user's submissions
-  getMySubmissions: async (page = 1, limit = 20): Promise<{ submissions: import("@/types").SubmissionWithExercise[]; total: number }> => {
+  // Get user's submissions with filters
+  getMySubmissions: async (filters?: SubmissionFilters, page = 1, limit = 20): Promise<{ submissions: import("@/types").SubmissionWithExercise[]; total: number }> => {
+    const params = new URLSearchParams()
+    params.append("page", page.toString())
+    params.append("limit", limit.toString())
+    
+    if (filters?.search) {
+      params.append("search", filters.search)
+    }
+    if (filters?.skill?.length) {
+      params.append("skill_type", filters.skill.join(","))
+    }
+    if (filters?.status?.length) {
+      params.append("status", filters.status.join(","))
+    }
+    if (filters?.sort_by) {
+      params.append("sort_by", filters.sort_by)
+    }
+    if (filters?.sort_order) {
+      params.append("sort_order", filters.sort_order)
+    }
+    if (filters?.date_from) {
+      params.append("date_from", filters.date_from)
+    }
+    if (filters?.date_to) {
+      params.append("date_to", filters.date_to)
+    }
+    
     const response = await apiClient.get<{
       success: boolean
       data: { submissions: import("@/types").SubmissionWithExercise[]; total: number }
-    }>(`/submissions/my?page=${page}&limit=${limit}`)
+    }>(`/submissions/my?${params.toString()}`)
     return response.data.data
   },
 }

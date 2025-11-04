@@ -7,6 +7,7 @@ import { ProtectedRoute } from "@/components/auth/protected-route"
 import { useState, useEffect, useCallback, lazy, Suspense } from "react"
 import { progressApi } from "@/lib/api/progress"
 import { Button } from "@/components/ui/button"
+import { PageLoading } from "@/components/ui/page-loading"
 import { useTranslations } from '@/lib/i18n'
 
 // Lazy load heavy component to improve initial load time
@@ -62,20 +63,15 @@ function HistoryContent() {
     <AppLayout showSidebar={true} showFooter={false} hideNavbar={true} hideTopBar={true}>
       <PageHeader
         title={t('study_history')}
-        subtitle={t('complete_log_of_your_learning_activities')}
+        subtitle={t('study_history_description') || t('complete_log_of_your_learning_activities')}
       />
       <PageContainer maxWidth="4xl">
 
         {loading && page === 1 ? (
-          <div className="flex items-center justify-center h-64">
-            <div className="text-center">
-              <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary mx-auto mb-4" />
-              <p className="text-muted-foreground">{t('loading_history')}</p>
-            </div>
-          </div>
+          <PageLoading translationKey="loading_history" />
         ) : (
           <>
-            <Suspense fallback={<div className="flex items-center justify-center py-20">Loading timeline...</div>}>
+            <Suspense fallback={<PageLoading translationKey="loading" />}>
               <ActivityTimeline activities={history} />
             </Suspense>
 

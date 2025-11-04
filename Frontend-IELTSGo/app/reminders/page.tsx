@@ -7,6 +7,7 @@ import { ProtectedRoute } from "@/components/auth/protected-route"
 import { Button } from "@/components/ui/button"
 import { Plus } from "lucide-react"
 import { useTranslations } from "@/lib/i18n"
+import { PageLoading } from "@/components/ui/page-loading"
 import { useState, lazy, Suspense } from "react"
 
 // Lazy load heavy components to improve initial load time
@@ -40,7 +41,7 @@ function RemindersContent() {
       />
       <PageContainer>
         {/* Reminders List */}
-        <Suspense fallback={<div className="flex items-center justify-center py-20">Loading reminders...</div>}>
+        <Suspense fallback={<PageLoading translationKey="loading" />}>
           <RemindersList />
         </Suspense>
 

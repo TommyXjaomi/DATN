@@ -193,7 +193,7 @@ function DashboardContent() {
               getCardVariant({ gradient: 'blue' }),
               "group relative overflow-hidden hover:border-primary/30 cursor-pointer hover:shadow-lg hover:shadow-blue-500/10"
             )}
-            onClick={() => router.push("/courses")}
+            onClick={() => router.push("/my-courses")}
           >
             <div className="absolute inset-0 bg-gradient-to-br from-blue-500/0 via-blue-500/0 to-blue-500/5 group-hover:from-blue-500/5 group-hover:via-blue-500/5 group-hover:to-blue-500/10 transition-all duration-200" />
             <CardContent className="p-5 relative">
@@ -203,7 +203,7 @@ function DashboardContent() {
                 </div>
                 <div className="flex-1 min-w-0">
                   <h3 className="font-semibold text-base mb-1 group-hover:text-primary transition-colors">{tCommon('courses')}</h3>
-                  <p className="text-sm text-muted-foreground leading-relaxed">{tCommon('explore_courses') || "Khám phá khóa học"}</p>
+                  <p className="text-sm text-muted-foreground leading-relaxed">{tCommon('manage_your_courses') || "Quản lý khóa học của bạn"}</p>
                 </div>
                 <ArrowRight className="h-5 w-5 text-muted-foreground group-hover:text-primary group-hover:translate-x-1 transition-all duration-200 flex-shrink-0 mt-1" />
               </div>
@@ -215,7 +215,7 @@ function DashboardContent() {
               getCardVariant({ gradient: 'green' }),
               "group relative overflow-hidden hover:border-primary/30 cursor-pointer hover:shadow-lg hover:shadow-green-500/10"
             )}
-            onClick={() => router.push("/exercises")}
+            onClick={() => router.push("/exercises/list")}
           >
             <div className="absolute inset-0 bg-gradient-to-br from-green-500/0 via-green-500/0 to-green-500/5 group-hover:from-green-500/5 group-hover:via-green-500/5 group-hover:to-green-500/10 transition-all duration-200" />
             <CardContent className="p-5 relative">

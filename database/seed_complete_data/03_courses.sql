@@ -1,0 +1,1022 @@
+-- Real YouTube video IDs (120 videos, can be reused)
+-- Format: https://www.youtube.com/watch?v=[VIDEO_ID]
+-- These videos are real and available
+-- Video IDs: 120 unique YouTube video IDs randomly distributed across lessons
+-- Purpose: Create diverse and detailed courses with modules, lessons, and videos
+-- Database: course_db
+-- 
+-- Creates:
+-- - Courses (30+ diverse courses)
+-- - Modules (3-6 modules per course)
+-- - Lessons (4-8 lessons per module)
+-- - Lesson videos (for video lessons)
+-- - Course category mappings
+-- ============================================
+
+-- ============================================
+-- 1. COURSES
+-- ============================================
+-- Note: instructor_id references users from auth_db (instructors: b0000001 to b0000015)
+
+INSERT INTO courses (
+    id, title, slug, description, short_description, skill_type, level, target_band_score,
+    thumbnail_url, preview_video_url, instructor_id, instructor_name, duration_hours,
+    total_lessons, total_videos, enrollment_type, price, currency, status,
+    is_featured, is_recommended, meta_title, meta_description, meta_keywords,
+    published_at, created_at
+) VALUES
+-- ============================================
+-- LISTENING COURSES (10 courses)
+-- ============================================
+-- Beginner Listening Courses
+('c1000001-0000-0000-0000-000000000001'::uuid,
+ 'IELTS Listening Basics - Complete Guide',
+ 'ielts-listening-basics-complete-guide',
+ 'Master IELTS Listening from scratch with this comprehensive, step-by-step course designed specifically for beginners. This course provides a solid foundation in IELTS Listening skills through structured lessons covering all four parts of the test. You''ll learn essential techniques including prediction strategies, key word identification, and effective note-taking methods. Practice with authentic IELTS audio materials featuring British, American, Australian, and Canadian accents. The course includes detailed explanations for common question types such as form completion, multiple choice, matching, and map labeling. Each lesson is carefully designed to build your confidence gradually, starting with Part 1 conversations and progressing to more complex academic lectures. By the end of this course, you''ll have mastered fundamental listening skills, improved your ability to understand native speakers, and be well-prepared to achieve Band 5.5-6.0 in your IELTS Listening test. The course includes 12 comprehensive lessons, 10 video tutorials, 15+ practice exercises, downloadable transcripts, and detailed answer explanations.',
+ 'Complete beginner-friendly IELTS Listening course covering all parts with real practice materials',
+ 'listening', 'beginner', 6.0,
+ 'https://images.unsplash.com/photo-1590602847861-f357a9332bbc?w=800&h=600&fit=crop',
+ 'https://www.youtube.com/watch?v=6QMu7-3DMi0',
+ 'b0000002-0000-0000-0000-000000000002'::uuid,
+ 'James Anderson', 4.0, 12, 10,
+ 'free', 0, 'VND', 'published',
+ false, true,
+ 'IELTS Listening Basics Course - Complete Guide for Beginners | Band 5.5-6.0',
+ 'Master IELTS Listening from scratch. Learn fundamental techniques, common question types, and practice with real IELTS audio materials. Perfect for beginners.',
+ 'IELTS Listening, IELTS Beginner, IELTS Course, Listening Practice, Band 5.5, Band 6.0, IELTS Preparation',
+ NOW() - INTERVAL '170 days', NOW() - INTERVAL '190 days'),
+
+-- Intermediate Listening Courses
+('c1000003-0000-0000-0000-000000000003'::uuid,
+ 'IELTS Listening Advanced - Parts 3 & 4',
+ 'ielts-listening-advanced-parts-3-4',
+ 'Master the most challenging parts of IELTS Listening with this advanced course focused on Parts 3 and 4. Designed for students already comfortable with basic listening skills and targeting Band 7.0+, this course dives deep into academic conversations and lectures that are notoriously difficult for most test-takers. You''ll develop advanced strategies for handling complex vocabulary, understanding academic discourse, following multi-speaker discussions, and managing the increased difficulty level. The course covers critical skills such as identifying speaker attitudes and opinions, understanding academic terminology, recognizing organizational patterns in lectures, and extracting specific information from dense academic content. Practice with authentic university-level materials including student-tutor discussions, research presentations, and academic seminars. Each module includes targeted exercises focusing on specific challenge areas, detailed analysis of common mistakes, and proven techniques for maximizing your score in these demanding sections. The comprehensive curriculum includes 28 in-depth lessons, 22 video tutorials, 25+ challenging practice exercises, advanced vocabulary lists, and detailed feedback on performance.',
+ 'Advanced techniques and strategies for mastering Parts 3 & 4 of IELTS Listening',
+ 'listening', 'intermediate', 7.0,
+ 'https://images.unsplash.com/photo-1505740420928-5e560c06d30e?w=800&h=600&fit=crop',
+ 'https://www.youtube.com/watch?v=RyTdIYMrcKY',
+ 'b0000003-0000-0000-0000-000000000003'::uuid,
+ 'Emma Thompson', 10.0, 28, 22,
+ 'premium', 499000, 'VND', 'published',
+ true, false,
+ 'IELTS Listening Advanced Course - Parts 3 & 4 Mastery | Band 7.0+',
+ 'Advanced strategies for the most challenging parts of IELTS Listening. Perfect for students aiming for Band 7.0+. Includes academic conversations and lectures.',
+ 'IELTS Listening Advanced, IELTS Parts 3 & 4, IELTS Listening Practice, Band 7.0, Academic Listening, IELTS Preparation',
+ NOW() - INTERVAL '160 days', NOW() - INTERVAL '180 days'),
+
+('c1000004-0000-0000-0000-000000000004'::uuid,
+ 'IELTS Listening Full Test Practice',
+ 'ielts-listening-full-test-practice',
+ 'Perfect your IELTS Listening skills with comprehensive full test practice sessions. This intensive course provides 10 complete IELTS Listening tests from authentic Cambridge IELTS materials, allowing you to experience real exam conditions and build test-taking stamina. Each test includes all four parts with realistic audio quality, authentic British accents, and accurate question formats. After completing each test, you''ll receive detailed performance analysis including score breakdown by part, identification of weak areas, and personalized improvement recommendations. The course teaches advanced time management strategies, stress reduction techniques, and effective test-day preparation methods. Practice under timed conditions to simulate the actual exam experience, and learn to handle the pressure of the 30-minute test format. Detailed answer explanations help you understand not just what the correct answer is, but why it''s correct and how to identify it efficiently. The course includes comprehensive progress tracking, performance analytics, and targeted practice recommendations based on your results. Perfect for students at upper-intermediate level targeting Band 7.5+ who need extensive practice and want to maximize their listening score.',
+ 'Complete IELTS Listening test practice with 10 full tests and detailed performance analysis',
+ 'listening', 'upper-intermediate', 7.5,
+ 'https://images.unsplash.com/photo-1589903308904-1010c2294adc?w=800&h=600&fit=crop',
+ 'https://www.youtube.com/watch?v=xpmWhPew5QU',
+ 'b0000001-0000-0000-0000-000000000001'::uuid,
+ 'Sarah Mitchell', 12.0, 10, 40,
+ 'premium', 699000, 'VND', 'published',
+ true, true,
+ 'IELTS Listening Full Test Practice - 10 Complete Tests | Band 7.5',
+ 'Practice complete IELTS Listening tests with detailed explanations. Includes 10 full tests from Cambridge IELTS books.',
+ 'IELTS Listening Practice, Full Test Practice, Cambridge IELTS, Listening Tests, Band 7.5, IELTS Preparation',
+ NOW() - INTERVAL '150 days', NOW() - INTERVAL '170 days'),
+
+-- ============================================
+-- READING COURSES (10 courses)
+-- ============================================
+-- Beginner Reading Courses
+('c2000001-0000-0000-0000-000000000005'::uuid,
+ 'IELTS Reading Fundamentals',
+ 'ielts-reading-fundamentals',
+ 'Build a strong foundation in IELTS Reading with this comprehensive course designed for beginners. Learn essential reading strategies including skimming for main ideas, scanning for specific information, and understanding how to approach different question types effectively. The course covers fundamental skills such as identifying key information, understanding paraphrasing, recognizing synonyms and antonyms, and managing time efficiently. You''ll practice with carefully selected academic passages that gradually increase in difficulty, allowing you to build confidence step by step. Each lesson focuses on specific question types including multiple choice, True/False/Not Given, matching headings, sentence completion, and short answer questions. Detailed explanations help you understand common traps and mistakes, while practical exercises reinforce your learning. The course includes vocabulary building exercises featuring high-frequency IELTS words, reading comprehension practice, and strategies for handling unfamiliar vocabulary. By the end of this course, you''ll have mastered basic reading techniques, improved your reading speed, and developed the confidence to tackle any IELTS Reading passage. Perfect for students targeting Band 6.0 who want to build a solid foundation before moving to more advanced materials.',
+ 'Master essential IELTS Reading skills including skimming, scanning, and question type strategies',
+ 'reading', 'beginner', 6.0,
+ 'https://images.unsplash.com/photo-1481627834876-b7833e8f5570?w=800&h=600&fit=crop',
+ NULL,
+ 'b0000002-0000-0000-0000-000000000002'::uuid,
+ 'James Anderson', 7.0, 20, 8,
+ 'free', 0, 'VND', 'published',
+ true, true,
+ 'IELTS Reading Fundamentals Course - Complete Guide for Beginners | Band 6.0',
+ 'Learn essential IELTS Reading skills: skimming, scanning, and understanding question types. Perfect for beginners.',
+ 'IELTS Reading, IELTS Beginner, Reading Fundamentals, Skimming Scanning, Band 6.0, IELTS Preparation',
+ NOW() - INTERVAL '140 days', NOW() - INTERVAL '160 days'),
+
+('c2000002-0000-0000-0000-000000000006'::uuid,
+ 'True/False/Not Given Mastery',
+ 'true-false-not-given-mastery',
+ 'Master the most challenging IELTS Reading question type with this specialized course. True/False/Not Given questions consistently rank as the most difficult for IELTS candidates, and this course provides a systematic approach to conquering them. Learn proven strategies for identifying factual statements, distinguishing between what is stated, implied, or not mentioned in the passage. The course breaks down the subtle differences between True (the statement agrees with the passage), False (the statement contradicts the passage), and Not Given (the statement is not mentioned or cannot be determined from the passage). Practice with 50+ carefully crafted questions covering various topics and difficulty levels. Detailed explanations for each question help you understand the reasoning process and develop pattern recognition skills. The course includes common trap identification, vocabulary strategies for understanding nuanced meanings, and time-saving techniques for quickly identifying the correct answer. You''ll learn to avoid common mistakes such as making assumptions, confusing False with Not Given, and misinterpreting paraphrased information. Advanced students will appreciate the complex passage analysis techniques and strategies for handling high-level academic texts. Perfect for intermediate to advanced students targeting Band 7.0+ who need to master this critical question type.',
+ 'Become an expert at True/False/Not Given questions with proven strategies and extensive practice',
+ 'reading', 'intermediate', 7.0,
+ 'https://images.unsplash.com/photo-1456513080510-7bf3a84b82f8?w=800&h=600&fit=crop',
+ NULL,
+ 'b0000003-0000-0000-0000-000000000003'::uuid,
+ 'Emma Thompson', 6.0, 16, 6,
+ 'premium', 399000, 'VND', 'published',
+ false, true,
+ 'True/False/Not Given Mastery - IELTS Reading Question Type | Band 7.0',
+ 'Master the most challenging IELTS Reading question type: True/False/Not Given. Learn proven strategies and practice with 50+ questions.',
+ 'True False Not Given, IELTS Reading, Reading Strategies, Band 7.0, IELTS Preparation',
+ NOW() - INTERVAL '130 days', NOW() - INTERVAL '150 days'),
+
+-- Advanced Reading Courses
+('c2000003-0000-0000-0000-000000000007'::uuid,
+ 'IELTS Academic Reading Advanced',
+ 'ielts-academic-reading-advanced',
+ 'Excel in IELTS Academic Reading with advanced strategies designed for high-achieving students targeting Band 7.5+. This comprehensive course focuses on handling complex academic passages from journals, textbooks, and research papers that appear in the actual IELTS test. Learn advanced techniques for quickly understanding dense academic texts, identifying main arguments, recognizing author perspectives, and extracting specific information efficiently. The course covers sophisticated reading strategies including inferential reading, understanding complex sentence structures, recognizing academic discourse markers, and managing difficult vocabulary. Practice with authentic university-level passages covering diverse academic fields including science, technology, history, psychology, and environmental studies. Each lesson includes detailed passage analysis, vocabulary building with academic terminology, and strategies for maintaining accuracy while increasing reading speed. The course teaches advanced time management techniques to complete all 40 questions within the 60-minute time limit, including prioritization strategies for difficult questions. You''ll learn to identify question types quickly, understand what each question is asking for, and locate answers efficiently in complex passages. Comprehensive practice tests with detailed explanations help you identify weaknesses and improve performance. Perfect for advanced students who have mastered basic reading skills and need to push their scores to the next level.',
+ 'Advanced strategies for handling complex academic passages and achieving Band 7.5+ in Reading',
+ 'reading', 'advanced', 7.5,
+ 'https://images.unsplash.com/photo-1505740420928-5e560c06d30e?w=800&h=600&fit=crop',
+ NULL,
+ 'b0000001-0000-0000-0000-000000000001'::uuid,
+ 'Sarah Mitchell', 9.0, 24, 10,
+ 'premium', 599000, 'VND', 'published',
+ true, false,
+ 'IELTS Academic Reading Advanced Course - Band 7.5+',
+ 'Advanced strategies for Academic Reading. Focus on complex passages, academic vocabulary, and time management.',
+ 'IELTS Academic Reading, Advanced Reading, Academic Vocabulary, Band 7.5, IELTS Preparation',
+ NOW() - INTERVAL '120 days', NOW() - INTERVAL '140 days'),
+
+-- ============================================
+-- WRITING COURSES (5 courses)
+-- ============================================
+('c3000001-0000-0000-0000-000000000008'::uuid,
+ 'IELTS Writing Task 1 - Complete Guide',
+ 'ielts-writing-task-1-complete-guide',
+ 'Master IELTS Writing Task 1 with this comprehensive course covering all question types including line graphs, bar charts, pie charts, tables, maps, diagrams, and process diagrams. Learn step-by-step approaches to analyzing visual data, selecting key information, organizing your response logically, and using appropriate vocabulary and grammar structures. The course teaches proven frameworks for describing trends, making comparisons, highlighting significant features, and writing accurate overviews. Practice with 50+ real IELTS Task 1 questions covering diverse topics and chart types. Each lesson includes model answers with detailed explanations, vocabulary lists for describing data, common grammar structures, and band score breakdowns. You''ll learn to identify main trends, compare data effectively, use varied sentence structures, and write within the 150-word limit while maintaining accuracy. The course covers Academic Task 1 in detail, helping you understand examiner expectations and common mistakes to avoid. Advanced students will appreciate strategies for achieving Band 7.0+ with sophisticated vocabulary and complex sentence structures. Includes downloadable templates, practice exercises with feedback, and comprehensive answer keys.',
+ 'Complete guide to mastering IELTS Writing Task 1 with step-by-step strategies and extensive practice',
+ 'writing', 'intermediate', 6.5,
+ 'https://images.unsplash.com/photo-1456513080510-7bf3a84b82f8?w=800&h=600&fit=crop',
+ NULL,
+ 'b0000002-0000-0000-0000-000000000002'::uuid,
+ 'James Anderson', 8.0, 22, 15,
+ 'premium', 549000, 'VND', 'published',
+ true, true,
+ 'IELTS Writing Task 1 Complete Guide - Charts, Graphs, Maps | Band 6.5',
+ 'Master IELTS Writing Task 1 with step-by-step guidance. Learn to describe charts, graphs, maps, and diagrams effectively.',
+ 'IELTS Writing Task 1, Writing Charts, Writing Graphs, Band 6.5, IELTS Preparation',
+ NOW() - INTERVAL '110 days', NOW() - INTERVAL '130 days'),
+
+('c3000002-0000-0000-0000-000000000009'::uuid,
+ 'IELTS Writing Task 2 - Essay Mastery',
+ 'ielts-writing-task-2-essay-mastery',
+ 'Excel in IELTS Writing Task 2 with this comprehensive course covering all essay types: Opinion Essays, Discussion Essays, Problem-Solution Essays, Advantages/Disadvantages Essays, and Two-Part Questions. Learn proven frameworks for structuring each essay type, developing strong arguments, supporting ideas with relevant examples, and writing cohesive paragraphs. The course teaches advanced vocabulary for expressing opinions, making comparisons, giving examples, and drawing conclusions. Practice with 60+ real IELTS Task 2 questions covering diverse topics including education, technology, environment, health, society, and culture. Each lesson includes model essays at different band levels, detailed analysis of essay structure, vocabulary building exercises, and grammar practice. You''ll learn to generate ideas quickly, organize your thoughts logically, write compelling introductions and conclusions, and develop body paragraphs with clear topic sentences and supporting details. The course covers Task Response, Coherence and Cohesion, Lexical Resource, and Grammatical Range and Accuracy - the four criteria examiners use to assess your writing. Advanced strategies for Band 7.0+ include using complex sentence structures, varied vocabulary, and sophisticated linking devices. Includes essay planning templates, brainstorming techniques, and comprehensive feedback on practice essays.',
+ 'Master all IELTS Writing Task 2 essay types with proven frameworks and extensive practice materials',
+ 'writing', 'intermediate', 7.0,
+ 'https://images.unsplash.com/photo-1481627834876-b7833e8f5570?w=800&h=600&fit=crop',
+ NULL,
+ 'b0000003-0000-0000-0000-000000000003'::uuid,
+ 'Emma Thompson', 10.0, 26, 18,
+ 'premium', 649000, 'VND', 'published',
+ true, true,
+ 'IELTS Writing Task 2 Essay Mastery - All Essay Types | Band 7.0',
+ 'Learn to write high-scoring IELTS essays. Covers all essay types: opinion, discussion, problem-solution, and advantages/disadvantages.',
+ 'IELTS Writing Task 2, Essay Writing, Opinion Essay, Discussion Essay, Band 7.0, IELTS Preparation',
+ NOW() - INTERVAL '100 days', NOW() - INTERVAL '120 days'),
+
+-- ============================================
+-- SPEAKING COURSES (5 courses)
+-- ============================================
+('c4000001-0000-0000-0000-000000000010'::uuid,
+ 'IELTS Speaking Part 1 - Everyday Topics',
+ 'ielts-speaking-part-1-everyday-topics',
+ 'Build confidence in IELTS Speaking Part 1 with this comprehensive course covering all common topics including hometown, family, work, studies, hobbies, music, sports, travel, food, and technology. Learn natural responses to common questions, pronunciation tips for clarity, and strategies for giving detailed answers without hesitation. The course teaches vocabulary for everyday situations, common phrases and expressions, and techniques for extending your answers appropriately. Practice with 100+ real Part 1 questions covering diverse topics, with model answers and pronunciation guides. Each lesson includes audio recordings of native speakers, pronunciation practice exercises, vocabulary building activities, and tips for avoiding common mistakes. You''ll learn to answer questions naturally, use appropriate grammar structures, speak fluently without long pauses, and demonstrate good pronunciation. The course covers essential speaking skills including word stress, sentence stress, intonation patterns, and connected speech. Beginner-friendly approach helps you build confidence gradually, starting with simple topics and progressing to more complex questions. Includes self-assessment checklists, pronunciation guides, and practice exercises with feedback. Perfect for students targeting Band 6.0+ who want to feel confident and natural in Part 1.',
+ 'Master IELTS Speaking Part 1 with natural responses, pronunciation tips, and extensive practice on everyday topics',
+ 'speaking', 'elementary', 6.0,
+ 'https://images.unsplash.com/photo-1505740420928-5e560c06d30e?w=800&h=600&fit=crop',
+ 'https://www.youtube.com/watch?v=p-JfuIyV9xQ',
+ 'b0000001-0000-0000-0000-000000000001'::uuid,
+ 'Sarah Mitchell', 5.0, 16, 14,
+ 'free', 0, 'VND', 'published',
+ false, true,
+ 'IELTS Speaking Part 1 - Everyday Topics Course | Band 6.0',
+ 'Master Part 1 of IELTS Speaking with common topics: hometown, family, hobbies, work, studies. Includes pronunciation tips.',
+ 'IELTS Speaking Part 1, Speaking Practice, Pronunciation, Band 6.0, IELTS Preparation',
+ NOW() - INTERVAL '90 days', NOW() - INTERVAL '110 days'),
+
+('c4000002-0000-0000-0000-000000000011'::uuid,
+ 'IELTS Speaking Part 2 - Cue Card Mastery',
+ 'ielts-speaking-part-2-cue-card-mastery',
+ 'Master the IELTS Speaking Part 2 long turn with this comprehensive course covering 50+ cue card topics. Learn proven frameworks for structuring your 2-minute speech, developing ideas quickly, and speaking fluently without hesitation. The course teaches strategies for using the 1-minute preparation time effectively, organizing your thoughts, and covering all bullet points on the cue card. Practice with authentic cue cards covering diverse topics including people, places, events, objects, experiences, and abstract concepts. Each lesson includes model answers demonstrating different approaches, vocabulary for specific topics, linking phrases for smooth transitions, and techniques for managing time effectively. You''ll learn to give detailed, well-structured responses, use varied vocabulary and grammar, speak naturally and fluently, and maintain coherence throughout your speech. The course covers common cue card types, strategies for handling difficult topics, techniques for extending your answers, and tips for impressive vocabulary use. Advanced students will appreciate sophisticated language structures, idiomatic expressions, and strategies for achieving Band 7.0+. Includes planning templates, idea generation techniques, and practice exercises with time management focus. Perfect for intermediate to advanced students targeting Band 7.0+ who want to excel in Part 2.',
+ 'Perfect your Part 2 long turn with proven frameworks, 50+ cue card topics, and strategies for fluent delivery',
+ 'speaking', 'intermediate', 7.0,
+ 'https://images.unsplash.com/photo-1481627834876-b7833e8f5570?w=800&h=600&fit=crop',
+ 'https://www.youtube.com/watch?v=nXvcLRAYIXs',
+ 'b0000002-0000-0000-0000-000000000002'::uuid,
+ 'James Anderson', 7.0, 20, 16,
+ 'premium', 499000, 'VND', 'published',
+ true, false,
+ 'IELTS Speaking Part 2 Cue Card Mastery Course | Band 7.0',
+ 'Learn to structure and deliver 2-minute speeches for Part 2. Includes 50+ cue card topics with model answers.',
+ 'IELTS Speaking Part 2, Cue Card, Long Turn, Speaking Practice, Band 7.0, IELTS Preparation',
+ NOW() - INTERVAL '80 days', NOW() - INTERVAL '100 days'),
+
+-- ============================================
+-- GENERAL/COMPREHENSIVE COURSES (5 courses)
+-- ============================================
+('c5000001-0000-0000-0000-000000000012'::uuid,
+ 'Complete IELTS Preparation Course',
+ 'complete-ielts-preparation-course',
+ 'Comprehensive course covering all four skills: Listening, Reading, Writing, and Speaking. Perfect for students preparing for their first IELTS test.',
+ 'All-in-one IELTS preparation course',
+ 'general', 'intermediate', 6.5,
+ 'https://images.unsplash.com/photo-1505740420928-5e560c06d30e?w=800&h=600&fit=crop',
+ 'https://www.youtube.com/watch?v=6QMu7-3DMi0',
+ 'b0000001-0000-0000-0000-000000000001'::uuid,
+ 'Sarah Mitchell', 40.0, 80, 60,
+ 'premium', 1999000, 'VND', 'published',
+ true, true,
+ 'Complete IELTS Preparation Course - All Skills | Band 6.5',
+ 'Comprehensive course covering all four skills: Listening, Reading, Writing, and Speaking. Perfect for students preparing for their first IELTS test.',
+ 'IELTS Complete Course, IELTS Preparation, All Skills, Band 6.5, IELTS Training',
+ NOW() - INTERVAL '70 days', NOW() - INTERVAL '90 days'),
+
+('c5000002-0000-0000-0000-000000000013'::uuid,
+ 'IELTS Band 7.0+ Intensive Course',
+ 'ielts-band-7-intensive-course',
+ 'Intensive course for ambitious students targeting Band 7.0+. Advanced strategies, complex topics, and challenging practice materials.',
+ 'Advanced course for high achievers',
+ 'general', 'advanced', 7.5,
+ 'https://images.unsplash.com/photo-1456513080510-7bf3a84b82f8?w=800&h=600&fit=crop',
+ 'https://www.youtube.com/watch?v=WT0QV_3Y7Fw',
+ 'b0000003-0000-0000-0000-000000000003'::uuid,
+ 'Emma Thompson', 35.0, 70, 55,
+ 'premium', 2499000, 'VND', 'published',
+ true, true,
+ 'IELTS Band 7.0+ Intensive Course - Advanced Strategies | Band 7.5',
+ 'Intensive course for ambitious students targeting Band 7.0+. Advanced strategies, complex topics, and challenging practice materials.',
+ 'IELTS Band 7, IELTS Advanced, Intensive Course, Band 7.5, IELTS Preparation',
+ NOW() - INTERVAL '60 days', NOW() - INTERVAL '80 days');
+
+-- Insert more courses dynamically
+INSERT INTO courses (
+    id, title, slug, description, short_description, skill_type, level, target_band_score,
+    thumbnail_url, preview_video_url, instructor_id, instructor_name, duration_hours,
+    total_lessons, total_videos, enrollment_type, price, currency, status,
+    is_featured, is_recommended, meta_title, meta_description, meta_keywords,
+    published_at, created_at
+)
+SELECT 
+    ('c' || 
+        CASE 
+            WHEN skill_num = 1 THEN '1' -- listening
+            WHEN skill_num = 2 THEN '2' -- reading
+            WHEN skill_num = 3 THEN '3' -- writing
+            WHEN skill_num = 4 THEN '4' -- speaking
+            ELSE '5' -- general
+        END ||
+        LPAD((course_num + 10)::text, 6, '0') || '-0000-0000-0000-000000000' ||
+        LPAD((course_num + 10)::text, 3, '0')
+    )::uuid,
+    CASE skill_num
+        WHEN 1 THEN 'IELTS Listening ' || 
+            CASE course_num % 4
+                WHEN 0 THEN 'Practice Test ' || (course_num / 4 + 1)::text
+                WHEN 1 THEN 'Vocabulary Mastery'
+                WHEN 2 THEN 'Note-Taking Techniques'
+                ELSE 'Speed Improvement'
+            END
+        WHEN 2 THEN 'IELTS Reading ' ||
+            CASE course_num % 4
+                WHEN 0 THEN 'Passage Analysis ' || (course_num / 4 + 1)::text
+                WHEN 1 THEN 'Vocabulary Building'
+                WHEN 2 THEN 'Time Management'
+                ELSE 'Question Type Mastery'
+            END
+        WHEN 3 THEN 'IELTS Writing ' ||
+            CASE course_num % 3
+                WHEN 0 THEN 'Grammar & Vocabulary'
+                WHEN 1 THEN 'Coherence & Cohesion'
+                ELSE 'Task Response'
+            END
+        WHEN 4 THEN 'IELTS Speaking ' ||
+            CASE course_num % 3
+                WHEN 0 THEN 'Pronunciation & Fluency'
+                WHEN 1 THEN 'Grammar & Vocabulary'
+                ELSE 'Part 3 Discussion'
+            END
+        ELSE 'IELTS ' ||
+            CASE course_num % 3
+                WHEN 0 THEN 'Grammar Foundation'
+                WHEN 1 THEN 'Vocabulary Expansion'
+                ELSE 'Test Strategies'
+            END
+    END,
+    'ielts-' ||
+        CASE skill_num
+            WHEN 1 THEN 'listening'
+            WHEN 2 THEN 'reading'
+            WHEN 3 THEN 'writing'
+            WHEN 4 THEN 'speaking'
+            ELSE 'general'
+        END || '-' ||
+        REPLACE(LOWER(
+            CASE skill_num
+                WHEN 1 THEN 'IELTS Listening ' || 
+                    CASE course_num % 4
+                        WHEN 0 THEN 'Practice Test ' || course_num::text
+                        WHEN 1 THEN 'Vocabulary Mastery ' || course_num::text
+                        WHEN 2 THEN 'Note-Taking Techniques ' || course_num::text
+                        ELSE 'Speed Improvement ' || course_num::text
+                    END
+                WHEN 2 THEN 'IELTS Reading ' ||
+                    CASE course_num % 4
+                        WHEN 0 THEN 'Passage Analysis ' || course_num::text
+                        WHEN 1 THEN 'Vocabulary Building ' || course_num::text
+                        WHEN 2 THEN 'Time Management ' || course_num::text
+                        ELSE 'Question Type Mastery ' || course_num::text
+                    END
+                WHEN 3 THEN 'IELTS Writing ' ||
+                    CASE course_num % 3
+                        WHEN 0 THEN 'Grammar & Vocabulary ' || course_num::text
+                        WHEN 1 THEN 'Coherence & Cohesion ' || course_num::text
+                        ELSE 'Task Response ' || course_num::text
+                    END
+                WHEN 4 THEN 'IELTS Speaking ' ||
+                    CASE course_num % 3
+                        WHEN 0 THEN 'Pronunciation & Fluency ' || course_num::text
+                        WHEN 1 THEN 'Grammar & Vocabulary ' || course_num::text
+                        ELSE 'Part 3 Discussion ' || course_num::text
+                    END
+                ELSE 'IELTS ' ||
+                    CASE course_num % 3
+                        WHEN 0 THEN 'Grammar Foundation ' || course_num::text
+                        WHEN 1 THEN 'Vocabulary Expansion ' || course_num::text
+                        ELSE 'Test Strategies ' || course_num::text
+                    END
+            END
+        ), ' ', '-'),
+    CASE skill_num
+        WHEN 1 THEN 'Comprehensive IELTS Listening course covering ' ||
+            CASE course_num % 4
+                WHEN 0 THEN 'full practice tests with detailed explanations. Perfect for students who want to experience complete IELTS Listening tests under timed conditions. Each test includes all four parts with authentic audio quality, realistic question formats, and comprehensive answer explanations. Practice identifying key information across different contexts, managing time effectively, and building test-taking stamina. Includes performance analysis, score breakdowns by part, and personalized improvement recommendations based on your results. Ideal for intermediate to advanced students targeting Band 6.5-7.5.'
+                WHEN 1 THEN 'essential vocabulary for different contexts commonly found in IELTS Listening tests. This course systematically builds your vocabulary through themed lessons covering accommodation, travel, education, work, health, environment, and technology. Learn vocabulary in context with audio examples, practice exercises, and memory techniques. Each lesson includes pronunciation guides, example sentences, and opportunities to use new vocabulary in realistic scenarios. Build confidence recognizing and understanding vocabulary across various accents and speech speeds. Perfect for beginners to intermediate students who want to strengthen their vocabulary foundation.'
+                WHEN 2 THEN 'effective note-taking strategies specifically designed for Part 3 and Part 4 of IELTS Listening. Master techniques for capturing key information quickly while listening, organizing notes logically, and using abbreviations effectively. Learn to identify main ideas, supporting details, and specific information in academic conversations and lectures. Practice with authentic university-level materials including student-tutor discussions, research presentations, and academic seminars. Includes templates for different note-taking methods, practice exercises with increasing difficulty, and detailed feedback on your note-taking skills. Essential for intermediate to advanced students targeting Band 7.0+ who struggle with the academic parts of the test.'
+                ELSE 'techniques to improve listening speed and accuracy. Develop skills for processing information quickly, maintaining concentration throughout the test, and handling fast speech rates. Learn strategies for predicting answers, recognizing paraphrasing, and identifying distractors. Practice with progressively faster audio materials, develop listening stamina, and improve your ability to understand native speakers at natural speed. Includes speed-building exercises, concentration techniques, and methods for maintaining accuracy while increasing processing speed. Perfect for students who can understand slower speech but struggle with the pace of real IELTS tests.'
+            END
+        WHEN 2 THEN 'Detailed IELTS Reading course focusing on ' ||
+            CASE course_num % 4
+                WHEN 0 THEN 'analyzing complex academic passages commonly found in IELTS Reading tests. Learn advanced techniques for quickly understanding dense academic texts, identifying main arguments, recognizing author perspectives, and extracting specific information efficiently. Practice with authentic passages from journals, textbooks, and research papers covering diverse fields including science, technology, history, psychology, and environmental studies. Each lesson includes detailed passage analysis, vocabulary building with academic terminology, and strategies for maintaining accuracy while increasing reading speed. Develop skills for handling complex sentence structures, understanding academic discourse markers, and managing difficult vocabulary. Essential for advanced students targeting Band 7.5+ who need to master complex academic texts.'
+                WHEN 1 THEN 'building academic vocabulary systematically through thematic lessons and contextual learning. Expand your vocabulary with high-frequency IELTS words organized by topics including science, technology, environment, health, education, and society. Learn vocabulary in context with example sentences from real IELTS passages, practice exercises, and memory techniques. Each lesson includes word families, collocations, synonyms, and antonyms to help you understand nuanced meanings. Develop ability to recognize vocabulary in different forms and contexts, understand academic terminology, and use sophisticated vocabulary appropriately. Perfect for intermediate to advanced students who want to improve their reading comprehension and vocabulary range.'
+                WHEN 2 THEN 'managing time effectively in the IELTS Reading test. Learn proven strategies for completing all 40 questions within the 60-minute time limit without sacrificing accuracy. Develop skills for quickly identifying question types, prioritizing easier questions, and allocating time appropriately across three passages. Practice with timed exercises, learn to scan and skim efficiently, and develop techniques for quickly locating answers. Includes time management templates, practice tests with time tracking, and strategies for handling difficult questions under time pressure. Essential for all IELTS candidates who struggle to complete the reading test within the time limit.'
+                ELSE 'mastering all question types with proven strategies and extensive practice. Cover every question type in IELTS Reading including multiple choice, True/False/Not Given, Yes/No/Not Given, matching headings, matching information, sentence completion, summary completion, and short answer questions. Learn specific techniques for each question type, understand common traps and mistakes, and practice with 200+ carefully selected questions. Each lesson includes detailed explanations, example answers, and strategies for quickly identifying correct answers. Build confidence handling any question type regardless of passage difficulty. Perfect for students who want comprehensive coverage of all IELTS Reading question types.'
+            END
+        WHEN 3 THEN 'Advanced IELTS Writing course emphasizing ' ||
+            CASE course_num % 3
+                WHEN 0 THEN 'grammar accuracy and vocabulary range essential for achieving high scores in IELTS Writing. Master complex sentence structures, varied grammatical patterns, and sophisticated vocabulary appropriate for academic writing. Learn to use grammar structures accurately, avoid common mistakes, and demonstrate grammatical range and flexibility. Practice with targeted exercises focusing on tenses, passive voice, conditional sentences, relative clauses, and advanced grammar structures. Expand your vocabulary with academic words, synonyms, collocations, and idiomatic expressions suitable for formal writing. Includes grammar explanations, vocabulary lists, practice exercises, and detailed feedback on your writing. Essential for students targeting Band 6.5+ who need to improve their grammatical accuracy and lexical resource.'
+                WHEN 1 THEN 'coherence, cohesion, and paragraph structure to create well-organized and logically connected essays. Learn to structure essays effectively with clear introductions, well-developed body paragraphs, and strong conclusions. Master linking devices, transitional phrases, and cohesive devices to connect ideas smoothly. Practice organizing ideas logically, developing paragraphs with clear topic sentences and supporting details, and creating smooth transitions between paragraphs. Includes essay templates, paragraph structure guides, linking word lists, and practice exercises with model answers. Develop skills for creating clear, logical flow throughout your essays that examiners can easily follow. Perfect for students who understand grammar and vocabulary but struggle with essay organization and coherence.'
+                ELSE 'task achievement and addressing all requirements comprehensively to maximize your Task Response score. Learn to analyze essay questions effectively, identify all parts of the question, and address each requirement fully. Practice generating relevant ideas quickly, developing arguments with clear examples, and ensuring your response fully answers the question. Master techniques for writing compelling introductions that clearly state your position, developing body paragraphs that fully explore each aspect of the question, and concluding effectively. Includes question analysis frameworks, idea generation techniques, and strategies for ensuring complete task coverage. Essential for students who struggle to fully address all parts of essay questions and need to improve their Task Response scores.'
+            END
+        WHEN 4 THEN 'Complete IELTS Speaking course covering ' ||
+            CASE course_num % 3
+                WHEN 0 THEN 'pronunciation, stress, and fluency techniques to help you speak clearly and naturally. Master essential pronunciation skills including word stress, sentence stress, intonation patterns, and connected speech. Learn to pronounce individual sounds accurately, use stress to convey meaning, and speak with natural rhythm and intonation. Practice with audio recordings of native speakers, pronunciation exercises, and techniques for self-correction. Develop fluency through regular practice, reduce hesitation and pauses, and learn to speak at a natural pace. Includes pronunciation guides, audio examples, practice exercises, and strategies for improving your accent. Perfect for students who want to improve their pronunciation and speak more naturally and fluently.'
+                WHEN 1 THEN 'grammar accuracy and lexical resource to demonstrate sophisticated language use in your speaking test. Learn to use a wide range of grammatical structures accurately, vary your sentence patterns, and avoid common grammar mistakes. Expand your vocabulary with idiomatic expressions, collocations, and sophisticated words appropriate for spoken English. Practice using grammar structures naturally in conversation, developing vocabulary for diverse topics, and demonstrating lexical flexibility. Includes grammar practice exercises, vocabulary building activities, model answers demonstrating sophisticated language, and techniques for using advanced language naturally. Essential for students targeting Band 7.0+ who need to demonstrate grammatical range and lexical resource in their speaking.'
+                ELSE 'advanced discussion topics for Part 3 of the IELTS Speaking test. Master techniques for handling abstract and complex questions, developing extended responses, and expressing sophisticated opinions. Learn to analyze questions deeply, structure your answers logically, and support your ideas with relevant examples and explanations. Practice with 100+ Part 3 questions covering diverse topics including education, technology, environment, society, culture, and global issues. Develop skills for speculating, comparing, evaluating, and expressing nuanced opinions. Includes question analysis techniques, answer frameworks, vocabulary for expressing opinions, and strategies for handling difficult questions. Perfect for advanced students targeting Band 7.5+ who want to excel in the most challenging part of the speaking test.'
+            END
+        ELSE 'Comprehensive IELTS course covering ' ||
+            CASE course_num % 3
+                WHEN 0 THEN 'essential grammar rules and structures needed for success in all four IELTS skills. Build a strong grammatical foundation with systematic lessons covering tenses, passive voice, conditional sentences, relative clauses, articles, prepositions, and advanced grammar structures. Learn grammar in context with examples from IELTS materials, practice exercises, and opportunities to use grammar structures in realistic scenarios. Develop understanding of how grammar affects meaning, learn to use grammar structures accurately and appropriately, and avoid common mistakes. Includes grammar explanations, practice exercises, error correction activities, and detailed feedback. Perfect for students who need to strengthen their grammatical foundation before focusing on specific skills.'
+                WHEN 1 THEN 'building a strong vocabulary foundation essential for achieving high scores across all IELTS skills. Expand your vocabulary systematically through thematic lessons covering high-frequency IELTS words, academic vocabulary, and topic-specific vocabulary. Learn vocabulary in context with example sentences, practice exercises, and memory techniques. Develop skills for recognizing vocabulary in different forms, understanding nuanced meanings, and using vocabulary appropriately. Includes vocabulary lists organized by topic and frequency, practice exercises, and strategies for vocabulary retention. Essential for students who want to build a comprehensive vocabulary foundation for IELTS success.'
+                ELSE 'effective test-taking strategies for all sections of the IELTS test. Learn proven techniques for maximizing your score including time management, answer strategies, common mistakes to avoid, and test-day preparation. Master strategies specific to each skill including prediction techniques for Listening, scanning and skimming for Reading, planning frameworks for Writing, and confidence-building techniques for Speaking. Practice with full test simulations, develop test-taking stamina, and learn to handle pressure effectively. Includes comprehensive test strategies, practice tests, performance analysis, and personalized improvement recommendations. Perfect for students preparing for their first IELTS test or those who want to optimize their test-taking approach.'
+            END
+    END,
+    CASE skill_num
+        WHEN 1 THEN 
+            CASE course_num % 4
+                WHEN 0 THEN 'IELTS Listening full test practice course'
+                WHEN 1 THEN 'IELTS Listening vocabulary mastery course'
+                WHEN 2 THEN 'IELTS Listening note-taking strategies course'
+                ELSE 'IELTS Listening speed and accuracy improvement course'
+            END
+        WHEN 2 THEN
+            CASE course_num % 4
+                WHEN 0 THEN 'IELTS Reading passage analysis course'
+                WHEN 1 THEN 'IELTS Reading vocabulary building course'
+                WHEN 2 THEN 'IELTS Reading time management course'
+                ELSE 'IELTS Reading question type mastery course'
+            END
+        WHEN 3 THEN
+            CASE course_num % 3
+                WHEN 0 THEN 'IELTS Writing grammar and vocabulary course'
+                WHEN 1 THEN 'IELTS Writing coherence and cohesion course'
+                ELSE 'IELTS Writing task achievement course'
+            END
+        WHEN 4 THEN
+            CASE course_num % 3
+                WHEN 0 THEN 'IELTS Speaking pronunciation and fluency course'
+                WHEN 1 THEN 'IELTS Speaking grammar and vocabulary course'
+                ELSE 'IELTS Speaking Part 3 advanced discussion course'
+            END
+        ELSE
+            CASE course_num % 3
+                WHEN 0 THEN 'IELTS grammar foundation course'
+                WHEN 1 THEN 'IELTS vocabulary expansion course'
+                ELSE 'IELTS test strategies course'
+            END
+    END,
+    CASE skill_num
+        WHEN 1 THEN 'listening'
+        WHEN 2 THEN 'reading'
+        WHEN 3 THEN 'writing'
+        WHEN 4 THEN 'speaking'
+        ELSE 'general'
+    END,
+    CASE course_num % 5
+        WHEN 0 THEN 'beginner'
+        WHEN 1 THEN 'elementary'
+        WHEN 2 THEN 'intermediate'
+        WHEN 3 THEN 'upper-intermediate'
+        ELSE 'advanced'
+    END,
+    5.0 + (course_num % 31) * 0.1,
+    -- Diverse thumbnail URLs based on skill type
+    CASE skill_num
+        WHEN 1 THEN -- Listening
+            (ARRAY[
+                'https://plus.unsplash.com/premium_photo-1681489727671-e4865915197b?ixlib=rb-4.1.0&ixid=M3wxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8fA%3D%3D&auto=format&fit=crop&q=80&w=687',
+                'https://images.unsplash.com/photo-1563120145-ecb346208872?ixlib=rb-4.1.0&ixid=M3wxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8fA%3D%3D&auto=format&fit=crop&q=80&w=1170',
+                'https://plus.unsplash.com/premium_photo-1661490813116-3b678da41ff4?ixlib=rb-4.1.0&ixid=M3wxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8fA%3D%3D&auto=format&fit=crop&q=80&w=1170',
+                'https://plus.unsplash.com/premium_photo-1664382465450-6dc3c2bae5d0?ixlib=rb-4.1.0&ixid=M3wxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8fA%3D%3D&auto=format&fit=crop&q=80&w=764',
+                'https://images.unsplash.com/photo-1599139894727-62676829679b?ixlib=rb-4.1.0&ixid=M3wxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8fA%3D%3D&auto=format&fit=crop&q=80&w=1074',
+                'https://images.unsplash.com/photo-1590650046871-92c887180603?ixlib=rb-4.1.0&ixid=M3wxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8fA%3D%3D&auto=format&fit=crop&q=80&w=1170',
+                'https://images.unsplash.com/photo-1526662092594-e98c1e356d6a?ixlib=rb-4.1.0&ixid=M3wxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8fA%3D%3D&auto=format&fit=crop&q=80&w=1171',
+                'https://plus.unsplash.com/premium_photo-1723924809917-c0b1b5d6f53b?ixlib=rb-4.1.0&ixid=M3wxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8fA%3D%3D&auto=format&fit=crop&q=80&w=1170'
+            ])[1 + (course_num % 8)]
+        WHEN 2 THEN -- Reading
+            (ARRAY[
+                'https://images.unsplash.com/photo-1568667256549-094345857637?ixlib=rb-4.1.0&ixid=M3wxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8fA%3D%3D&auto=format&fit=crop&q=80&w=2030',
+                'https://images.unsplash.com/photo-1683871268982-a19153dbb35d?ixlib=rb-4.1.0&ixid=M3wxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8fA%3D%3D&auto=format&fit=crop&q=80&w=1170',
+                'https://plus.unsplash.com/premium_photo-1750360906456-b28d130fa7f8?ixlib=rb-4.1.0&ixid=M3wxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8fA%3D%3D&auto=format&fit=crop&q=80&w=1170',
+                'https://plus.unsplash.com/premium_photo-1750360905827-af6cb76a55bb?ixlib=rb-4.1.0&ixid=M3wxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8fA%3D%3D&auto=format&fit=crop&q=80&w=1236',
+                'https://images.unsplash.com/photo-1662582631700-676a217d511f?ixlib=rb-4.1.0&ixid=M3wxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8fA%3D%3D&auto=format&fit=crop&q=80&w=687',
+                'https://images.unsplash.com/photo-1706210880873-87d8a1ebd3af?ixlib=rb-4.1.0&ixid=M3wxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8fA%3D%3D&auto=format&fit=crop&q=80&w=1170',
+                'https://images.unsplash.com/photo-1648999528869-5292670c6681?ixlib=rb-4.1.0&ixid=M3wxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8fA%3D%3D&auto=format&fit=crop&q=80&w=687',
+                'https://images.unsplash.com/photo-1553729784-e91953dec042?ixlib=rb-4.1.0&ixid=M3wxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8fA%3D%3D&auto=format&fit=crop&q=80&w=1170',
+                'https://images.unsplash.com/photo-1620701168009-da332c79c2dc?ixlib=rb-4.1.0&ixid=M3wxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8fA%3D%3D&auto=format&fit=crop&q=80&w=687'
+            ])[1 + (course_num % 9)]
+        WHEN 3 THEN -- Writing
+            (ARRAY[
+                'https://images.unsplash.com/photo-1455390582262-044cdead277a?ixlib=rb-4.1.0&ixid=M3wxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8fA%3D%3D&auto=format&fit=crop&q=80&w=1073',
+                'https://images.unsplash.com/photo-1486312338219-ce68d2c6f44d?ixlib=rb-4.1.0&ixid=M3wxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8fA%3D%3D&auto=format&fit=crop&q=80&w=1172',
+                'https://images.unsplash.com/photo-1488190211105-8b0e65b80b4e?ixlib=rb-4.1.0&ixid=M3wxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8fA%3D%3D&auto=format&fit=crop&q=80&w=1170',
+                'https://images.unsplash.com/photo-1510442650500-93217e634e4c?ixlib=rb-4.1.0&ixid=M3wxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8fA%3D%3D&auto=format&fit=crop&q=80&w=691',
+                'https://images.unsplash.com/photo-1579017308347-e53e0d2fc5e9?ixlib=rb-4.1.0&ixid=M3wxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8fA%3D%3D&auto=format&fit=crop&q=80&w=687',
+                'https://images.unsplash.com/photo-1549228581-cdbdb7430548?ixlib=rb-4.1.0&ixid=M3wxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8fA%3D%3D&auto=format&fit=crop&q=80&w=1170',
+                'https://images.unsplash.com/photo-1487611459768-bd414656ea10?ixlib=rb-4.1.0&ixid=M3wxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8fA%3D%3D&auto=format&fit=crop&q=80&w=1170'
+            ])[1 + (course_num % 7)]
+        WHEN 4 THEN -- Speaking
+            (ARRAY[
+                'https://plus.unsplash.com/premium_photo-1679079456599-07a3141244c0?ixlib=rb-4.1.0&ixid=M3wxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8fA%3D%3D&auto=format&fit=crop&q=80&w=688',
+                'https://plus.unsplash.com/premium_photo-1670884442051-263f5ae2d6ed?ixlib=rb-4.1.0&ixid=M3wxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8fA%3D%3D&auto=format&fit=crop&q=80&w=1170',
+                'https://images.unsplash.com/photo-1573497491208-6b1acb260507?ixlib=rb-4.1.0&ixid=M3wxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8fA%3D%3D&auto=format&fit=crop&q=80&w=1170',
+                'https://images.unsplash.com/photo-1551836022-d5d88e9218df?ixlib=rb-4.1.0&ixid=M3wxMjA3fDB8MHxzZWFyY2h8Mjh8fHR3byUyMHBlb3BsZSUyMHRhbGtpbmd8ZW58MHx8MHx8fDA%3D&auto=format&fit=crop&q=60&w=600',
+                'https://images.unsplash.com/photo-1475721027785-f74eccf877e2?ixlib=rb-4.1.0&ixid=M3wxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8fA%3D%3D&auto=format&fit=crop&q=80&w=1170',
+                'https://images.unsplash.com/photo-1713946598691-173f44f13dc9?ixlib=rb-4.1.0&ixid=M3wxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8fA%3D%3D&auto=format&fit=crop&q=80&w=1332'
+            ])[1 + (course_num % 6)]
+        ELSE -- General
+            (ARRAY[
+                'https://images.unsplash.com/photo-1590602847861-f357a9332bbc?w=800&h=600&fit=crop',
+                'https://images.unsplash.com/photo-1485846234645-a62644f84728?w=800&h=600&fit=crop',
+                'https://images.unsplash.com/photo-1522202176988-66273c2fd55f?w=1200&h=400&fit=crop'
+            ])[1 + (course_num % 3)]
+    END,
+    CASE WHEN skill_num IN (1, 4) THEN 
+        'https://www.youtube.com/watch?v=' || 
+        (ARRAY[
+            'k72qx-LSKIg', 'RyTdIYMrcKY', 'xpmWhPew5QU', 'p-JfuIyV9xQ', 'nXvcLRAYIXs',
+            'WT0QV_3Y7Fw', 'T49sg7i7ZAc', '20j9hYPuCLE', 'WGXGArS8UC8', 'uZNV1o7yLys',
+            'gA7XBM5Z-zM', '7rULJclm0Ek', 'a_Q3YAN-Duo', 'nNTipHpP7so', 'MrJ33X0InXA',
+            'yBiW708dDLI', 'xf5iUMqHInk', 'fsq-IQgKtTk', 'VGhUo8ezk4M', 'z6nsI5G9RWc',
+            'BIn8zm8yymk', 'KD3OKlOXvxE', '4QAV5NiaW7k', 'V9qSdbotEkE', 'bGFDE0uBQEs',
+            'NkJO7ceI3mo', '84Pn0s4RN70', '_ggznNb_er4', 'OPjsRxh6AF0', 'zGdCHg7gick',
+            'Cc4lAvgLptg', 'OWduuHEpuzg', 'JSgOqBAjcMA', 'gQPO4q-ptUc', 'udPtobGpMSI',
+            'tZ_ioUgKXwE', 'f5WH4UnDU7A', 'kugScbTr3gs', 'ZmMszhayj9I', 'ptO6NawNVgQ',
+            '7oSQjdLfN5M', 'LjxIzECH7Ys', 'cQPjT9kXYgI', 'BVyP7sWR4Ew', 'R89l1zrgXzs',
+            'FNwV3WqV6Sc', 'ECwA6aEvGuw', 'rPRCpfltzio', 'OmwzWAUCSQ8', 'KaJW7j0zey0',
+            '2VRuK5QBjTw', '1-aFVhGhtFQ', 'oKZDa00CYU4', 'xoaWIur-YVY', 'g92Fum1z6w8',
+            'KPb9VZMkais', '3I7bBIm3-PU', 'KVYx5CgAuao', 'j0qywR59Wv4', 'Aj4i9htNbxM',
+            't_EVh8jxDbs', 'h-4V_duEx3w', '_jJi6k3CThM', '38Vx2NjW3T4', 'OBryguHcJXc',
+            'a065ioF1jeM', '2Fqo0OoEoSU', 'd_q5o7pDRh0', 'xJlIQCWM1EA', 'KGFGZP3B8ZQ',
+            'yi8uDHSuf9E', '0E7ss6etqDU', 'xGTaNjsLmss', '9WO4_N9C0po', 'fgBepZmk5VM',
+            'YOSgRy3kqRs', 'QkPVVvPRE2s', 'UkUCO02Adt8', '_-nhtI3hn0Y', 'n-DzRPPXnNY',
+            '2qP1JotBMTY', 'z8wZUS_b7k8', 'zaKl0H-YoQw', 'vQ7ZL1wMgCE', 'BCOJqpeqHrM',
+            'ZdPZ6dgO44E', 'M0BUE7iMILc', 'fHx9Hnn48G0', 'SdV_3Ct5SNk', 'D8qWDovn5ck',
+            'MQ_c-2IrAzk', 'oUOiZhQqBxw', '_aLlKFKEWXY', '1H-bsnpUiak', 'cuRJt35xAdY',
+            'T8GB-tPlSY8', 'HEnTJqwewsg', 'rArhIvypfTI', 'F32lFOipk3M', 'dnmElGczPf8',
+            'xhd-RZGcfIQ', 'dSW6rSzvbRY', 'K5MFUpEmDvU', 'y6Yv7ukWgy8', 'cGG3ovpSQZc',
+            'k-D2p-QQyE8', 'BdBJTjuW_wo', 'OpDlKRhISqE', 'mGXWsxNfwhk', 'UfqugyGe-jk',
+            'sYff9BKA-fY', 'X9eHv7iasws', 'IxNWmkDAjoM', 'KDbtZqLohUU', 'jDkOlzOeEHs',
+            '7QXZyJ3Rj_Y', 'bYyXN5BPJkU', 'O8-N-vprxTs', 'INRq3QW_VHI', 'CYc-r5AeBcU'
+        ])[1 + (course_num % 120)]
+    ELSE NULL END,
+    ('b' || LPAD((1 + (course_num % 15))::text, 7, '0') || '-0000-0000-0000-000000000' ||
+        LPAD((1 + (course_num % 15))::text, 3, '0'))::uuid,
+    CASE (course_num % 15)
+        WHEN 0 THEN 'Sarah Mitchell'
+        WHEN 1 THEN 'James Anderson'
+        WHEN 2 THEN 'Emma Thompson'
+        WHEN 3 THEN 'Michael Chen'
+        WHEN 4 THEN 'David Miller'
+        ELSE 'Instructor ' || (course_num % 15 + 1)::text
+    END,
+    5.0 + (course_num % 20) * 0.5,
+    12 + (course_num % 15),
+    8 + (course_num % 12),
+    CASE WHEN course_num % 3 = 0 THEN 'free' ELSE 'premium' END,
+    CASE WHEN course_num % 3 = 0 THEN 0 ELSE (200000 + (course_num % 40) * 50000) END,
+    'VND',
+    'published',
+    CASE WHEN course_num % 5 = 0 THEN true ELSE false END,
+    CASE WHEN course_num % 4 = 0 THEN true ELSE false END,
+    -- meta_title
+    CASE skill_num
+        WHEN 1 THEN 'IELTS Listening ' || 
+            CASE course_num % 4
+                WHEN 0 THEN 'Practice Test ' || (course_num / 4 + 1)::text || ' | IELTS Learning Platform'
+                WHEN 1 THEN 'Vocabulary Mastery Course | IELTS Learning Platform'
+                WHEN 2 THEN 'Note-Taking Techniques Course | IELTS Learning Platform'
+                ELSE 'Speed Improvement Course | IELTS Learning Platform'
+            END
+        WHEN 2 THEN 'IELTS Reading ' ||
+            CASE course_num % 4
+                WHEN 0 THEN 'Passage Analysis ' || (course_num / 4 + 1)::text || ' | IELTS Learning Platform'
+                WHEN 1 THEN 'Vocabulary Building Course | IELTS Learning Platform'
+                WHEN 2 THEN 'Time Management Course | IELTS Learning Platform'
+                ELSE 'Question Type Mastery Course | IELTS Learning Platform'
+            END
+        WHEN 3 THEN 'IELTS Writing ' ||
+            CASE course_num % 3
+                WHEN 0 THEN 'Grammar & Vocabulary Course | IELTS Learning Platform'
+                WHEN 1 THEN 'Coherence & Cohesion Course | IELTS Learning Platform'
+                ELSE 'Task Response Course | IELTS Learning Platform'
+            END
+        WHEN 4 THEN 'IELTS Speaking ' ||
+            CASE course_num % 3
+                WHEN 0 THEN 'Pronunciation & Fluency Course | IELTS Learning Platform'
+                WHEN 1 THEN 'Grammar & Vocabulary Course | IELTS Learning Platform'
+                ELSE 'Part 3 Discussion Course | IELTS Learning Platform'
+            END
+        ELSE 'IELTS ' ||
+            CASE course_num % 3
+                WHEN 0 THEN 'Grammar Foundation Course | IELTS Learning Platform'
+                WHEN 1 THEN 'Vocabulary Expansion Course | IELTS Learning Platform'
+                ELSE 'Test Strategies Course | IELTS Learning Platform'
+            END
+    END,
+    -- meta_description
+    CASE skill_num
+        WHEN 1 THEN 'Comprehensive IELTS Listening course covering ' ||
+            CASE course_num % 4
+                WHEN 0 THEN 'full practice tests with detailed explanations.'
+                WHEN 1 THEN 'essential vocabulary for different contexts.'
+                WHEN 2 THEN 'effective note-taking strategies for Part 3 & 4.'
+                ELSE 'techniques to improve listening speed and accuracy.'
+            END
+        WHEN 2 THEN 'Detailed IELTS Reading course focusing on ' ||
+            CASE course_num % 4
+                WHEN 0 THEN 'analyzing complex academic passages.'
+                WHEN 1 THEN 'building academic vocabulary systematically.'
+                WHEN 2 THEN 'managing time effectively in the reading test.'
+                ELSE 'mastering all question types with proven strategies.'
+            END
+        WHEN 3 THEN 'Advanced IELTS Writing course emphasizing ' ||
+            CASE course_num % 3
+                WHEN 0 THEN 'grammar accuracy and vocabulary range.'
+                WHEN 1 THEN 'coherence, cohesion, and paragraph structure.'
+                ELSE 'task achievement and addressing all requirements.'
+            END
+        WHEN 4 THEN 'Complete IELTS Speaking course covering ' ||
+            CASE course_num % 3
+                WHEN 0 THEN 'pronunciation, stress, and fluency techniques.'
+                WHEN 1 THEN 'grammar accuracy and lexical resource.'
+                ELSE 'advanced discussion topics for Part 3.'
+            END
+        ELSE 'Comprehensive IELTS course covering ' ||
+            CASE course_num % 3
+                WHEN 0 THEN 'essential grammar rules and structures.'
+                WHEN 1 THEN 'building a strong vocabulary foundation.'
+                ELSE 'effective test-taking strategies for all sections.'
+            END
+    END,
+    -- meta_keywords
+    CASE skill_num
+        WHEN 1 THEN 'IELTS Listening, Listening Practice, ' || 
+            CASE course_num % 4
+                WHEN 0 THEN 'Practice Test, Full Test'
+                WHEN 1 THEN 'Vocabulary, Listening Vocabulary'
+                WHEN 2 THEN 'Note Taking, Listening Strategies'
+                ELSE 'Speed Improvement, Listening Speed'
+            END || ', Band ' || (5.0 + (course_num % 31) * 0.1)::text || ', IELTS Preparation'
+        WHEN 2 THEN 'IELTS Reading, Reading Practice, ' ||
+            CASE course_num % 4
+                WHEN 0 THEN 'Passage Analysis, Reading Comprehension'
+                WHEN 1 THEN 'Vocabulary Building, Academic Vocabulary'
+                WHEN 2 THEN 'Time Management, Reading Speed'
+                ELSE 'Question Types, Reading Strategies'
+            END || ', Band ' || (5.0 + (course_num % 31) * 0.1)::text || ', IELTS Preparation'
+        WHEN 3 THEN 'IELTS Writing, Writing Practice, ' ||
+            CASE course_num % 3
+                WHEN 0 THEN 'Grammar, Vocabulary, Writing Skills'
+                WHEN 1 THEN 'Coherence, Cohesion, Paragraph Structure'
+                ELSE 'Task Response, Essay Writing'
+            END || ', Band ' || (5.0 + (course_num % 31) * 0.1)::text || ', IELTS Preparation'
+        WHEN 4 THEN 'IELTS Speaking, Speaking Practice, ' ||
+            CASE course_num % 3
+                WHEN 0 THEN 'Pronunciation, Fluency, Speaking Skills'
+                WHEN 1 THEN 'Grammar, Vocabulary, Lexical Resource'
+                ELSE 'Part 3, Discussion, Advanced Speaking'
+            END || ', Band ' || (5.0 + (course_num % 31) * 0.1)::text || ', IELTS Preparation'
+        ELSE 'IELTS, IELTS Preparation, ' ||
+            CASE course_num % 3
+                WHEN 0 THEN 'Grammar, Grammar Foundation'
+                WHEN 1 THEN 'Vocabulary, Vocabulary Expansion'
+                ELSE 'Test Strategies, IELTS Tips'
+            END || ', Band ' || (5.0 + (course_num % 31) * 0.1)::text || ', IELTS Training'
+    END,
+    NOW() - (course_num % 60)::INTEGER * INTERVAL '1 day',
+    NOW() - (course_num % 70)::INTEGER * INTERVAL '1 day'
+FROM generate_series(1, 5) skill_num
+CROSS JOIN generate_series(1, 6) course_num
+WHERE (skill_num, course_num) NOT IN (
+    (1, 1), (1, 2), (1, 3), (1, 4), -- Already seeded above
+    (2, 1), (2, 2), (2, 3), -- Already seeded above
+    (3, 1), (3, 2), -- Already seeded above
+    (4, 1), (4, 2), -- Already seeded above
+    (5, 1), (5, 2) -- Already seeded above
+)
+LIMIT 25;
+
+-- ============================================
+-- 2. MODULES
+-- ============================================
+
+INSERT INTO modules (
+    id, course_id, title, description, display_order, duration_hours, total_lessons, is_published
+)
+SELECT 
+    uuid_generate_v4(),
+    c.id,
+    'Module ' || module_num || ': ' ||
+    CASE module_num
+        WHEN 1 THEN 'Introduction & Fundamentals'
+        WHEN 2 THEN 'Core Concepts & Techniques'
+        WHEN 3 THEN 'Practice & Application'
+        WHEN 4 THEN 'Advanced Strategies'
+        WHEN 5 THEN 'Review & Mastery'
+        ELSE 'Additional Practice'
+    END,
+    CASE module_num
+        WHEN 1 THEN 'Get started with ' || c.skill_type || ' fundamentals'
+        WHEN 2 THEN 'Master core ' || c.skill_type || ' concepts'
+        WHEN 3 THEN 'Practice with real ' || c.skill_type || ' materials'
+        WHEN 4 THEN 'Advanced techniques for higher scores'
+        WHEN 5 THEN 'Review and consolidate your learning'
+        ELSE 'Extra practice materials'
+    END,
+    module_num,
+    c.duration_hours / (CASE WHEN c.total_lessons > 20 THEN 5 ELSE 3 END),
+    CASE 
+        WHEN c.total_lessons >= 20 THEN (c.total_lessons / 4)::INTEGER
+        ELSE (c.total_lessons / 3)::INTEGER
+    END,
+    true
+FROM courses c
+CROSS JOIN generate_series(1, 
+    CASE 
+        WHEN c.total_lessons >= 20 THEN 5
+        WHEN c.total_lessons >= 12 THEN 4
+        ELSE 3
+    END
+) module_num
+WHERE c.status = 'published';
+
+-- ============================================
+-- 3. LESSONS
+-- ============================================
+
+INSERT INTO lessons (
+    id, module_id, course_id, title, description, content_type, duration_minutes,
+    display_order, is_free, is_published
+)
+SELECT 
+    uuid_generate_v4(),
+    m.id,
+    m.course_id,
+    CASE lesson_num
+        WHEN 1 THEN 'Introduction to ' || c.skill_type
+        WHEN 2 THEN 'Understanding ' || c.skill_type || ' Format'
+        WHEN 3 THEN 'Key Strategies for ' || c.skill_type
+        WHEN 4 THEN 'Common Question Types'
+        WHEN 5 THEN 'Practice Exercise 1'
+        WHEN 6 THEN 'Practice Exercise 2'
+        WHEN 7 THEN 'Advanced Techniques'
+        WHEN 8 THEN 'Review & Tips'
+        ELSE 'Lesson ' || lesson_num || ': ' || c.skill_type || ' Practice'
+    END,
+    CASE lesson_num
+        WHEN 1 THEN 'Introduction and overview of ' || c.skill_type || ' in IELTS'
+        WHEN 2 THEN 'Learn the format and structure of IELTS ' || c.skill_type
+        WHEN 3 THEN 'Essential strategies for success in ' || c.skill_type
+        WHEN 4 THEN 'Explore different question types in ' || c.skill_type
+        WHEN 5 THEN 'First practice exercise with detailed explanation'
+        WHEN 6 THEN 'Second practice exercise to reinforce learning'
+        WHEN 7 THEN 'Advanced techniques for higher band scores'
+        WHEN 8 THEN 'Review key points and get tips for the exam'
+        ELSE 'Practice lesson with real IELTS materials'
+    END,
+    CASE 
+        WHEN lesson_num % 3 = 1 THEN 'video'
+        WHEN lesson_num % 3 = 2 THEN 'article'
+        ELSE 'mixed'
+    END,
+    -- Realistic duration_minutes based on lesson type and number
+    -- Short videos: 5-10 minutes, Medium: 8-15 minutes, Long: 12-20 minutes
+    CASE 
+        WHEN lesson_num % 3 = 1 THEN -- Video lessons
+            CASE 
+                WHEN lesson_num <= 3 THEN 5 + (lesson_num % 6) -- 5-10 minutes for intro videos
+                WHEN lesson_num <= 6 THEN 8 + (lesson_num % 8) -- 8-15 minutes for practice videos
+                ELSE 12 + (lesson_num % 9) -- 12-20 minutes for advanced videos
+            END
+        ELSE -- Article or mixed content
+            10 + (lesson_num % 15) -- 10-24 minutes for reading time
+    END,
+    lesson_num,
+    CASE WHEN lesson_num <= 2 THEN true ELSE false END,
+    true
+FROM modules m
+JOIN courses c ON c.id = m.course_id
+CROSS JOIN generate_series(1, m.total_lessons) lesson_num;
+
+-- ============================================
+-- 4. LESSON_VIDEOS
+-- ============================================
+
+INSERT INTO lesson_videos (
+    id, lesson_id, title, description, video_url, video_provider, video_id,
+    duration_seconds, thumbnail_url, has_subtitles, subtitle_languages, display_order
+)
+SELECT 
+    uuid_generate_v4(),
+    l.id,
+    l.title || ' - Video',
+    l.description || ' Video content',
+    CASE 
+        WHEN l.content_type = 'video' THEN
+            COALESCE(
+                'https://www.youtube.com/watch?v=' || video_ids[1 + (hashtext(l.id::text) % array_length(video_ids, 1))],
+                'https://www.youtube.com/watch?v=k72qx-LSKIg' -- Fallback
+            )
+        ELSE NULL
+    END,
+    CASE WHEN l.content_type = 'video' THEN 'youtube' ELSE NULL END,
+    CASE WHEN l.content_type = 'video' THEN
+        video_ids[1 + (hashtext(l.id::text) % array_length(video_ids, 1))]
+    ELSE NULL END,
+    CASE WHEN l.content_type = 'video' THEN 
+        COALESCE(
+            (
+                SELECT duration_seconds FROM (
+                    SELECT video_id, duration_seconds FROM (VALUES
+                        ('0E7ss6etqDU', 244),
+                        ('1-aFVhGhtFQ', 145),
+                        ('1H-bsnpUiak', 126),
+                        ('20j9hYPuCLE', 188),
+                        ('2Fqo0OoEoSU', 185),
+                        ('2VRuK5QBjTw', 174),
+                        ('2qP1JotBMTY', 247),
+                        ('38Vx2NjW3T4', 208),
+                        ('3I7bBIm3-PU', 61),
+                        ('4QAV5NiaW7k', 296),
+                        ('7QXZyJ3Rj_Y', 246),
+                        ('7oSQjdLfN5M', 192),
+                        ('7rULJclm0Ek', 330),
+                        ('84Pn0s4RN70', 247),
+                        ('9WO4_N9C0po', 199),
+                        ('Aj4i9htNbxM', 267),
+                        ('BCOJqpeqHrM', 247),
+                        ('BIn8zm8yymk', 143),
+                        ('BVyP7sWR4Ew', 239),
+                        ('BdBJTjuW_wo', 202),
+                        ('CYc-r5AeBcU', 362),
+                        ('Cc4lAvgLptg', 282),
+                        ('D8qWDovn5ck', 202),
+                        ('ECwA6aEvGuw', 264),
+                        ('F32lFOipk3M', 225),
+                        ('FNwV3WqV6Sc', 288),
+                        ('HEnTJqwewsg', 291),
+                        ('INRq3QW_VHI', 331),
+                        ('IxNWmkDAjoM', 79),
+                        ('JSgOqBAjcMA', 200),
+                        ('K5MFUpEmDvU', 152),
+                        ('KD3OKlOXvxE', 249),
+                        ('KDbtZqLohUU', 175),
+                        ('KGFGZP3B8ZQ', 225),
+                        ('KPb9VZMkais', 165),
+                        ('KVYx5CgAuao', 95),
+                        ('KaJW7j0zey0', 203),
+                        ('LjxIzECH7Ys', 248),
+                        ('M0BUE7iMILc', 216),
+                        ('MQ_c-2IrAzk', 184),
+                        ('MrJ33X0InXA', 223),
+                        ('NkJO7ceI3mo', 151),
+                        ('O8-N-vprxTs', 156),
+                        ('OBryguHcJXc', 169),
+                        ('OPjsRxh6AF0', 590),
+                        ('OWduuHEpuzg', 280),
+                        ('OmwzWAUCSQ8', 229),
+                        ('OpDlKRhISqE', 205),
+                        ('QkPVVvPRE2s', 195),
+                        ('R89l1zrgXzs', 261),
+                        ('RyTdIYMrcKY', 181),
+                        ('SdV_3Ct5SNk', 294),
+                        ('T49sg7i7ZAc', 250),
+                        ('T8GB-tPlSY8', 207),
+                        ('UfqugyGe-jk', 179),
+                        ('UkUCO02Adt8', 249),
+                        ('V9qSdbotEkE', 198),
+                        ('VGhUo8ezk4M', 263),
+                        ('WGXGArS8UC8', 279),
+                        ('WT0QV_3Y7Fw', 187),
+                        ('X9eHv7iasws', 242),
+                        ('YOSgRy3kqRs', 263),
+                        ('ZdPZ6dgO44E', 218),
+                        ('ZmMszhayj9I', 178),
+                        ('_-nhtI3hn0Y', 164),
+                        ('_aLlKFKEWXY', 225),
+                        ('_ggznNb_er4', 249),
+                        ('_jJi6k3CThM', 226),
+                        ('a065ioF1jeM', 231),
+                        ('a_Q3YAN-Duo', 188),
+                        ('bGFDE0uBQEs', 192),
+                        ('bYyXN5BPJkU', 232),
+                        ('cGG3ovpSQZc', 196),
+                        ('cQPjT9kXYgI', 255),
+                        ('cuRJt35xAdY', 181),
+                        ('dSW6rSzvbRY', 233),
+                        ('eG7VeYMW5qE', 226),
+                        ('eHdhDqgVdPQ', 206),
+                        ('fJLgA8BVhGA', 263),
+                        ('fSXQJQWfKxk', 241),
+                        ('gGZt4PLF9WM', 295),
+                        ('gxYIe1jqLTM', 239),
+                        ('hGdJ5PJNjGI', 226),
+                        ('hXDK7WgVxqE', 206),
+                        ('iFRp_0XlD3E', 216),
+                        ('j0qywR59Wv4', 232),
+                        ('jDkOlzOeEHs', 228),
+                        ('k-D2p-QQyE8', 179),
+                        ('k72qx-LSKIg', 236),
+                        ('kugScbTr3gs', 153),
+                        ('mGXWsxNfwhk', 218),
+                        ('n-DzRPPXnNY', 199),
+                        ('nNTipHpP7so', 365),
+                        ('nXvcLRAYIXs', 290),
+                        ('oKZDa00CYU4', 201),
+                        ('oUOiZhQqBxw', 191),
+                        ('p-JfuIyV9xQ', 217),
+                        ('ptO6NawNVgQ', 190),
+                        ('rArhIvypfTI', 265),
+                        ('rPRCpfltzio', 190),
+                        ('sYff9BKA-fY', 232),
+                        ('tZ_ioUgKXwE', 224),
+                        ('t_EVh8jxDbs', 162),
+                        ('uZNV1o7yLys', 311),
+                        ('udPtobGpMSI', 193),
+                        ('vQ7ZL1wMgCE', 197),
+                        ('xGTaNjsLmss', 195),
+                        ('xJlIQCWM1EA', 221),
+                        ('xf5iUMqHInk', 243),
+                        ('xhd-RZGcfIQ', 124),
+                        ('xoaWIur-YVY', 298),
+                        ('xpmWhPew5QU', 205),
+                        ('y6Yv7ukWgy8', 273),
+                        ('yBiW708dDLI', 324),
+                        ('yi8uDHSuf9E', 201),
+                        ('z6nsI5G9RWc', 253),
+                        ('z8wZUS_b7k8', 248),
+                        ('zGdCHg7gick', 189),
+                        ('zaKl0H-YoQw', 265)
+                    ) AS duration_map(video_id, duration_seconds)
+                ) AS d
+                WHERE d.video_id = video_ids[1 + (hashtext(l.id::text) % array_length(video_ids, 1))]
+                LIMIT 1
+            ),
+            l.duration_minutes * 60 -- Fallback: use calculated duration
+        )
+    ELSE NULL END,
+    CASE WHEN l.content_type = 'video' THEN
+        CASE (row_number() OVER (PARTITION BY l.course_id ORDER BY l.id) % 12)
+            WHEN 0 THEN 'https://images.unsplash.com/photo-1590602847861-f357a9332bbc?w=800&h=600&fit=crop'
+            WHEN 1 THEN 'https://images.unsplash.com/photo-1485846234645-a62644f84728?w=800&h=600&fit=crop'
+            WHEN 2 THEN 'https://images.unsplash.com/photo-1505740420928-5e560c06d30e?w=800&h=600&fit=crop'
+            WHEN 3 THEN 'https://images.unsplash.com/photo-1589903308904-1010c2294adc?w=800&h=600&fit=crop'
+            WHEN 4 THEN 'https://images.unsplash.com/photo-1456513080510-7bf3a84b82f8?w=800&h=600&fit=crop'
+            WHEN 5 THEN 'https://images.unsplash.com/photo-1481627834876-b7833e8f5570?w=800&h=600&fit=crop'
+            WHEN 6 THEN 'https://images.unsplash.com/photo-1516321318423-f06f85e504b3?w=800&h=600&fit=crop'
+            WHEN 7 THEN 'https://images.unsplash.com/photo-1522202176988-66273c2fd55f?w=800&h=600&fit=crop'
+            WHEN 8 THEN 'https://images.unsplash.com/photo-1434030216411-0b793f4b4173?w=800&h=600&fit=crop'
+            WHEN 9 THEN 'https://images.unsplash.com/photo-1516321497487-e288fb19713f?w=800&h=600&fit=crop'
+            WHEN 10 THEN 'https://images.unsplash.com/photo-1503676260728-1c00da094a0b?w=800&h=600&fit=crop'
+            ELSE 'https://images.unsplash.com/photo-1508921340878-bad53cfe2816?w=800&h=600&fit=crop'
+        END
+    ELSE NULL END,
+    CASE WHEN l.content_type = 'video' THEN true ELSE false END,
+    CASE WHEN l.content_type = 'video' THEN ARRAY['en', 'vi'] ELSE NULL END,
+    1
+FROM lessons l
+CROSS JOIN (
+    SELECT ARRAY[
+        'k72qx-LSKIg', 'RyTdIYMrcKY', 'xpmWhPew5QU', 'p-JfuIyV9xQ', 'nXvcLRAYIXs',
+        'WT0QV_3Y7Fw', 'T49sg7i7ZAc', '20j9hYPuCLE', 'WGXGArS8UC8', 'uZNV1o7yLys',
+        'gA7XBM5Z-zM', '7rULJclm0Ek', 'a_Q3YAN-Duo', 'nNTipHpP7so', 'MrJ33X0InXA',
+        'yBiW708dDLI', 'xf5iUMqHInk', 'fsq-IQgKtTk', 'VGhUo8ezk4M', 'z6nsI5G9RWc',
+        'BIn8zm8yymk', 'KD3OKlOXvxE', '4QAV5NiaW7k', 'V9qSdbotEkE', 'bGFDE0uBQEs',
+        'NkJO7ceI3mo', '84Pn0s4RN70', '_ggznNb_er4', 'OPjsRxh6AF0', 'zGdCHg7gick',
+        'Cc4lAvgLptg', 'OWduuHEpuzg', 'JSgOqBAjcMA', 'gQPO4q-ptUc', 'udPtobGpMSI',
+        'tZ_ioUgKXwE', 'f5WH4UnDU7A', 'kugScbTr3gs', 'ZmMszhayj9I', 'ptO6NawNVgQ',
+        '7oSQjdLfN5M', 'LjxIzECH7Ys', 'cQPjT9kXYgI', 'BVyP7sWR4Ew', 'R89l1zrgXzs',
+        'FNwV3WqV6Sc', 'ECwA6aEvGuw', 'rPRCpfltzio', 'OmwzWAUCSQ8', 'KaJW7j0zey0',
+        '2VRuK5QBjTw', '1-aFVhGhtFQ', 'oKZDa00CYU4', 'xoaWIur-YVY', 'g92Fum1z6w8',
+        'KPb9VZMkais', '3I7bBIm3-PU', 'KVYx5CgAuao', 'j0qywR59Wv4', 'Aj4i9htNbxM',
+        't_EVh8jxDbs', 'h-4V_duEx3w', '_jJi6k3CThM', '38Vx2NjW3T4', 'OBryguHcJXc',
+        'a065ioF1jeM', '2Fqo0OoEoSU', 'd_q5o7pDRh0', 'xJlIQCWM1EA', 'KGFGZP3B8ZQ',
+        'yi8uDHSuf9E', '0E7ss6etqDU', 'xGTaNjsLmss', '9WO4_N9C0po', 'fgBepZmk5VM',
+        'YOSgRy3kqRs', 'QkPVVvPRE2s', 'UkUCO02Adt8', '_-nhtI3hn0Y', 'n-DzRPPXnNY',
+        '2qP1JotBMTY', 'z8wZUS_b7k8', 'zaKl0H-YoQw', 'vQ7ZL1wMgCE', 'BCOJqpeqHrM',
+        'ZdPZ6dgO44E', 'M0BUE7iMILc', 'fHx9Hnn48G0', 'SdV_3Ct5SNk', 'D8qWDovn5ck',
+        'MQ_c-2IrAzk', 'oUOiZhQqBxw', '_aLlKFKEWXY', '1H-bsnpUiak', 'cuRJt35xAdY',
+        'T8GB-tPlSY8', 'HEnTJqwewsg', 'rArhIvypfTI', 'F32lFOipk3M', 'dnmElGczPf8',
+        'xhd-RZGcfIQ', 'dSW6rSzvbRY', 'K5MFUpEmDvU', 'y6Yv7ukWgy8', 'cGG3ovpSQZc',
+        'k-D2p-QQyE8', 'BdBJTjuW_wo', 'OpDlKRhISqE', 'mGXWsxNfwhk', 'UfqugyGe-jk',
+        'sYff9BKA-fY', 'X9eHv7iasws', 'IxNWmkDAjoM', 'KDbtZqLohUU', 'jDkOlzOeEHs',
+        '7QXZyJ3Rj_Y', 'bYyXN5BPJkU', 'O8-N-vprxTs', 'INRq3QW_VHI', 'CYc-r5AeBcU',
+        '6QMu7-3DMi0', 'ys-1LqlUNCk', 'tml3fxV9w7g', 'fX3qI4lQ6P0', 'SeWt7IpZ0CA',
+        'oV7qaHKPoK0', '9TH5JGYZB4o', 'vVYONjT2b0Y', 'kop8O3A-UGs', 'btAiWvdIxm4',
+        'G5orxWQWafI', 'OZmK0YuSmXU'
+    ] as video_ids
+) vid
+WHERE l.content_type = 'video';
+
+-- ============================================
+-- 5. COURSE_CATEGORY_MAPPING
+-- ============================================
+
+INSERT INTO course_category_mapping (course_id, category_id)
+SELECT 
+    c.id,
+    CASE c.skill_type
+        WHEN 'listening' THEN 1
+        WHEN 'reading' THEN 2
+        WHEN 'writing' THEN 3
+        WHEN 'speaking' THEN 4
+        ELSE 7 -- Test Preparation
+    END
+FROM courses c
+WHERE c.status = 'published'
+ON CONFLICT DO NOTHING;
+
+-- Also add some courses to multiple categories
+INSERT INTO course_category_mapping (course_id, category_id)
+SELECT 
+    c.id,
+    CASE 
+        WHEN random() > 0.7 THEN 5 -- Grammar
+        WHEN random() > 0.5 THEN 6 -- Vocabulary
+        ELSE 8 -- Academic IELTS
+    END
+FROM courses c
+WHERE c.status = 'published' AND random() > 0.6
+ON CONFLICT DO NOTHING;
+
+-- Update course statistics and add meta fields if missing
+UPDATE courses c
+SET 
+    total_lessons = (
+        SELECT COUNT(*) FROM lessons l WHERE l.course_id = c.id
+    ),
+    total_videos = (
+        SELECT COUNT(*) FROM lessons l 
+        JOIN lesson_videos lv ON lv.lesson_id = l.id
+        WHERE l.course_id = c.id
+    ),
+    -- Add meta fields if missing
+    meta_title = COALESCE(NULLIF(meta_title, ''), title || ' | IELTS Learning Platform'),
+    meta_description = COALESCE(NULLIF(meta_description, ''), LEFT(COALESCE(short_description, description), 160)),
+    meta_keywords = COALESCE(NULLIF(meta_keywords, ''), skill_type || ', IELTS, ' || level || ', Band ' || target_band_score::text || ', ' || 
+                    CASE WHEN skill_type = 'listening' THEN 'Listening Practice, IELTS Audio'
+                         WHEN skill_type = 'reading' THEN 'Reading Practice, IELTS Reading'
+                         WHEN skill_type = 'writing' THEN 'Writing Practice, IELTS Writing'
+                         WHEN skill_type = 'speaking' THEN 'Speaking Practice, IELTS Speaking'
+                         ELSE 'IELTS Preparation'
+                    END);
+
+-- Summary
+SELECT 
+    '✅ Courses, Modules, and Lessons Created' as status,
+    (SELECT COUNT(*) FROM courses) as total_courses,
+    (SELECT COUNT(*) FROM modules) as total_modules,
+    (SELECT COUNT(*) FROM lessons) as total_lessons,
+    (SELECT COUNT(*) FROM lesson_videos) as total_videos,
+    (SELECT COUNT(*) FROM course_category_mapping) as total_category_mappings;
+

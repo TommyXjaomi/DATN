@@ -3,13 +3,49 @@ import { apiCache } from "@/lib/utils/api-cache"
 import type { Notification, PaginatedResponse } from "@/types"
 import { sseManager } from "./sse-manager"
 
+export interface NotificationFilters {
+  is_read?: boolean
+  type?: string[]
+  category?: string[]
+  sort_by?: 'date'
+  sort_order?: 'asc' | 'desc'
+  date_from?: string // YYYY-MM-DD
+  date_to?: string   // YYYY-MM-DD
+}
+
 export const notificationsApi = {
-  // Get all notifications
-  getNotifications: async (page = 1, limit = 20, forceRefresh = false): Promise<{ 
+  // Get all notifications with filters
+  getNotifications: async (filters?: NotificationFilters, page = 1, limit = 20, forceRefresh = false): Promise<{ 
     notifications: Notification[]; 
     pagination: { page: number; limit: number; total: number; total_pages: number }
   }> => {
-    const cacheKey = apiCache.generateKey('/notifications', { page, limit })
+    const params = new URLSearchParams()
+    params.append("page", page.toString())
+    params.append("limit", limit.toString())
+    
+    if (filters?.is_read !== undefined) {
+      params.append("is_read", filters.is_read.toString())
+    }
+    if (filters?.type?.length) {
+      params.append("type", filters.type.join(","))
+    }
+    if (filters?.category?.length) {
+      params.append("category", filters.category.join(","))
+    }
+    if (filters?.sort_by) {
+      params.append("sort_by", filters.sort_by)
+    }
+    if (filters?.sort_order) {
+      params.append("sort_order", filters.sort_order)
+    }
+    if (filters?.date_from) {
+      params.append("date_from", filters.date_from)
+    }
+    if (filters?.date_to) {
+      params.append("date_to", filters.date_to)
+    }
+    
+    const cacheKey = apiCache.generateKey('/notifications', { page, limit, ...filters })
     
     // If forceRefresh, clear cache first
     if (forceRefresh) {
@@ -29,7 +65,7 @@ export const notificationsApi = {
     const backendResponse = await apiClient.get<{
       notifications: Notification[]
       pagination: { page: number; limit: number; total_items: number; total_pages: number }
-    }>(`/notifications?page=${page}&limit=${limit}`)
+    }>(`/notifications?${params.toString()}`)
     
     // Transform backend response to frontend format
     // Backend uses total_items, frontend expects total

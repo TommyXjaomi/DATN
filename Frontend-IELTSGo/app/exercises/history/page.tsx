@@ -1,16 +1,18 @@
 "use client"
 
-import { useState, useEffect, useCallback } from "react"
+import { useState, useEffect, useCallback, useMemo } from "react"
 import { useRouter } from "next/navigation"
 import { AppLayout } from "@/components/layout/app-layout"
 import { PageContainer } from "@/components/layout/page-container"
+import { PageHeader } from "@/components/layout/page-header"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import { Clock, Target, TrendingUp, Eye, Calendar } from "lucide-react"
 import { PageLoading } from "@/components/ui/page-loading"
 import { EmptyState } from "@/components/ui/empty-state"
-import { exercisesApi } from "@/lib/api/exercises"
+import { exercisesApi, type SubmissionFilters } from "@/lib/api/exercises"
+import { SubmissionFiltersComponent } from "@/components/exercises/submission-filters"
 import type { Submission, Exercise } from "@/types"
 import { useTranslations } from '@/lib/i18n'
 
@@ -27,14 +29,31 @@ export default function ExerciseHistoryPage() {
   const router = useRouter()
   const [submissions, setSubmissions] = useState<SubmissionWithExercise[]>([])
   const [loading, setLoading] = useState(true)
+  // Default filter: chỉ hiển thị completed và abandoned (không có in_progress)
+  const [filters, setFilters] = useState<SubmissionFilters>({
+    status: ['completed', 'abandoned']
+  })
   const [page, setPage] = useState(1)
   const [total, setTotal] = useState(0)
+
+  // Memoize filter key to trigger refetch only when filters actually change
+  const filterKey = useMemo(() => {
+    return JSON.stringify({
+      skill: filters.skill?.sort().join(',') || '',
+      status: filters.status?.sort().join(',') || '',
+      sort_by: filters.sort_by || '',
+      sort_order: filters.sort_order || '',
+      date_from: filters.date_from || '',
+      date_to: filters.date_to || '',
+      search: filters.search || '', // Include search in filterKey
+    })
+  }, [filters.skill, filters.status, filters.sort_by, filters.sort_order, filters.date_from, filters.date_to, filters.search])
 
   // Memoize fetchSubmissions to avoid unnecessary re-renders
   const fetchSubmissions = useCallback(async () => {
     try {
       setLoading(true)
-      const data = await exercisesApi.getMySubmissions(page, 20)
+      const data = await exercisesApi.getMySubmissions(filters, page, 20)
       setSubmissions(data.submissions || [])
       setTotal(data.total || 0)
     } catch (error) {
@@ -42,11 +61,11 @@ export default function ExerciseHistoryPage() {
     } finally {
       setLoading(false)
     }
-  }, [page])
+  }, [filters, page])
 
   useEffect(() => {
     fetchSubmissions()
-  }, [fetchSubmissions])
+  }, [fetchSubmissions, filterKey])
 
   // Memoize utility functions
   const getStatusColor = useCallback((status: string) => {
@@ -85,15 +104,40 @@ export default function ExerciseHistoryPage() {
     return `${minutes}m ${secs}s`
   }, [])
 
+  const handleFiltersChange = (newFilters: SubmissionFilters) => {
+    setFilters(newFilters)
+    setPage(1)
+  }
+
+  const handleSearch = (search: string) => {
+    setFilters((prev) => ({ ...prev, search: search || undefined }))
+    setPage(1)
+  }
+
   return (
-    <AppLayout>
+    <AppLayout showSidebar={true} showFooter={false} hideNavbar={true} hideTopBar={true}>
+      <PageHeader
+        title={t('my_exercise_history')}
+        subtitle={tCommon('exercise_history_description') || tCommon('view_full_history') || "Kho lưu trữ đầy đủ tất cả bài nộp đã hoàn thành với tìm kiếm và bộ lọc chi tiết"}
+        rightActions={
+          <Button 
+            variant="outline" 
+            onClick={() => router.push('/my-exercises')}
+            className="text-sm"
+          >
+            {tCommon('back_to_active_exercises') || "Quay lại bài tập đang làm"}
+          </Button>
+        }
+      />
       <PageContainer>
-        {/* Header */}
-        <div className="mb-8">
-          <h1 className="text-3xl font-bold mb-2">{t('my_exercise_history')}</h1>
-          <p className="text-muted-foreground">
-            {t('history_description')}
-          </p>
+
+        {/* Filters - Full features including search */}
+        <div className="mb-6">
+          <SubmissionFiltersComponent 
+            filters={filters} 
+            onFiltersChange={handleFiltersChange} 
+            onSearch={handleSearch}
+          />
         </div>
 
         {/* Stats Summary */}

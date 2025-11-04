@@ -1,3 +1,5 @@
+"use client"
+
 import * as React from 'react'
 import {
   ChevronLeftIcon,
@@ -7,8 +9,11 @@ import {
 
 import { cn } from '@/lib/utils'
 import { Button, buttonVariants } from '@/components/ui/button'
+import { useTranslations } from '@/lib/i18n/hooks'
 
 function Pagination({ className, ...props }: React.ComponentProps<'nav'>) {
+  const t = useTranslations('common')
+  
   return (
     <nav
       role="navigation"
@@ -69,6 +74,8 @@ function PaginationPrevious({
   className,
   ...props
 }: React.ComponentProps<typeof PaginationLink>) {
+  const t = useTranslations('common')
+  
   return (
     <PaginationLink
       aria-label={t('go_to_previous_page')}
@@ -86,6 +93,8 @@ function PaginationNext({
   className,
   ...props
 }: React.ComponentProps<typeof PaginationLink>) {
+  const t = useTranslations('common')
+  
   return (
     <PaginationLink
       aria-label={t('go_to_next_page')}
@@ -103,6 +112,8 @@ function PaginationEllipsis({
   className,
   ...props
 }: React.ComponentProps<'span'>) {
+  const t = useTranslations('common')
+  
   return (
     <span
       aria-hidden

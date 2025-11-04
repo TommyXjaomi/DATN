@@ -3,6 +3,7 @@ package repository
 import (
 	"database/sql"
 	"fmt"
+	"strings"
 	"time"
 
 	"github.com/bisosad1501/ielts-platform/notification-service/internal/models"
@@ -57,43 +58,114 @@ func (r *NotificationRepository) CreateNotification(notification *models.Notific
 }
 
 // GetNotifications retrieves notifications with pagination and optional filtering
-func (r *NotificationRepository) GetNotifications(userID uuid.UUID, isRead *bool, page, limit int) ([]models.Notification, int, error) {
-	offset := (page - 1) * limit
-
-	// Build query with optional is_read filter
-	whereClause := "WHERE user_id = $1 AND (expires_at IS NULL OR expires_at > NOW())"
+func (r *NotificationRepository) GetNotifications(userID uuid.UUID, query *models.NotificationListQuery) ([]models.Notification, int, error) {
+	where := []string{"user_id = $1", "(expires_at IS NULL OR expires_at > NOW())"}
 	args := []interface{}{userID}
-	argPos := 2
+	argCount := 1
 
-	if isRead != nil {
-		whereClause += fmt.Sprintf(" AND is_read = $%d", argPos)
-		args = append(args, *isRead)
-		argPos++
+	// Filter by is_read
+	if query.IsRead != nil {
+		argCount++
+		where = append(where, fmt.Sprintf("is_read = $%d", argCount))
+		args = append(args, *query.IsRead)
 	}
 
+	// Filter by type
+	if query.Type != "" {
+		types := strings.Split(strings.TrimSpace(query.Type), ",")
+		if len(types) == 1 {
+			argCount++
+			where = append(where, fmt.Sprintf("type = $%d", argCount))
+			args = append(args, strings.TrimSpace(types[0]))
+		} else {
+			placeholders := []string{}
+			for _, t := range types {
+				argCount++
+				placeholders = append(placeholders, fmt.Sprintf("$%d", argCount))
+				args = append(args, strings.TrimSpace(t))
+			}
+			where = append(where, fmt.Sprintf("type IN (%s)", strings.Join(placeholders, ", ")))
+		}
+	}
+
+	// Filter by category
+	if query.Category != "" {
+		categories := strings.Split(strings.TrimSpace(query.Category), ",")
+		if len(categories) == 1 {
+			argCount++
+			where = append(where, fmt.Sprintf("category = $%d", argCount))
+			args = append(args, strings.TrimSpace(categories[0]))
+		} else {
+			placeholders := []string{}
+			for _, cat := range categories {
+				argCount++
+				placeholders = append(placeholders, fmt.Sprintf("$%d", argCount))
+				args = append(args, strings.TrimSpace(cat))
+			}
+			where = append(where, fmt.Sprintf("category IN (%s)", strings.Join(placeholders, ", ")))
+		}
+	}
+
+	// Filter by date range
+	if query.DateFrom != "" {
+		argCount++
+		where = append(where, fmt.Sprintf("DATE(created_at) >= $%d", argCount))
+		args = append(args, query.DateFrom)
+	}
+	if query.DateTo != "" {
+		argCount++
+		where = append(where, fmt.Sprintf("DATE(created_at) <= $%d", argCount))
+		args = append(args, query.DateTo)
+	}
+
+	whereClause := strings.Join(where, " AND ")
+
 	// Count total items
-	countQuery := fmt.Sprintf("SELECT COUNT(*) FROM notifications %s", whereClause)
+	countQuery := fmt.Sprintf("SELECT COUNT(*) FROM notifications WHERE %s", whereClause)
 	var totalItems int
 	err := r.db.QueryRow(countQuery, args...).Scan(&totalItems)
 	if err != nil {
 		return nil, 0, fmt.Errorf("failed to count notifications: %w", err)
 	}
 
+	// Build ORDER BY clause
+	orderBy := "created_at DESC" // Default
+	if query.SortBy != "" {
+		sortOrder := "DESC"
+		if query.SortOrder == "asc" {
+			sortOrder = "ASC"
+		}
+
+		switch query.SortBy {
+		case "date":
+			fallthrough
+		default:
+			orderBy = fmt.Sprintf("created_at %s", sortOrder)
+		}
+	}
+
+	// Pagination
+	offset := (query.Page - 1) * query.Limit
+	argCount++
+	limitArg := argCount
+	argCount++
+	offsetArg := argCount
+
 	// Get paginated results
-	query := fmt.Sprintf(`
+	selectQuery := fmt.Sprintf(`
 		SELECT id, user_id, type, category, title, message,
 			   action_type, action_data, icon_url, image_url,
 			   is_read, read_at, is_sent, sent_at,
 			   scheduled_for, expires_at, created_at, updated_at
 		FROM notifications
-		%s
-		ORDER BY created_at DESC
+		WHERE %s
+		ORDER BY %s
 		LIMIT $%d OFFSET $%d
-	`, whereClause, argPos, argPos+1)
+	`, whereClause, orderBy, limitArg, offsetArg)
 
-	args = append(args, limit, offset)
+	args = append(args, query.Limit, offset)
 
-	rows, err := r.db.Query(query, args...)
+	rows, err := r.db.Query(selectQuery, args...)
 	if err != nil {
 		return nil, 0, fmt.Errorf("failed to query notifications: %w", err)
 	}

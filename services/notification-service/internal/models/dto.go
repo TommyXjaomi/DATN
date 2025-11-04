@@ -35,6 +35,19 @@ type NotificationResponse struct {
 	CreatedAt  string                 `json:"created_at"`        // ISO8601
 }
 
+// NotificationListQuery for filtering notifications
+type NotificationListQuery struct {
+	Page      int    `form:"page"`
+	Limit     int    `form:"limit"`
+	IsRead    *bool  `form:"is_read"`
+	Type      string `form:"type"`      // achievement, reminder, course_update, exercise_graded, system, social
+	Category  string `form:"category"`  // info, success, warning, alert
+	SortBy    string `form:"sort_by"`   // date
+	SortOrder string `form:"sort_order"` // asc, desc
+	DateFrom  string `form:"date_from"` // ISO 8601 date (YYYY-MM-DD)
+	DateTo    string `form:"date_to"`   // ISO 8601 date (YYYY-MM-DD)
+}
+
 // NotificationListResponse represents paginated notifications
 type NotificationListResponse struct {
 	Notifications []NotificationResponse `json:"notifications"`

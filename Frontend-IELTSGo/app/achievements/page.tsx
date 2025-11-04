@@ -5,6 +5,7 @@ import { PageContainer } from "@/components/layout/page-container"
 import { PageHeader } from "@/components/layout/page-header"
 import { ProtectedRoute } from "@/components/auth/protected-route"
 import { useTranslations } from "@/lib/i18n"
+import { PageLoading } from "@/components/ui/page-loading"
 import { lazy, Suspense } from "react"
 
 // Lazy load heavy component to improve initial load time
@@ -29,7 +30,7 @@ function AchievementsContent() {
       />
       <PageContainer>
         {/* Achievements List */}
-        <Suspense fallback={<div className="flex items-center justify-center py-20">Loading achievements...</div>}>
+        <Suspense fallback={<PageLoading translationKey="loading_achievements" />}>
           <AchievementsList />
         </Suspense>
       </PageContainer>

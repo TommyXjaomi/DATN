@@ -1,7 +1,8 @@
 "use client"
 
-import { useState, useEffect } from "react"
-import { notificationsApi } from "@/lib/api/notifications"
+import { useState, useEffect, useMemo, useCallback } from "react"
+import { notificationsApi, type NotificationFilters } from "@/lib/api/notifications"
+import { NotificationFiltersComponent } from "./notification-filters"
 import { NotificationCard } from "./notification-card"
 import { useToast } from "@/hooks/use-toast"
 import { useTranslations } from "@/lib/i18n"
@@ -17,17 +18,27 @@ export function NotificationsList() {
   const { toast } = useToast()
   const [notifications, setNotifications] = useState<Notification[]>([])
   const [loading, setLoading] = useState(true)
+  const [filters, setFilters] = useState<NotificationFilters>({})
   const [page, setPage] = useState(1)
   const [hasMore, setHasMore] = useState(true)
 
-  useEffect(() => {
-    loadNotifications()
-  }, [page])
+  // Memoize filter key to trigger refetch only when filters actually change
+  const filterKey = useMemo(() => {
+    return JSON.stringify({
+      is_read: filters.is_read !== undefined ? filters.is_read : '',
+      type: filters.type?.sort().join(',') || '',
+      category: filters.category?.sort().join(',') || '',
+      sort_by: filters.sort_by || '',
+      sort_order: filters.sort_order || '',
+      date_from: filters.date_from || '',
+      date_to: filters.date_to || '',
+    })
+  }, [filters.is_read, filters.type, filters.category, filters.sort_by, filters.sort_order, filters.date_from, filters.date_to])
 
-  const loadNotifications = async () => {
+  const loadNotifications = useCallback(async () => {
     try {
       setLoading(true)
-      const response = await notificationsApi.getNotifications(page, 20)
+      const response = await notificationsApi.getNotifications(filters, page, 20)
       const newNotifications = response.notifications || []
       
       setNotifications(prev => 
@@ -47,7 +58,11 @@ export function NotificationsList() {
     } finally {
       setLoading(false)
     }
-  }
+  }, [filters, page, toast, tCommon, t])
+
+  useEffect(() => {
+    loadNotifications()
+  }, [loadNotifications, filterKey])
 
   const handleMarkAsRead = async (notificationId: string) => {
     try {
@@ -84,69 +99,49 @@ export function NotificationsList() {
     loadNotifications()
   }
 
+  const handleFiltersChange = (newFilters: NotificationFilters) => {
+    setFilters(newFilters)
+    setPage(1)
+  }
+
   if (loading && page === 1) {
     return <PageLoading translationKey="loading" />
   }
 
-  if (notifications.length === 0 && !loading) {
-    return (
-      <EmptyState
-        icon={Bell}
-        title={t('no_notifications')}
-        description={t('no_notifications_description')}
-      />
-    )
-  }
-
-  // Group by read/unread
-  const unread = notifications.filter(n => !(n.isRead || n.is_read || n.read))
-  const read = notifications.filter(n => n.isRead || n.is_read || n.read)
-
   return (
     <div className="space-y-6">
-      {/* Unread Notifications */}
-      {unread.length > 0 && (
-        <div>
-          <div className="flex items-center justify-between mb-4">
-            <h2 className="text-xl font-semibold">{t('unread')} ({unread.length})</h2>
-          </div>
-          <div className="space-y-2">
-            {unread.map((notification) => (
-              <NotificationCard
-                key={notification.id}
-                notification={notification}
-                onMarkAsRead={handleMarkAsRead}
-                onDelete={handleDelete}
-              />
-            ))}
-          </div>
+      {/* Filters */}
+      <div>
+        <NotificationFiltersComponent filters={filters} onFiltersChange={handleFiltersChange} />
+      </div>
+
+      {/* Notifications List */}
+      {notifications.length === 0 && !loading ? (
+        <EmptyState
+          icon={Bell}
+          title={t('no_notifications')}
+          description={t('no_notifications_description')}
+        />
+      ) : (
+        <div className="space-y-4">
+          {notifications.map((notification) => (
+            <NotificationCard
+              key={notification.id}
+              notification={notification}
+              onMarkAsRead={handleMarkAsRead}
+              onDelete={handleDelete}
+            />
+          ))}
         </div>
       )}
 
-      {/* Read Notifications */}
-      {read.length > 0 && (
-        <div>
-          <h2 className="text-xl font-semibold mb-4">{t('read')} ({read.length})</h2>
-          <div className="space-y-2">
-            {read.map((notification) => (
-              <NotificationCard
-                key={notification.id}
-                notification={notification}
-                onMarkAsRead={handleMarkAsRead}
-                onDelete={handleDelete}
-              />
-            ))}
-          </div>
-        </div>
-      )}
-
-      {/* Load More */}
-      {hasMore && (
-        <div className="text-center pt-4">
-          <Button 
-            onClick={() => setPage(prev => prev + 1)} 
-            disabled={loading}
+      {/* Load More Button */}
+      {hasMore && !loading && (
+        <div className="flex justify-center pt-4">
+          <Button
             variant="outline"
+            onClick={() => setPage(prev => prev + 1)}
+            disabled={loading}
           >
             {loading ? tCommon('loading') : tCommon('load_more')}
           </Button>

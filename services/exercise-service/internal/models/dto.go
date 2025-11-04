@@ -161,6 +161,19 @@ type CreateQuestionAnswerRequest struct {
 	MatchingOrder      *int     `json:"matching_order"`
 }
 
+// MySubmissionsQuery for filtering user submissions
+type MySubmissionsQuery struct {
+	Page      int    `form:"page"`
+	Limit     int    `form:"limit"`
+	SkillType string `form:"skill_type"` // listening, reading, writing, speaking
+	Status    string `form:"status"`     // in_progress, completed, abandoned
+	SortBy    string `form:"sort_by"`    // date, score, band_score
+	SortOrder string `form:"sort_order"` // asc, desc
+	DateFrom  string `form:"date_from"`  // ISO 8601 date (YYYY-MM-DD)
+	DateTo    string `form:"date_to"`   // ISO 8601 date (YYYY-MM-DD)
+	Search    string `form:"search"`      // Search by exercise title
+}
+
 // MySubmissionsResponse for user's submission history
 type MySubmissionsResponse struct {
 	Submissions []SubmissionWithExercise `json:"submissions"`

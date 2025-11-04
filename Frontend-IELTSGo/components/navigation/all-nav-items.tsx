@@ -56,6 +56,7 @@ type SidebarNavItem =
       title: string
       href: string
       icon: string
+      description?: string
     }
   | {
       type: "separator"
@@ -75,47 +76,26 @@ export function useSidebarNavItems(): SidebarNavItem[] {
       icon: "LayoutDashboard",
     },
     {
-      title: t('courses'),
+      title: t('my_courses') || t('courses'),
       href: "/my-courses",
       icon: "BookOpen",
+      description: t('courses_description') || "Manage enrolled courses",
     },
     {
-      title: t('exercises'),
+      title: t('my_exercises') || "My Exercises",
       href: "/my-exercises",
       icon: "CheckSquare",
+      description: t('manage_your_current_exercises') || "Manage current exercises",
     },
     {
       title: t('my_exercise_history') || "Exercise History",
       href: "/exercises/history",
       icon: "FileText",
-    },
-    {
-      type: "separator",
-      label: t('ai_practice') || "AI Practice",
-    },
-    {
-      title: t('writing_practice') || "Writing Practice",
-      href: "/ai/writing",
-      icon: "FileText",
-    },
-    {
-      title: t('speaking_practice') || "Speaking Practice",
-      href: "/ai/speaking",
-      icon: "Mic",
+      description: t('exercise_history_description') || t('view_full_history') || "Complete archive with search and filters",
     },
     {
       type: "separator",
       label: t('study_tools') || "Study Tools",
-    },
-    {
-      title: t('progress_analytics') || "Progress",
-      href: "/progress",
-      icon: "BarChart3",
-    },
-    {
-      title: t('study_history') || "History",
-      href: "/history",
-      icon: "History",
     },
     {
       title: tGoals('title'),
@@ -223,6 +203,3 @@ export function useAdminNavItems() {
     },
   ] as const
 }
-
-
-
