@@ -10,10 +10,10 @@ import (
 
 func SetupRoutes(handler *handlers.AIHandler, authMiddleware *middleware.AuthMiddleware, rateLimitMiddleware *middleware.RateLimitMiddleware) *gin.Engine {
 	router := gin.Default()
-	
+
 	// Increase max memory for multipart forms (for audio file uploads)
 	router.MaxMultipartMemory = 32 << 20 // 32 MB
-	
+
 	// Disable automatic body parsing for multipart to prevent conflicts
 	router.Use(func(c *gin.Context) {
 		contentType := c.GetHeader("Content-Type")
@@ -53,6 +53,15 @@ func SetupRoutes(handler *handlers.AIHandler, authMiddleware *middleware.AuthMid
 			speaking.GET("/prompts/:id", handler.GetSpeakingPrompt)
 		}
 
+		// Pure Stateless API endpoints (no auth - for internal service-to-service calls)
+		// Phase 5.2: These endpoints don't write to database
+		internal := v1.Group("/ai/internal")
+		{
+			internal.POST("/writing/evaluate", handler.EvaluateWriting)
+			internal.POST("/speaking/transcribe", handler.TranscribeSpeaking)
+			internal.POST("/speaking/evaluate", handler.EvaluateSpeaking)
+		}
+
 		// Admin endpoints (protected + role check)
 		admin := v1.Group("/admin/ai")
 		admin.Use(authMiddleware.AuthRequired())
@@ -78,4 +87,3 @@ func SetupRoutes(handler *handlers.AIHandler, authMiddleware *middleware.AuthMid
 
 	return router
 }
-

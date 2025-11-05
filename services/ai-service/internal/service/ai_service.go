@@ -567,3 +567,67 @@ func downloadAudio(url string) ([]byte, error) {
 
 	return data, nil
 }
+
+// ========== PURE STATELESS APIs (Phase 5.2) ==========
+
+// EvaluateWritingPure evaluates writing without database operations (stateless)
+func (s *AIService) EvaluateWritingPure(essayText, taskType, promptText string) (*models.OpenAIWritingEvaluation, error) {
+	if essayText == "" {
+		return nil, fmt.Errorf("essay text is required")
+	}
+
+	wordCount := len(strings.Fields(essayText))
+
+	// Call OpenAI for evaluation (pure, no DB)
+	evalResult, err := s.openAIClient.EvaluateWriting(promptText, essayText, wordCount, 0)
+	if err != nil {
+		return nil, fmt.Errorf("evaluation failed: %w", err)
+	}
+
+	return evalResult, nil
+}
+
+// TranscribeSpeakingPure transcribes audio without database operations (stateless)
+func (s *AIService) TranscribeSpeakingPure(audioURL string) (string, error) {
+	if audioURL == "" {
+		return "", fmt.Errorf("audio URL is required")
+	}
+
+	// Download audio
+	audioData, err := downloadAudio(audioURL)
+	if err != nil {
+		return "", fmt.Errorf("failed to download audio: %w", err)
+	}
+
+	// Transcribe with OpenAI Whisper
+	transcript, err := s.openAIClient.TranscribeAudio("audio.mp3", audioData)
+	if err != nil {
+		return "", fmt.Errorf("transcription failed: %w", err)
+	}
+
+	return transcript.Text, nil
+}
+
+// EvaluateSpeakingPure evaluates speaking without database operations (stateless)
+func (s *AIService) EvaluateSpeakingPure(audioURL, transcriptText string, partNumber int) (*models.OpenAISpeakingEvaluation, error) {
+	if audioURL == "" {
+		return nil, fmt.Errorf("audio URL is required")
+	}
+
+	// If transcript not provided, transcribe first
+	if transcriptText == "" {
+		var err error
+		transcriptText, err = s.TranscribeSpeakingPure(audioURL)
+		if err != nil {
+			return nil, fmt.Errorf("transcription failed: %w", err)
+		}
+	}
+
+	// Evaluate speaking with OpenAI (dummy values for compatibility)
+	evalResult, err := s.openAIClient.EvaluateSpeaking(transcriptText, "", audioURL, partNumber, 0)
+	if err != nil {
+		return nil, fmt.Errorf("evaluation failed: %w", err)
+	}
+
+	return evalResult, nil
+}

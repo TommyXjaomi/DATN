@@ -143,15 +143,15 @@ func (h *AIHandler) SubmitSpeaking(c *gin.Context) {
 
 	// Check if multipart form (file upload) or JSON (URL)
 	var req models.SpeakingSubmissionRequest
-	
+
 	contentType := c.GetHeader("Content-Type")
-	
+
 	// IMPORTANT: Parse multipart form FIRST if it's multipart
 	// This prevents Gin from trying to parse it as JSON
 	if strings.HasPrefix(contentType, "multipart/form-data") {
 		// CRITICAL: Prevent Gin from auto-parsing body by reading it manually
 		// We must parse multipart BEFORE any JSON parsing happens
-		
+
 		// Set max memory for multipart
 		if c.Request.MultipartForm == nil {
 			err := c.Request.ParseMultipartForm(32 << 20) // 32 MB
@@ -160,20 +160,20 @@ func (h *AIHandler) SubmitSpeaking(c *gin.Context) {
 				return
 			}
 		}
-		
+
 		// Get file from parsed form
 		fileHeader := c.Request.MultipartForm.File["audio"]
 		if len(fileHeader) == 0 {
 			c.JSON(http.StatusBadRequest, gin.H{"error": "audio file required in multipart form"})
 			return
 		}
-		
+
 		file := fileHeader[0]
-		
+
 		// Validate file size before reading
 		if file.Size > validation.MaxAudioFileSizeBytes {
 			c.JSON(http.StatusBadRequest, gin.H{
-				"error": fmt.Sprintf("audio file size (%.2f MB) exceeds maximum allowed size (%d MB)", 
+				"error": fmt.Sprintf("audio file size (%.2f MB) exceeds maximum allowed size (%d MB)",
 					float64(file.Size)/(1024*1024), validation.MaxAudioFileSizeMB),
 			})
 			return
@@ -199,7 +199,7 @@ func (h *AIHandler) SubmitSpeaking(c *gin.Context) {
 		// Validate actual read size
 		if int64(len(audioData)) > validation.MaxAudioFileSizeBytes {
 			c.JSON(http.StatusBadRequest, gin.H{
-				"error": fmt.Sprintf("audio file size (%.2f MB) exceeds maximum allowed size (%d MB)", 
+				"error": fmt.Sprintf("audio file size (%.2f MB) exceeds maximum allowed size (%d MB)",
 					float64(len(audioData))/(1024*1024), validation.MaxAudioFileSizeMB),
 			})
 			return
@@ -210,7 +210,7 @@ func (h *AIHandler) SubmitSpeaking(c *gin.Context) {
 
 		// Get form fields from parsed multipart form
 		form := c.Request.MultipartForm.Value
-		
+
 		partNumStr := ""
 		if parts, ok := form["part_number"]; ok && len(parts) > 0 {
 			partNumStr = strings.TrimSpace(parts[0])
@@ -233,9 +233,9 @@ func (h *AIHandler) SubmitSpeaking(c *gin.Context) {
 			c.JSON(http.StatusBadRequest, gin.H{"error": "task_prompt_text is required"})
 			return
 		}
-		
+
 		req.AudioURL = tempURL
-		
+
 		durationStr := ""
 		if durations, ok := form["audio_duration_seconds"]; ok && len(durations) > 0 {
 			durationStr = strings.TrimSpace(durations[0])
@@ -250,12 +250,12 @@ func (h *AIHandler) SubmitSpeaking(c *gin.Context) {
 			return
 		}
 		req.AudioDurationSeconds = duration
-		
+
 		if formats, ok := form["audio_format"]; ok && len(formats) > 0 && formats[0] != "" {
 			format := formats[0]
 			req.AudioFormat = &format
 		}
-		
+
 		fileSize := int64(len(audioData))
 		req.AudioFileSizeBytes = &fileSize
 
@@ -290,7 +290,7 @@ func (h *AIHandler) SubmitSpeaking(c *gin.Context) {
 		c.JSON(http.StatusOK, result)
 		return
 	}
-	
+
 	// If we get here, it was multipart but file parsing failed - already handled above
 	// This should not be reached, but just in case:
 	if strings.HasPrefix(contentType, "multipart/form-data") {
@@ -367,7 +367,6 @@ func (h *AIHandler) GetSpeakingSubmission(c *gin.Context) {
 
 	c.JSON(http.StatusOK, result)
 }
-
 
 // GET /api/v1/ai/writing/prompts
 func (h *AIHandler) GetWritingPrompts(c *gin.Context) {
@@ -612,4 +611,81 @@ func (h *AIHandler) DeleteSpeakingPrompt(c *gin.Context) {
 	}
 
 	c.JSON(http.StatusOK, gin.H{"message": "prompt deleted successfully"})
+}
+
+// ========== PURE STATELESS API HANDLERS (Phase 5.2) ==========
+
+// POST /api/v1/ai/writing/evaluate
+func (h *AIHandler) EvaluateWriting(c *gin.Context) {
+	var req struct {
+		EssayText  string `json:"essay_text" binding:"required"`
+		TaskType   string `json:"task_type"`
+		PromptText string `json:"prompt_text"`
+	}
+
+	if err := c.ShouldBindJSON(&req); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		return
+	}
+
+	result, err := h.service.EvaluateWritingPure(req.EssayText, req.TaskType, req.PromptText)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		return
+	}
+
+	c.JSON(http.StatusOK, gin.H{
+		"success": true,
+		"data":    result,
+	})
+}
+
+// POST /api/v1/ai/speaking/transcribe
+func (h *AIHandler) TranscribeSpeaking(c *gin.Context) {
+	var req struct {
+		AudioURL string `json:"audio_url" binding:"required"`
+	}
+
+	if err := c.ShouldBindJSON(&req); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		return
+	}
+
+	transcript, err := h.service.TranscribeSpeakingPure(req.AudioURL)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		return
+	}
+
+	c.JSON(http.StatusOK, gin.H{
+		"success": true,
+		"data": gin.H{
+			"transcript_text": transcript,
+		},
+	})
+}
+
+// POST /api/v1/ai/speaking/evaluate
+func (h *AIHandler) EvaluateSpeaking(c *gin.Context) {
+	var req struct {
+		AudioURL       string `json:"audio_url" binding:"required"`
+		TranscriptText string `json:"transcript_text"`
+		PartNumber     int    `json:"part_number"`
+	}
+
+	if err := c.ShouldBindJSON(&req); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		return
+	}
+
+	result, err := h.service.EvaluateSpeakingPure(req.AudioURL, req.TranscriptText, req.PartNumber)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		return
+	}
+
+	c.JSON(http.StatusOK, gin.H{
+		"success": true,
+		"data":    result,
+	})
 }
