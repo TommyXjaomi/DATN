@@ -6,14 +6,12 @@ import { ProtectedRoute } from "@/components/auth/protected-route"
 import { useAuth } from "@/lib/contexts/auth-context"
 import { usePreferences } from "@/lib/contexts/preferences-context"
 import { PageHeader } from "@/components/layout/page-header"
-import { BookOpen, CheckCircle, Clock, TrendingUp, Flame, BarChart3, Target, ArrowRight } from "lucide-react"
+import { BookOpen, CheckCircle, Clock, TrendingUp, Flame, BarChart3, Target } from "lucide-react"
 import { useEffect, useState, useCallback, useMemo, lazy, Suspense } from "react"
-import { useRouter } from "next/navigation"
 import { progressApi } from "@/lib/api/progress"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
-import { getCardVariant } from "@/lib/utils/card-variants"
 import { cn } from "@/lib/utils"
 import { useTranslations } from "@/lib/i18n"
 import { PageLoading } from "@/components/ui/page-loading"
@@ -36,7 +34,6 @@ export default function DashboardPage() {
 function DashboardContent() {
   const { user } = useAuth()
   const { preferences } = usePreferences()
-  const router = useRouter()
   const t = useTranslations('dashboard')
   const tCommon = useTranslations('common')
   const showStats = preferences?.show_study_stats ?? true // Default to true for backward compatibility
@@ -198,75 +195,6 @@ function DashboardContent() {
 
       <PageContainer className="py-6">
 
-        {/* Quick Actions - Refined design */}
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-8">
-          <Card 
-            className={cn(
-              getCardVariant({ gradient: 'blue' }),
-              "group relative overflow-hidden hover:border-primary/30 cursor-pointer hover:shadow-lg hover:shadow-blue-500/10"
-            )}
-            onClick={() => router.push("/my-courses")}
-          >
-            <div className="absolute inset-0 bg-gradient-to-br from-blue-500/0 via-blue-500/0 to-blue-500/5 group-hover:from-blue-500/5 group-hover:via-blue-500/5 group-hover:to-blue-500/10 transition-all duration-200" />
-            <CardContent className="p-5 relative">
-              <div className="flex items-start gap-4">
-                <div className="p-3 rounded-xl bg-blue-100 dark:bg-blue-900/40 group-hover:bg-blue-200 dark:group-hover:bg-blue-900/60 transition-all duration-200 shadow-sm group-hover:shadow-md">
-                  <BookOpen className="h-5 w-5 text-blue-600 dark:text-blue-400" />
-                </div>
-                <div className="flex-1 min-w-0">
-                  <h3 className="font-semibold text-base mb-1 group-hover:text-primary transition-colors">{tCommon('courses')}</h3>
-                  <p className="text-sm text-muted-foreground leading-relaxed">{tCommon('manage_your_courses') || "Quản lý khóa học của bạn"}</p>
-                </div>
-                <ArrowRight className="h-5 w-5 text-muted-foreground group-hover:text-primary group-hover:translate-x-1 transition-all duration-200 flex-shrink-0 mt-1" />
-              </div>
-            </CardContent>
-          </Card>
-
-          <Card 
-            className={cn(
-              getCardVariant({ gradient: 'green' }),
-              "group relative overflow-hidden hover:border-primary/30 cursor-pointer hover:shadow-lg hover:shadow-green-500/10"
-            )}
-            onClick={() => router.push("/exercises/list")}
-          >
-            <div className="absolute inset-0 bg-gradient-to-br from-green-500/0 via-green-500/0 to-green-500/5 group-hover:from-green-500/5 group-hover:via-green-500/5 group-hover:to-green-500/10 transition-all duration-200" />
-            <CardContent className="p-5 relative">
-              <div className="flex items-start gap-4">
-                <div className="p-3 rounded-xl bg-green-100 dark:bg-green-900/40 group-hover:bg-green-200 dark:group-hover:bg-green-900/60 transition-all duration-200 shadow-sm group-hover:shadow-md">
-                  <CheckCircle className="h-5 w-5 text-green-600 dark:text-green-400" />
-                </div>
-                <div className="flex-1 min-w-0">
-                  <h3 className="font-semibold text-base mb-1 group-hover:text-primary transition-colors">{tCommon('exercises')}</h3>
-                  <p className="text-sm text-muted-foreground leading-relaxed">{tCommon('practice_exercises') || "Luyện tập bài tập"}</p>
-                </div>
-                <ArrowRight className="h-5 w-5 text-muted-foreground group-hover:text-primary group-hover:translate-x-1 transition-all duration-200 flex-shrink-0 mt-1" />
-              </div>
-            </CardContent>
-          </Card>
-
-          <Card 
-            className={cn(
-              getCardVariant({ gradient: 'purple' }),
-              "group relative overflow-hidden hover:border-primary/30 cursor-pointer hover:shadow-lg hover:shadow-purple-500/10"
-            )}
-            onClick={() => router.push("/goals")}
-          >
-            <div className="absolute inset-0 bg-gradient-to-br from-purple-500/0 via-purple-500/0 to-purple-500/5 group-hover:from-purple-500/5 group-hover:via-purple-500/5 group-hover:to-purple-500/10 transition-all duration-200" />
-            <CardContent className="p-5 relative">
-              <div className="flex items-start gap-4">
-                <div className="p-3 rounded-xl bg-purple-100 dark:bg-purple-900/40 group-hover:bg-purple-200 dark:group-hover:bg-purple-900/60 transition-all duration-200 shadow-sm group-hover:shadow-md">
-                  <Target className="h-5 w-5 text-purple-600 dark:text-purple-400" />
-                </div>
-                <div className="flex-1 min-w-0">
-                  <h3 className="font-semibold text-base mb-1 group-hover:text-primary transition-colors">{t('goals')}</h3>
-                  <p className="text-sm text-muted-foreground leading-relaxed">{t('set_and_track_goals') || "Đặt và theo dõi mục tiêu"}</p>
-                </div>
-                <ArrowRight className="h-5 w-5 text-muted-foreground group-hover:text-primary group-hover:translate-x-1 transition-all duration-200 flex-shrink-0 mt-1" />
-              </div>
-            </CardContent>
-          </Card>
-        </div>
-
         {/* Stats Grid - Only show if user preference allows */}
         {showStats && (
           <Suspense fallback={
@@ -280,31 +208,31 @@ function DashboardContent() {
               <StatCard
                 title={t('stats.coursesInProgress')}
                 value={summary?.inProgressCourses || 0}
-                description={t('stats.coursesCompleted', { count: summary?.completedCourses || 0 })}
+                description={`${summary?.completedCourses || 0} khóa đã hoàn thành`}
                 icon={BookOpen}
               />
               <StatCard
                 title={t('stats.exercisesCompleted')}
                 value={uniqueExercises}
-                description={t('stats.exercisesDescription', { exercises: uniqueExercises, attempts: totalAttempts })}
+                description={`${totalAttempts} lần luyện tập`}
                 icon={CheckCircle}
               />
               <StatCard
                 title={t('stats.studyTime')}
                 value={`${Math.floor(stats.totalMinutes / 60)}h ${stats.totalMinutes % 60}m`}
-                description={t('stats.studyTimeDescription', { period: t(`timeRange.${timeRange}`) })}
+                description={`Trong ${t(`timeRange.${timeRange}`)}`}
                 icon={Clock}
               />
               <StatCard
                 title={t('stats.averageScore')}
                 value={stats.avgScore > 0 ? stats.avgScore.toFixed(1) : (summary?.averageScore?.toFixed(1) || "0.0")}
-                description={t('stats.bandScore')}
+                description="Điểm trung bình (thang 0-9)"
                 icon={Target}
               />
               <StatCard
                 title={t('stats.currentStreak')}
-                value={t('stats.days', { count: stats.activeStreak || summary?.currentStreak || 0 })}
-                description={t('stats.longestStreak', { count: summary?.longestStreak || 0 })}
+                value={`${stats.activeStreak || summary?.currentStreak || 0} ngày`}
+                description={`Kỷ lục: ${summary?.longestStreak || 0} ngày`}
                 icon={Flame}
               />
             </div>
@@ -346,10 +274,10 @@ function DashboardContent() {
             {showStats && (
               <Suspense fallback={<Card><CardContent className="p-8"><div className="h-[200px] flex items-center justify-center">Loading chart...</div></CardContent></Card>}>
                 <ProgressChart
-                  title={t('charts.studyTime', { period: t(`timeRange.${timeRange}`) })}
+                  title={`Thời gian học (${t(`timeRange.${timeRange}`)})`}
                   data={analytics?.studyTimeByDay || []}
                   color="#ED372A"
-                  valueLabel={t('charts.minutes')}
+                  valueLabel="phút"
                 />
               </Suspense>
             )}
@@ -364,38 +292,43 @@ function DashboardContent() {
               <div className="grid gap-6">
                 <Suspense fallback={<Card><CardContent className="p-8"><div className="h-[200px] flex items-center justify-center">Loading chart...</div></CardContent></Card>}>
                   <ProgressChart
-                    title={t('charts.dailyStudyTime', { period: t(`timeRange.${timeRange}`) })}
+                    title={`Thời gian học theo ngày (${t(`timeRange.${timeRange}`)})`}
                     data={analytics?.studyTimeByDay || []}
                     color="#ED372A"
-                    valueLabel={t('charts.minutes')}
+                    valueLabel="phút"
                   />
                 </Suspense>
                 <Suspense fallback={<Card><CardContent className="p-8"><div className="h-[200px] flex items-center justify-center">Loading chart...</div></CardContent></Card>}>
                   <ProgressChart
-                    title={t('charts.completionRate', { period: t(`timeRange.${timeRange}`) })}
+                    title={`Tỷ lệ hoàn thành (${t(`timeRange.${timeRange}`)})`}
                     data={analytics?.completionRate || []}
                     color="#10B981"
                     valueLabel="%"
                   />
                 </Suspense>
                 <div>
-                  <h3 className="text-lg font-semibold mb-4">{t('exerciseBreakdown')}</h3>
+                  <h3 className="text-lg font-semibold mb-4">Thống kê bài tập theo kỹ năng</h3>
                   {analytics?.exercisesByType?.length > 0 ? (
                     <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
                       {analytics.exercisesByType.map((item: any) => (
-                        <Card key={item.type}>
+                        <Card key={item.type} className="border-border/40">
                           <CardHeader>
-                            <CardTitle className="text-base">{item.type}</CardTitle>
+                            <CardTitle className="text-base font-semibold capitalize">{item.type}</CardTitle>
                           </CardHeader>
                           <CardContent>
-                            <div className="space-y-2">
-                              <div className="flex justify-between">
-                                <span className="text-sm text-muted-foreground">{t('completed')}</span>
-                                <span className="font-bold">{item.count}</span>
+                            <div className="space-y-3">
+                              <div className="flex justify-between items-center">
+                                <span className="text-sm text-muted-foreground">Đã hoàn thành</span>
+                                <span className="font-bold text-lg">{item.count}</span>
                               </div>
-                              <div className="flex justify-between">
-                                <span className="text-sm text-muted-foreground">{t('avgScore')}</span>
-                                <span className="font-bold">{item.avgScore.toFixed(1)}</span>
+                              <div className="flex justify-between items-center">
+                                <span className="text-sm text-muted-foreground">Điểm trung bình (0-9)</span>
+                                <span className={cn(
+                                  "font-bold text-lg",
+                                  item.avgScore >= 7 ? "text-green-600 dark:text-green-500" : 
+                                  item.avgScore >= 5 ? "text-orange-600 dark:text-orange-500" : 
+                                  "text-red-600 dark:text-red-500"
+                                )}>{item.avgScore.toFixed(1)}</span>
                               </div>
                             </div>
                           </CardContent>
@@ -406,7 +339,7 @@ function DashboardContent() {
                     <Card>
                       <CardContent className="py-12 text-center">
                         <p className="text-muted-foreground">
-                          {t('noExercisesCompleted')}
+                          Chưa có bài tập nào được hoàn thành
                         </p>
                       </CardContent>
                     </Card>
@@ -429,25 +362,25 @@ function DashboardContent() {
                 <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
                   <SkillProgressCard
                     skill="LISTENING"
-                    currentScore={stats.skillScores.listening}
+                    currentScore={stats.skillScores.listening || summary?.skillScores?.listening || 0}
                     targetScore={user?.targetBandScore || 9}
                     exercisesCompleted={getSkillExerciseCount('listening')}
                   />
                   <SkillProgressCard
                     skill="READING"
-                    currentScore={stats.skillScores.reading}
+                    currentScore={stats.skillScores.reading || summary?.skillScores?.reading || 0}
                     targetScore={user?.targetBandScore || 9}
                     exercisesCompleted={getSkillExerciseCount('reading')}
                   />
                   <SkillProgressCard
                     skill="WRITING"
-                    currentScore={stats.skillScores.writing}
+                    currentScore={stats.skillScores.writing || summary?.skillScores?.writing || 0}
                     targetScore={user?.targetBandScore || 9}
                     exercisesCompleted={getSkillExerciseCount('writing')}
                   />
                   <SkillProgressCard
                     skill="SPEAKING"
-                    currentScore={stats.skillScores.speaking}
+                    currentScore={stats.skillScores.speaking || summary?.skillScores?.speaking || 0}
                     targetScore={user?.targetBandScore || 9}
                     exercisesCompleted={getSkillExerciseCount('speaking')}
                   />

@@ -1,11 +1,25 @@
 import { apiClient } from "./apiClient"
-import type { PaginatedResponse, SkillType } from "./types"
-import { apiCache, cachedFetch } from "@/lib/utils/api-cache"
+import type { SkillType } from "@/types"
+import { apiCache } from "@/lib/utils/api-cache"
 
 interface ApiResponse<T> {
   success: boolean
   message?: string
   data: T
+}
+
+const normalizeScore = (score?: number | null): number => {
+  if (score === undefined || score === null) {
+    return 0
+  }
+
+  const numeric = Number(score)
+  if (!Number.isFinite(numeric)) {
+    return 0
+  }
+
+  const normalized = numeric > 9 ? (numeric / 100) * 9 : numeric
+  return Math.max(0, Math.min(9, normalized))
 }
 
 export const progressApi = {
@@ -56,12 +70,12 @@ export const progressApi = {
       totalStudyTime: Math.round(data.total_study_hours * 60), // Convert hours to minutes
       currentStreak: data.current_streak_days,
       longestStreak: data.longest_streak_days,
-      averageScore: data.overall_score || 0,
+      averageScore: normalizeScore(data.overall_score),
       skillScores: {
-        listening: data.listening_score || 0,
-        reading: data.reading_score || 0,
-        writing: data.writing_score || 0,
-        speaking: data.speaking_score || 0,
+        listening: normalizeScore(data.listening_score),
+        reading: normalizeScore(data.reading_score),
+        writing: normalizeScore(data.writing_score),
+        speaking: normalizeScore(data.speaking_score),
       }
     }
     
@@ -109,6 +123,8 @@ export const progressApi = {
 
     history.forEach(item => {
       const date = item.created_at.split('T')[0]
+      const hasScore = item.score !== undefined && item.score !== null
+      const normalizedScore = hasScore ? normalizeScore(item.score) : null
       
       // Study time by day
       studyTimeByDay[date] = (studyTimeByDay[date] || 0) + item.duration_minutes
@@ -130,14 +146,14 @@ export const progressApi = {
           exercisesBySkillType[item.skill_type] = { count: 0, scores: [] }
         }
         exercisesBySkillType[item.skill_type].count++
-        if (item.score !== undefined && item.score !== null) {
-          exercisesBySkillType[item.skill_type].scores.push(item.score)
+        if (normalizedScore !== null) {
+          exercisesBySkillType[item.skill_type].scores.push(normalizedScore)
         }
       }
 
       // Scores by skill
-      if (item.skill_type && item.score) {
-        scoresBySkill[item.skill_type]?.push(item.score)
+      if (item.skill_type && normalizedScore !== null) {
+        scoresBySkill[item.skill_type]?.push(normalizedScore)
       }
     })
 
@@ -198,7 +214,7 @@ export const progressApi = {
           : `${item.session_type} - ${item.id.substring(0, 8)}`,
         completedAt: item.created_at,
         duration: item.duration_minutes,
-        score: item.score,
+  score: normalizeScore(item.score),
         skillType: item.skill_type as SkillType | undefined
       })),
       total: pagination.total || 0,
@@ -268,17 +284,20 @@ export const progressApi = {
     }>>(`/user/statistics/${skill}`)
 
     const data = response.data.data
+    const averageScore = normalizeScore(data.average_score)
+    const bestScore = normalizeScore(data.best_score)
 
     return {
       skill: skill,
-      level: data.average_score ? (data.average_score >= 7 ? 'Advanced' : data.average_score >= 5 ? 'Intermediate' : 'Beginner') : 'Beginner',
-      currentScore: data.average_score || 0,
+      level: averageScore >= 7 ? 'Advanced' : averageScore >= 5 ? 'Intermediate' : 'Beginner',
+      currentScore: averageScore,
       targetScore: 7.0, // Default target, should come from user profile
       exercisesCompleted: data.total_practices,
-      averageScore: data.average_score || 0,
+      averageScore,
+      bestScore,
       recentScores: data.recent_scores.map(s => ({
         date: s.created_at,
-        score: s.score
+        score: normalizeScore(s.score)
       })),
       strengths: data.strengths || [],
       weaknesses: data.weaknesses || []

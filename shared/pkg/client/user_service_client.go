@@ -40,6 +40,7 @@ type UpdateProgressRequest struct {
 	ResourceID        string  `json:"resource_id,omitempty"`
 	ResourceType      string  `json:"resource_type,omitempty"`
 	Score             float64 `json:"score,omitempty"`
+	// Score should already be normalized to the IELTS 0-9 band before calling the user service.
 }
 
 // UpdateSkillStatsRequest represents skill statistics update request
