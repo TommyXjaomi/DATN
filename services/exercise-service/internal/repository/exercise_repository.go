@@ -133,7 +133,7 @@ func (r *ExerciseRepository) GetExercises(query *models.ExerciseListQuery) ([]mo
 		if query.SortOrder == "asc" {
 			sortOrder = "ASC"
 		}
-		
+
 		switch query.SortBy {
 		case "newest":
 			orderBy = fmt.Sprintf("e.created_at %s", sortOrder)
@@ -520,7 +520,7 @@ func (r *ExerciseRepository) SaveSubmissionAnswers(submissionID uuid.UUID, answe
 					}
 				} else {
 					// Log warning when correct answer not found in database
-					log.Printf("[Exercise-Repo] ⚠️  WARNING: No correct answer found for question %s (question_id: %s). User answer: '%s'. Error: %v", 
+					log.Printf("[Exercise-Repo] ⚠️  WARNING: No correct answer found for question %s (question_id: %s). User answer: '%s'. Error: %v",
 						answer.QuestionID, answer.QuestionID, *answer.TextAnswer, err)
 					// Answer will be marked as incorrect (isCorrect = false, pointsEarned = 0)
 				}
@@ -641,7 +641,7 @@ func (r *ExerciseRepository) CompleteSubmission(submissionID uuid.UUID) error {
 		// Fallback to "listening" if cannot determine
 		skillType = "listening"
 	}
-	
+
 	// Determine test type for Reading exercises
 	// Priority 1: Use ielts_test_type field if available (from database, most accurate)
 	// Priority 2: Detect from title/slug (fallback for exercises created before migration)
@@ -655,7 +655,7 @@ func (r *ExerciseRepository) CompleteSubmission(submissionID uuid.UUID) error {
 			// Fallback: Detect from title/slug (for backward compatibility)
 			titleLower := strings.ToLower(exerciseTitle)
 			slugLower := strings.ToLower(exerciseSlug)
-			
+
 			// Check for explicit "general training" patterns
 			generalPatterns := []string{
 				"general training",
@@ -665,7 +665,7 @@ func (r *ExerciseRepository) CompleteSubmission(submissionID uuid.UUID) error {
 				"-gt",
 				"gt-",
 			}
-			
+
 			isGeneralTraining := false
 			for _, pattern := range generalPatterns {
 				if strings.Contains(titleLower, pattern) || strings.Contains(slugLower, pattern) {
@@ -673,29 +673,29 @@ func (r *ExerciseRepository) CompleteSubmission(submissionID uuid.UUID) error {
 					break
 				}
 			}
-			
+
 			// Also check for standalone "gt" (not part of another word)
 			if !isGeneralTraining {
 				// Check for " gt" (space before) or "gt " (space after) or at start/end
 				if strings.HasPrefix(titleLower, "gt ") || strings.HasSuffix(titleLower, " gt") ||
-				   strings.HasPrefix(slugLower, "gt-") || strings.HasSuffix(slugLower, "-gt") ||
-				   strings.Contains(titleLower, " gt ") || strings.Contains(slugLower, "-gt-") {
+					strings.HasPrefix(slugLower, "gt-") || strings.HasSuffix(slugLower, "-gt") ||
+					strings.Contains(titleLower, " gt ") || strings.Contains(slugLower, "-gt-") {
 					isGeneralTraining = true
 				}
 			}
-			
+
 			if isGeneralTraining {
 				testType = "general_training"
-				log.Printf("[Exercise-Repo] Detected General Training for Reading exercise %s (from title/slug: '%s', '%s')", 
+				log.Printf("[Exercise-Repo] Detected General Training for Reading exercise %s (from title/slug: '%s', '%s')",
 					exerciseID, exerciseTitle, exerciseSlug)
 			} else {
 				testType = "academic" // Default to Academic
-				log.Printf("[Exercise-Repo] Using Academic for Reading exercise %s (from title/slug: '%s', '%s')", 
+				log.Printf("[Exercise-Repo] Using Academic for Reading exercise %s (from title/slug: '%s', '%s')",
 					exerciseID, exerciseTitle, exerciseSlug)
 			}
 		}
 	}
-	
+
 	// Use official IELTS conversion table (raw score → band score)
 	// Pass testType for Reading exercises to use correct conversion table
 	var bandScore float64
@@ -720,7 +720,7 @@ func (r *ExerciseRepository) CompleteSubmission(submissionID uuid.UUID) error {
 		maxSeconds := *timeLimitMinutes * 60
 		if timeSpent > maxSeconds {
 			exceededBy := timeSpent - maxSeconds
-			log.Printf("[Exercise-Repo] WARNING: Submission %s exceeded time limit by %d seconds (spent: %d, limit: %d). Capping at limit.", 
+			log.Printf("[Exercise-Repo] WARNING: Submission %s exceeded time limit by %d seconds (spent: %d, limit: %d). Capping at limit.",
 				submissionID, exceededBy, timeSpent, maxSeconds)
 			timeSpent = maxSeconds
 		}
@@ -876,7 +876,7 @@ func (r *ExerciseRepository) GetSubmissionResult(submissionID uuid.UUID) (*model
 				correctAnswer = correctText
 			}
 		}
-		
+
 		// Get selected option text if user selected an option
 		if submissionAnswer.SelectedOptionID != nil && question.QuestionType == "multiple_choice" {
 			var selectedLabel string
@@ -1720,4 +1720,144 @@ func (r *ExerciseRepository) GetExerciseAnalytics(exerciseID uuid.UUID) (*models
 	}
 
 	return &analytics, nil
+}
+
+// GetSubmissionByID retrieves a submission by ID
+func (r *ExerciseRepository) GetSubmissionByID(submissionID uuid.UUID) (*models.Submission, error) {
+	query := `
+		SELECT id, user_id, exercise_id, attempt_number, status, total_questions, questions_answered,
+			correct_answers, score, band_score, time_limit_minutes, time_spent_seconds,
+			started_at, completed_at, device_type,
+			essay_text, word_count, task_type, prompt_text,
+			audio_url, audio_duration_seconds, transcript_text, speaking_part_number,
+			evaluation_status, ai_evaluation_id, detailed_scores, ai_feedback,
+			official_test_result_id, practice_activity_id,
+			created_at, updated_at
+		FROM submissions
+		WHERE id = $1
+	`
+
+	var s models.Submission
+	err := r.db.QueryRow(query, submissionID).Scan(
+		&s.ID, &s.UserID, &s.ExerciseID, &s.AttemptNumber, &s.Status, &s.TotalQuestions, &s.QuestionsAnswered,
+		&s.CorrectAnswers, &s.Score, &s.BandScore, &s.TimeLimitMinutes, &s.TimeSpentSeconds,
+		&s.StartedAt, &s.CompletedAt, &s.DeviceType,
+		&s.EssayText, &s.WordCount, &s.TaskType, &s.PromptText,
+		&s.AudioURL, &s.AudioDurationSeconds, &s.TranscriptText, &s.SpeakingPartNumber,
+		&s.EvaluationStatus, &s.AIEvaluationID, &s.DetailedScores, &s.AIFeedback,
+		&s.OfficialTestResultID, &s.PracticeActivityID,
+		&s.CreatedAt, &s.UpdatedAt,
+	)
+	if err != nil {
+		return nil, err
+	}
+
+	return &s, nil
+}
+
+// GetExerciseByIDSimple retrieves basic exercise info by ID
+func (r *ExerciseRepository) GetExerciseByIDSimple(exerciseID uuid.UUID) (*models.Exercise, error) {
+	query := `
+		SELECT id, title, slug, description, exercise_type, skill_type, ielts_test_type,
+			difficulty, ielts_level, total_questions, total_sections, time_limit_minutes,
+			thumbnail_url, audio_url, audio_duration_seconds, audio_transcript, passage_count,
+			course_id, module_id, passing_score, total_points, is_free, is_published,
+			total_attempts, average_score, average_completion_time, display_order,
+			created_by, published_at, created_at, updated_at
+		FROM exercises
+		WHERE id = $1
+	`
+
+	var e models.Exercise
+	err := r.db.QueryRow(query, exerciseID).Scan(
+		&e.ID, &e.Title, &e.Slug, &e.Description, &e.ExerciseType, &e.SkillType, &e.IELTSTestType,
+		&e.Difficulty, &e.IELTSLevel, &e.TotalQuestions, &e.TotalSections, &e.TimeLimitMinutes,
+		&e.ThumbnailURL, &e.AudioURL, &e.AudioDurationSeconds, &e.AudioTranscript, &e.PassageCount,
+		&e.CourseID, &e.ModuleID, &e.PassingScore, &e.TotalPoints, &e.IsFree, &e.IsPublished,
+		&e.TotalAttempts, &e.AverageScore, &e.AverageCompletionTime, &e.DisplayOrder,
+		&e.CreatedBy, &e.PublishedAt, &e.CreatedAt, &e.UpdatedAt,
+	)
+	if err != nil {
+		return nil, err
+	}
+
+	return &e, nil
+}
+
+// UpdateSubmissionBandScore updates the band score of a submission
+func (r *ExerciseRepository) UpdateSubmissionBandScore(submissionID uuid.UUID, bandScore float64) error {
+	query := `
+		UPDATE submissions
+		SET band_score = $1, updated_at = NOW()
+		WHERE id = $2
+	`
+	_, err := r.db.Exec(query, bandScore, submissionID)
+	return err
+}
+
+// UpdateSubmissionWritingData updates writing-specific fields
+func (r *ExerciseRepository) UpdateSubmissionWritingData(submissionID uuid.UUID, essayText string, wordCount int, taskType, promptText string) error {
+	query := `
+		UPDATE submissions
+		SET essay_text = $1, word_count = $2, task_type = $3, prompt_text = $4, updated_at = NOW()
+		WHERE id = $5
+	`
+	_, err := r.db.Exec(query, essayText, wordCount, taskType, promptText, submissionID)
+	return err
+}
+
+// UpdateSubmissionSpeakingData updates speaking-specific fields
+func (r *ExerciseRepository) UpdateSubmissionSpeakingData(submissionID uuid.UUID, audioURL string, audioDuration, speakingPart int) error {
+	query := `
+		UPDATE submissions
+		SET audio_url = $1, audio_duration_seconds = $2, speaking_part_number = $3, updated_at = NOW()
+		WHERE id = $4
+	`
+	_, err := r.db.Exec(query, audioURL, audioDuration, speakingPart, submissionID)
+	return err
+}
+
+// UpdateSubmissionEvaluationStatus updates the evaluation status
+func (r *ExerciseRepository) UpdateSubmissionEvaluationStatus(submissionID uuid.UUID, status string) error {
+	query := `
+		UPDATE submissions
+		SET evaluation_status = $1, updated_at = NOW()
+		WHERE id = $2
+	`
+	_, err := r.db.Exec(query, status, submissionID)
+	return err
+}
+
+// UpdateSubmissionTranscript updates the transcript text
+func (r *ExerciseRepository) UpdateSubmissionTranscript(submissionID uuid.UUID, transcript string) error {
+	query := `
+		UPDATE submissions
+		SET transcript_text = $1, updated_at = NOW()
+		WHERE id = $2
+	`
+	_, err := r.db.Exec(query, transcript, submissionID)
+	return err
+}
+
+// UpdateSubmissionWithAIResult updates submission with AI evaluation results
+func (r *ExerciseRepository) UpdateSubmissionWithAIResult(submissionID uuid.UUID, result *models.AIEvaluationResult) error {
+	detailedScoresJSON, err := json.Marshal(result.DetailedScores)
+	if err != nil {
+		return fmt.Errorf("failed to marshal detailed_scores: %w", err)
+	}
+	detailedScoresStr := string(detailedScoresJSON)
+
+	query := `
+		UPDATE submissions
+		SET band_score = $1,
+		    detailed_scores = $2,
+		    ai_feedback = $3,
+		    evaluation_status = 'completed',
+		    status = 'completed',
+		    completed_at = NOW(),
+		    updated_at = NOW()
+		WHERE id = $4
+	`
+	_, err = r.db.Exec(query, result.OverallBandScore, detailedScoresStr, result.Feedback, submissionID)
+	return err
 }

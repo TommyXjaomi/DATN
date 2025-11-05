@@ -5,6 +5,7 @@ import (
 	"time"
 
 	"github.com/bisosad1501/DATN/shared/pkg/client"
+	aiClient "github.com/bisosad1501/ielts-platform/exercise-service/internal/client"
 	"github.com/bisosad1501/ielts-platform/exercise-service/internal/models"
 	"github.com/bisosad1501/ielts-platform/exercise-service/internal/repository"
 	"github.com/google/uuid"
@@ -14,13 +15,15 @@ type ExerciseService struct {
 	repo               *repository.ExerciseRepository
 	userServiceClient  *client.UserServiceClient
 	notificationClient *client.NotificationServiceClient
+	aiServiceClient    *aiClient.AIServiceClient // Phase 4: AI service client
 }
 
-func NewExerciseService(repo *repository.ExerciseRepository, userServiceClient *client.UserServiceClient, notificationClient *client.NotificationServiceClient) *ExerciseService {
+func NewExerciseService(repo *repository.ExerciseRepository, userServiceClient *client.UserServiceClient, notificationClient *client.NotificationServiceClient, aiServiceClient *aiClient.AIServiceClient) *ExerciseService {
 	return &ExerciseService{
 		repo:               repo,
 		userServiceClient:  userServiceClient,
 		notificationClient: notificationClient,
+		aiServiceClient:    aiServiceClient,
 	}
 }
 
@@ -263,7 +266,7 @@ func (s *ExerciseService) handleExerciseCompletion(submissionID uuid.UUID) {
 	if skillType == "writing" || skillType == "speaking" {
 		log.Printf("[Exercise-Service] Skipping stats/progress updates for AI exercise (skill: %s) - AI Service will handle", skillType)
 	} else {
-			// 1. Update skill statistics in User Service (only if bandScore > 0)
+		// 1. Update skill statistics in User Service (only if bandScore > 0)
 		// Note: We only update stats when bandScore > 0 to avoid creating stats with 0 scores
 		// This is by design - users need to get at least some correct answers to have meaningful statistics
 		if bandScore > 0 {

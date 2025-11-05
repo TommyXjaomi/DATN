@@ -12,10 +12,10 @@ type Exercise struct {
 	Title                 string     `json:"title"`
 	Slug                  string     `json:"slug"`
 	Description           *string    `json:"description,omitempty"`
-	ExerciseType          string     `json:"exercise_type"` // practice, mock_test, full_test, mini_test
-	SkillType             string     `json:"skill_type"`    // listening, reading, writing, speaking
+	ExerciseType          string     `json:"exercise_type"`             // practice, mock_test, full_test, mini_test
+	SkillType             string     `json:"skill_type"`                // listening, reading, writing, speaking
 	IELTSTestType         *string    `json:"ielts_test_type,omitempty"` // academic, general_training (only for Reading)
-	Difficulty            string     `json:"difficulty"`    // easy, medium, hard
+	Difficulty            string     `json:"difficulty"`                // easy, medium, hard
 	IELTSLevel            *string    `json:"ielts_level,omitempty"`
 	TotalQuestions        int        `json:"total_questions"`
 	TotalSections         int        `json:"total_sections"`
@@ -133,31 +133,31 @@ type Submission struct {
 	StartedAt         time.Time  `json:"started_at"`
 	CompletedAt       *time.Time `json:"completed_at,omitempty"`
 	DeviceType        *string    `json:"device_type,omitempty"` // web, android, ios
-	
+
 	// Writing-specific fields (Phase 4)
-	EssayText     *string `json:"essay_text,omitempty"`
-	WordCount     *int    `json:"word_count,omitempty"`
-	TaskType      *string `json:"task_type,omitempty"`       // task1, task2
-	PromptText    *string `json:"prompt_text,omitempty"`
-	
+	EssayText  *string `json:"essay_text,omitempty"`
+	WordCount  *int    `json:"word_count,omitempty"`
+	TaskType   *string `json:"task_type,omitempty"` // task1, task2
+	PromptText *string `json:"prompt_text,omitempty"`
+
 	// Speaking-specific fields (Phase 4)
-	AudioURL              *string `json:"audio_url,omitempty"`
-	AudioDurationSeconds  *int    `json:"audio_duration_seconds,omitempty"`
-	TranscriptText        *string `json:"transcript_text,omitempty"`
-	SpeakingPartNumber    *int    `json:"speaking_part_number,omitempty"` // 1, 2, 3
-	
+	AudioURL             *string `json:"audio_url,omitempty"`
+	AudioDurationSeconds *int    `json:"audio_duration_seconds,omitempty"`
+	TranscriptText       *string `json:"transcript_text,omitempty"`
+	SpeakingPartNumber   *int    `json:"speaking_part_number,omitempty"` // 1, 2, 3
+
 	// AI Evaluation fields (Phase 4)
-	EvaluationStatus      *string `json:"evaluation_status,omitempty"`       // pending, processing, completed, failed
-	AIEvaluationID        *string `json:"ai_evaluation_id,omitempty"`        // Reference to AI evaluation
-	DetailedScores        *string `json:"detailed_scores,omitempty"`         // JSONB with criteria scores
-	AIFeedback            *string `json:"ai_feedback,omitempty"`             // AI-generated feedback
-	
+	EvaluationStatus *string `json:"evaluation_status,omitempty"` // pending, processing, completed, failed
+	AIEvaluationID   *string `json:"ai_evaluation_id,omitempty"`  // Reference to AI evaluation
+	DetailedScores   *string `json:"detailed_scores,omitempty"`   // JSONB with criteria scores
+	AIFeedback       *string `json:"ai_feedback,omitempty"`       // AI-generated feedback
+
 	// Test/Practice linking (Phase 4)
-	OfficialTestResultID  *uuid.UUID `json:"official_test_result_id,omitempty"`  // FK to user_db.official_test_results
-	PracticeActivityID    *uuid.UUID `json:"practice_activity_id,omitempty"`     // FK to user_db.practice_activities
-	
-	CreatedAt         time.Time  `json:"created_at"`
-	UpdatedAt         time.Time  `json:"updated_at"`
+	OfficialTestResultID *uuid.UUID `json:"official_test_result_id,omitempty"` // FK to user_db.official_test_results
+	PracticeActivityID   *uuid.UUID `json:"practice_activity_id,omitempty"`    // FK to user_db.practice_activities
+
+	CreatedAt time.Time `json:"created_at"`
+	UpdatedAt time.Time `json:"updated_at"`
 }
 
 // SubmissionAnswer represents an answer in a submission (maps to user_answers table)
@@ -264,4 +264,43 @@ type CreateTagRequest struct {
 // AddTagRequest represents request to add tag to exercise
 type AddTagRequest struct {
 	TagID int `json:"tag_id" binding:"required"`
+}
+
+// SubmitExerciseRequest represents unified submission request for all skills
+type SubmitExerciseRequest struct {
+	// For Listening/Reading
+	Answers []SubmitAnswerItem `json:"answers,omitempty"`
+
+	// For Writing
+	WritingData *WritingSubmissionData `json:"writing_data,omitempty"`
+
+	// For Speaking
+	SpeakingData *SpeakingSubmissionData `json:"speaking_data,omitempty"`
+
+	// Common metadata
+	TimeSpentSeconds int  `json:"time_spent_seconds"`
+	IsOfficialTest   bool `json:"is_official_test"`
+}
+
+// WritingSubmissionData represents writing-specific submission data
+type WritingSubmissionData struct {
+	EssayText  string `json:"essay_text" binding:"required"`
+	WordCount  int    `json:"word_count"`
+	TaskType   string `json:"task_type"` // task1, task2
+	PromptText string `json:"prompt_text"`
+}
+
+// SpeakingSubmissionData represents speaking-specific submission data
+type SpeakingSubmissionData struct {
+	AudioURL             string `json:"audio_url" binding:"required"`
+	AudioDurationSeconds int    `json:"audio_duration_seconds"`
+	SpeakingPartNumber   int    `json:"speaking_part_number"` // 1, 2, 3
+}
+
+// AIEvaluationResult represents AI evaluation response structure
+type AIEvaluationResult struct {
+	OverallBandScore float64                `json:"overall_band_score"`
+	DetailedScores   map[string]interface{} `json:"detailed_scores"`
+	Feedback         string                 `json:"feedback"`
+	CriteriaScores   map[string]float64     `json:"criteria_scores"` // TA, CC, LR, GRA for writing; Fluency, Lexical, Grammar, Pronunciation for speaking
 }
