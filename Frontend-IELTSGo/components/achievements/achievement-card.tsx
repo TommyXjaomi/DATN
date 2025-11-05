@@ -73,66 +73,93 @@ export function AchievementCard({ achievement, earned, earnedAt }: AchievementCa
 
   return (
     <Card className={cn(
-      "relative overflow-hidden transition-all",
-      earned ? "ring-2 ring-primary" : "opacity-75"
+      "relative overflow-hidden transition-all duration-200 hover:shadow-md group",
+      earned 
+        ? "border-primary/30 shadow-sm bg-gradient-to-br from-primary/5 via-background to-background" 
+        : "border-border opacity-70 hover:opacity-85"
     )}>
+      {/* Top accent bar */}
       <div 
-        className="absolute top-0 left-0 right-0 h-1"
-        style={{ backgroundColor: earned ? getBadgeColor() : '#e5e7eb' }}
+        className={cn(
+          "absolute top-0 left-0 right-0 h-1 transition-all",
+          earned && "shadow-sm"
+        )}
+        style={{ backgroundColor: earned ? getBadgeColor() : 'transparent' }}
       />
       
-      <CardHeader>
-        <div className="flex items-start justify-between">
-          <div className="flex-1">
-            <CardTitle className="text-lg flex items-center gap-2">
-              {earned ? (
-                <Trophy className="h-5 w-5 text-yellow-500" />
-              ) : (
-                <Award className="h-5 w-5 text-muted-foreground" />
-              )}
-              {achievement.name}
-            </CardTitle>
+      {/* Icon background circle */}
+      <div className="absolute -right-6 -top-6 h-24 w-24 rounded-full bg-gradient-to-br from-primary/10 to-transparent opacity-50" />
+      
+      <CardHeader className="pb-3">
+        <div className="flex items-start justify-between gap-3">
+          <div className="flex-1 min-w-0">
+            <div className="flex items-center gap-2.5 mb-2">
+              <div className={cn(
+                "flex items-center justify-center h-10 w-10 rounded-lg transition-all",
+                earned 
+                  ? "bg-gradient-to-br from-yellow-400 to-yellow-600 shadow-md" 
+                  : "bg-muted/50"
+              )}>
+                {earned ? (
+                  <Trophy className="h-5 w-5 text-white" />
+                ) : (
+                  <Award className="h-5 w-5 text-muted-foreground" />
+                )}
+              </div>
+              <CardTitle className="text-base font-semibold leading-tight">
+                {achievement.name}
+              </CardTitle>
+            </div>
             {achievement.description && (
-              <CardDescription className="mt-2">
+              <CardDescription className="text-sm line-clamp-2">
                 {achievement.description}
               </CardDescription>
             )}
           </div>
         </div>
       </CardHeader>
-      <CardContent>
-        <div className="space-y-3">
-          <div className="flex items-center justify-between">
-            <Badge variant="secondary" className="flex items-center gap-1">
-              <Star className="h-3 w-3" />
-              {achievement.points} {t('points')}
+      
+      <CardContent className="space-y-3 pt-0">
+        {/* Points and Status */}
+        <div className="flex items-center gap-2">
+          <Badge 
+            variant="secondary" 
+            className="flex items-center gap-1.5 px-2.5 py-1 font-medium"
+          >
+            <Star className="h-3.5 w-3.5 fill-current" />
+            <span className="text-xs">{achievement.points} {t('points')}</span>
+          </Badge>
+          {earned && (
+            <Badge 
+              variant="default"
+              className="px-2.5 py-1 text-xs font-medium"
+            >
+              {t('earned')}
             </Badge>
-            {earned && (
-              <Badge variant="default">
-                {t('earned')}
-              </Badge>
-            )}
-          </div>
-
-          <div className="text-sm">
-            <p className="text-muted-foreground mb-1">
-              <span className="font-medium">{t('criteria')}:</span> {formatCriteria()}
-            </p>
-            {earned && earnedAt && (
-              <p className="text-muted-foreground text-xs mt-2">
-                {t('earned_at')}: {new Date(earnedAt).toLocaleDateString()}
-              </p>
-            )}
-          </div>
-
-          {!earned && (
-            <div className="pt-2 border-t">
-              <p className="text-xs text-muted-foreground italic">
-                {t('locked_continue_learning')}
-              </p>
-            </div>
           )}
         </div>
+
+        {/* Criteria */}
+        <div className="px-3 py-2 bg-muted/40 rounded-md border border-border/50">
+          <p className="text-xs text-muted-foreground">
+            <span className="font-semibold text-foreground">{t('criteria')}:</span>
+            <br />
+            <span className="mt-0.5 inline-block">{formatCriteria()}</span>
+          </p>
+        </div>
+
+        {/* Earned date or locked message */}
+        {earned && earnedAt ? (
+          <div className="flex items-center gap-1.5 text-xs text-muted-foreground">
+            <div className="h-1 w-1 rounded-full bg-primary" />
+            <span>{t('earned_at')}: {new Date(earnedAt).toLocaleDateString()}</span>
+          </div>
+        ) : !earned && (
+          <div className="flex items-center gap-1.5 text-xs text-muted-foreground italic">
+            <div className="h-1 w-1 rounded-full bg-muted-foreground/50" />
+            <span>{t('locked_continue_learning')}</span>
+          </div>
+        )}
       </CardContent>
     </Card>
   )

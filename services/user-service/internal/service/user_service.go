@@ -777,9 +777,9 @@ func (s *UserService) DeleteReminder(reminderID uuid.UUID, userID uuid.UUID) err
 	return s.repo.DeleteReminder(reminderID, userID)
 }
 
-// ToggleReminder toggles the active status of a reminder
-func (s *UserService) ToggleReminder(reminderID uuid.UUID, userID uuid.UUID, isActive bool) error {
-	return s.repo.ToggleReminder(reminderID, userID, isActive)
+// ToggleReminder toggles the active status of a reminder automatically and returns the updated reminder
+func (s *UserService) ToggleReminder(reminderID uuid.UUID, userID uuid.UUID) (*models.StudyReminder, error) {
+	return s.repo.ToggleReminder(reminderID, userID)
 }
 
 // ============= Leaderboard =============

@@ -1,7 +1,8 @@
 "use client"
 
-import { useState } from "react"
-import { X, Filter, Check, ArrowUpDown, Calendar } from "lucide-react"
+import { useState, useEffect } from "react"
+import { useDebounce } from "@/lib/hooks/use-debounce"
+import { Search, X, Filter, Check, ArrowUpDown, Calendar } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
 import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetTrigger } from "@/components/ui/sheet"
@@ -17,6 +18,7 @@ import { useTranslations } from '@/lib/i18n'
 interface NotificationFiltersProps {
   filters: NotificationFilters
   onFiltersChange: (filters: NotificationFilters) => void
+  onSearch: (search: string) => void
 }
 
 const TYPE_OPTIONS = [
@@ -35,11 +37,28 @@ const CATEGORY_OPTIONS = [
   { value: "alert", color: "bg-red-500" },
 ]
 
-export function NotificationFiltersComponent({ filters, onFiltersChange }: NotificationFiltersProps) {
+export function NotificationFiltersComponent({ filters, onFiltersChange, onSearch }: NotificationFiltersProps) {
   const t = useTranslations('common')
   const tNotifications = useTranslations('notifications')
   
+  const [searchValue, setSearchValue] = useState(filters.search || "")
   const [isOpen, setIsOpen] = useState(false)
+
+  // Debounce search input to reduce API calls
+  const debouncedSearch = useDebounce(searchValue, 500)
+
+  // Sync searchValue when filters.search changes externally
+  useEffect(() => {
+    setSearchValue(filters.search || "")
+  }, [filters.search])
+
+  // Auto-search when debounced value changes (after 500ms of no typing)
+  useEffect(() => {
+    if (debouncedSearch !== (filters.search || "")) {
+      onSearch(debouncedSearch)
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [debouncedSearch]) // Only depend on debouncedSearch to avoid infinite loop
 
   const handleTypeChange = (type: string) => {
     const currentTypes = filters.type || []
@@ -58,7 +77,12 @@ export function NotificationFiltersComponent({ filters, onFiltersChange }: Notif
   }
 
   const handleClearFilters = () => {
+    // Clear search first
+    setSearchValue("")
+    onSearch("")
+    // Then clear all other filters
     onFiltersChange({
+      search: undefined,
       is_read: undefined,
       type: undefined,
       category: undefined,
@@ -67,12 +91,14 @@ export function NotificationFiltersComponent({ filters, onFiltersChange }: Notif
       date_from: undefined,
       date_to: undefined,
     })
+    // Close sheet if open
     if (isOpen) {
       setIsOpen(false)
     }
   }
 
   const activeFilterCount =
+    (filters.search ? 1 : 0) +
     (filters.is_read !== undefined ? 1 : 0) +
     (filters.type?.length || 0) +
     (filters.category?.length || 0) +
@@ -82,7 +108,7 @@ export function NotificationFiltersComponent({ filters, onFiltersChange }: Notif
 
   return (
     <div className="space-y-5">
-      {/* Quick Sort Bar */}
+      {/* Quick Sort Bar - Always visible for easy access */}
       <div className="flex flex-col sm:flex-row gap-3 items-start sm:items-center">
         <div className="flex items-center gap-2 text-sm font-medium text-muted-foreground">
           <ArrowUpDown className="w-4 h-4" />
@@ -93,6 +119,7 @@ export function NotificationFiltersComponent({ filters, onFiltersChange }: Notif
             value={filters.sort_by || "date"}
             onValueChange={(value) => {
               const newFilters = { ...filters, sort_by: value as 'date' }
+              // Always set sort_order when sort is changed
               if (!newFilters.sort_order) {
                 newFilters.sort_order = "desc"
               }
@@ -122,8 +149,28 @@ export function NotificationFiltersComponent({ filters, onFiltersChange }: Notif
         </div>
       </div>
 
-      {/* Filter Button */}
-      <div className="flex items-center gap-3">
+      {/* Search Bar */}
+      <div className="flex gap-3">
+        <div className="relative flex-1 group">
+          <Search className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-muted-foreground transition-colors group-focus-within:text-primary" />
+          <Input
+            placeholder={tNotifications('search_notifications') || 'Search notifications...'}
+            value={searchValue}
+            onChange={(e) => setSearchValue(e.target.value)}
+            onKeyDown={(e) => {
+              if (e.key === "Enter") {
+                onSearch(searchValue)
+              }
+            }}
+            className="pl-12 h-12 text-base border-2 focus:border-primary transition-all shadow-sm"
+          />
+        </div>
+        <Button 
+          onClick={() => onSearch(searchValue)} 
+          className="h-12 px-8 text-base font-medium shadow-md hover:shadow-lg transition-shadow"
+        >
+          {t('search')}
+        </Button>
         <Sheet open={isOpen} onOpenChange={setIsOpen}>
           <SheetTrigger asChild>
             <Button 

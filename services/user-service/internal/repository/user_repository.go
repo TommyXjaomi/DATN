@@ -23,18 +23,18 @@ import (
 func calculateIELTSOverallScore(average float64) float64 {
 	// Extract decimal part
 	decimal := average - math.Floor(average)
-	
+
 	// IELTS rounding rules
 	if decimal == 0.25 {
-		return math.Floor(average) + 0.5  // 6.25 → 6.5
+		return math.Floor(average) + 0.5 // 6.25 → 6.5
 	} else if decimal == 0.75 {
-		return math.Floor(average) + 1.0  // 6.75 → 7.0
+		return math.Floor(average) + 1.0 // 6.75 → 7.0
 	} else if decimal < 0.25 {
-		return math.Floor(average)         // 6.1 → 6.0
+		return math.Floor(average) // 6.1 → 6.0
 	} else if decimal < 0.75 {
-		return math.Floor(average) + 0.5  // 6.6 → 6.5
+		return math.Floor(average) + 0.5 // 6.6 → 6.5
 	} else {
-		return math.Floor(average) + 1.0  // 6.9 → 7.0
+		return math.Floor(average) + 1.0 // 6.9 → 7.0
 	}
 }
 
@@ -102,9 +102,9 @@ func (r *UserRepository) CreateProfileWithData(userID uuid.UUID, fullName string
 
 	query += `) ` + values + `)
 		ON CONFLICT (user_id) DO UPDATE SET ` + updateClause
-	
+
 	log.Printf("🔍 Creating profile for user %s with fullName='%s' (len=%d), targetBandScore=%.1f", userID, fullName, len(fullName), targetBandScore)
-	
+
 	_, err := r.db.DB.Exec(query, args...)
 	if err != nil {
 		log.Printf("❌ Error creating profile for user %s: %v", userID, err)
@@ -448,7 +448,7 @@ func (r *UserRepository) CreateCompletedStudySession(session *models.StudySessio
 		return fmt.Errorf("failed to create completed study session: %w", err)
 	}
 
-	log.Printf("✅ Completed study session created: %s for user: %s (duration: %dm)", 
+	log.Printf("✅ Completed study session created: %s for user: %s (duration: %dm)",
 		session.ID, session.UserID, *session.DurationMinutes)
 	return nil
 }
@@ -715,7 +715,7 @@ func (r *UserRepository) GetFollowers(userID uuid.UUID, page, limit int) ([]mode
 		if err != nil {
 			return nil, 0, fmt.Errorf("failed to scan follower: %w", err)
 		}
-		
+
 		// Handle NULL values
 		info.FullName = fullName.String
 		if bio.Valid {
@@ -799,7 +799,7 @@ func (r *UserRepository) GetFollowing(userID uuid.UUID, page, limit int) ([]mode
 		if err != nil {
 			return nil, 0, fmt.Errorf("failed to scan following: %w", err)
 		}
-		
+
 		// Handle NULL values
 		info.FullName = fullName.String
 		if bio.Valid {
@@ -1046,25 +1046,25 @@ func (r *UserRepository) UpdateLearningProgressAtomic(userID uuid.UUID, updates 
 		} else {
 			// Collect all skill scores (use updated values if provided, otherwise current values)
 			var scores []float64
-			
+
 			if val, ok := updates["listening_score"].(float64); ok {
 				scores = append(scores, val)
 			} else if currentProgress.ListeningScore != nil {
 				scores = append(scores, *currentProgress.ListeningScore)
 			}
-			
+
 			if val, ok := updates["reading_score"].(float64); ok {
 				scores = append(scores, val)
 			} else if currentProgress.ReadingScore != nil {
 				scores = append(scores, *currentProgress.ReadingScore)
 			}
-			
+
 			if val, ok := updates["writing_score"].(float64); ok {
 				scores = append(scores, val)
 			} else if currentProgress.WritingScore != nil {
 				scores = append(scores, *currentProgress.WritingScore)
 			}
-			
+
 			if val, ok := updates["speaking_score"].(float64); ok {
 				scores = append(scores, val)
 			} else if currentProgress.SpeakingScore != nil {
@@ -1078,10 +1078,10 @@ func (r *UserRepository) UpdateLearningProgressAtomic(userID uuid.UUID, updates 
 					total += s
 				}
 				average := total / float64(len(scores))
-				
+
 				// Apply IELTS rounding rules
 				overallScore := calculateIELTSOverallScore(average)
-				
+
 				paramCount++
 				query += fmt.Sprintf(", overall_score = $%d", paramCount)
 				args = append(args, overallScore)
@@ -1465,14 +1465,57 @@ func (r *UserRepository) DeleteReminder(reminderID uuid.UUID, userID uuid.UUID) 
 	return nil
 }
 
-// ToggleReminder toggles the active status of a reminder
-func (r *UserRepository) ToggleReminder(reminderID uuid.UUID, userID uuid.UUID, isActive bool) error {
-	query := `UPDATE study_reminders SET is_active = $1, updated_at = NOW() WHERE id = $2 AND user_id = $3`
-	_, err := r.db.DB.Exec(query, isActive, reminderID, userID)
+// ToggleReminder toggles the active status of a reminder automatically and returns the updated reminder
+func (r *UserRepository) ToggleReminder(reminderID uuid.UUID, userID uuid.UUID) (*models.StudyReminder, error) {
+	// First, get the current reminder to check its status
+	var reminder models.StudyReminder
+	queryGet := `SELECT id, user_id, title, message, reminder_type, reminder_time, days_of_week, is_active, created_at, updated_at 
+	             FROM study_reminders WHERE id = $1 AND user_id = $2`
+	err := r.db.DB.QueryRow(queryGet, reminderID, userID).Scan(
+		&reminder.ID,
+		&reminder.UserID,
+		&reminder.Title,
+		&reminder.Message,
+		&reminder.ReminderType,
+		&reminder.ReminderTime,
+		&reminder.DaysOfWeek,
+		&reminder.IsActive,
+		&reminder.CreatedAt,
+		&reminder.UpdatedAt,
+	)
 	if err != nil {
-		return fmt.Errorf("failed to toggle reminder: %w", err)
+		if err == sql.ErrNoRows {
+			return nil, fmt.Errorf("reminder not found")
+		}
+		return nil, fmt.Errorf("failed to get reminder: %w", err)
 	}
-	return nil
+
+	// Toggle the status
+	newStatus := !reminder.IsActive
+
+	// Update the reminder with the new status
+	queryUpdate := `UPDATE study_reminders SET is_active = $1, updated_at = NOW() 
+	                WHERE id = $2 AND user_id = $3 
+	                RETURNING id, user_id, title, message, reminder_type, reminder_time, days_of_week, is_active, created_at, updated_at`
+
+	var updatedReminder models.StudyReminder
+	err = r.db.DB.QueryRow(queryUpdate, newStatus, reminderID, userID).Scan(
+		&updatedReminder.ID,
+		&updatedReminder.UserID,
+		&updatedReminder.Title,
+		&updatedReminder.Message,
+		&updatedReminder.ReminderType,
+		&updatedReminder.ReminderTime,
+		&updatedReminder.DaysOfWeek,
+		&updatedReminder.IsActive,
+		&updatedReminder.CreatedAt,
+		&updatedReminder.UpdatedAt,
+	)
+	if err != nil {
+		return nil, fmt.Errorf("failed to toggle reminder: %w", err)
+	}
+
+	return &updatedReminder, nil
 }
 
 // ============= Leaderboard =============
@@ -1485,7 +1528,7 @@ func (r *UserRepository) GetTopLearners(period string, page, limit int) ([]model
 	if period == "" {
 		period = "all-time"
 	}
-	
+
 	// Calculate date range based on period
 	var dateFilter string
 	switch period {
@@ -1500,7 +1543,7 @@ func (r *UserRepository) GetTopLearners(period string, page, limit int) ([]model
 	default:
 		dateFilter = ""
 	}
-	
+
 	// Get total count for pagination
 	var totalCount int
 	countQuery := `
@@ -1527,13 +1570,13 @@ func (r *UserRepository) GetTopLearners(period string, page, limit int) ([]model
 	if err != nil {
 		totalCount = 0
 	}
-	
+
 	// Calculate offset for pagination
 	offset := (page - 1) * limit
-	
+
 	// Build dblink connection string from config
 	dbLinkConnStr := r.getDBLinkConnectionString("auth_db")
-	
+
 	// Build achievement filter
 	achievementFilter := func() string {
 		if period == "daily" {
@@ -1545,7 +1588,7 @@ func (r *UserRepository) GetTopLearners(period string, page, limit int) ([]model
 		}
 		return ""
 	}()
-	
+
 	// Build query with period filtering
 	query := fmt.Sprintf(`
 		WITH user_stats AS (
@@ -1629,7 +1672,7 @@ func (r *UserRepository) GetTopLearners(period string, page, limit int) ([]model
 func (r *UserRepository) GetUserRank(userID uuid.UUID) (*models.LeaderboardEntry, error) {
 	// Build dblink connection string from config
 	dbLinkConnStr := r.getDBLinkConnectionString("auth_db")
-	
+
 	query := fmt.Sprintf(`
 		WITH all_user_stats AS (
 			SELECT 

@@ -198,6 +198,7 @@
     "total_users": "Tổng người dùng",
     "total_courses": "Tổng số khóa học",
     "total_exercises": "Tổng số bài luyện tập",
+    "total_attempts": "Tổng số lần thử",
     "total_students": "Tổng số học viên",
     "recent_activity": "Hoạt động gần đây",
     "no_recent_activity": "Không có hoạt động gần đây",
@@ -713,7 +714,17 @@
     "choose_sort_option": "Chọn cách sắp xếp bài tập",
     "select_sort_option": "Chọn tùy chọn sắp xếp",
     "standalone": "Độc lập",
-    "part_of_course": "Thuộc khóa học"
+    "part_of_course": "Thuộc khóa học",
+    "exercise_graded": "Bài tập đã chấm",
+    "system": "Hệ thống",
+    "info": "Thông tin",
+    "alert": "Cảnh báo",
+    "read": "Đã đọc",
+    "unread": "Chưa đọc",
+    "achievement": "Thành tích",
+    "reminder": "Nhắc nhở",
+    "course_update": "Cập nhật khóa học",
+    "clear_search": "Xóa tìm kiếm"
   },
   "homepage": {
     "heroTitle": "Chinh phục IELTS cùng",
@@ -1341,7 +1352,11 @@
     "notification_deleted": "Đã xóa thông báo",
     "failed_to_delete_notification": "Không thể xóa thông báo",
     "all_notifications_marked_read": "Đã đánh dấu tất cả thông báo đã đọc",
-    "failed_to_mark_all_read": "Không thể đánh dấu tất cả đã đọc"
+    "failed_to_mark_all_read": "Không thể đánh dấu tất cả đã đọc",
+    "search_notifications": "Tìm kiếm thông báo...",
+    "no_search_results": "Không tìm thấy thông báo",
+    "no_search_results_description": "Thử điều chỉnh từ khóa tìm kiếm hoặc bộ lọc",
+    "manage_your_notifications": "Xem và quản lý tất cả thông báo của bạn"
   },
   "leaderboard": {
     "leaderboard_title": "Bảng Xếp Hạng",
@@ -1458,6 +1473,8 @@
     "is_active": "Đang hoạt động",
     "active": "Bật",
     "inactive": "Tắt",
+    "turn_on": "Bật",
+    "turn_off": "Tắt",
     "no_reminders": "Chưa có nhắc nhở nào",
     "no_reminders_description": "Tạo nhắc nhở đầu tiên để không bỏ lỡ buổi học",
     "create_first_reminder": "Tạo nhắc nhở đầu tiên",

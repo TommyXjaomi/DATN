@@ -139,30 +139,37 @@ function DashboardContent() {
     setTimeRange(range)
   }, [])
 
-  // Time range filter buttons component - Memoized
+  // Time range filter tabs component - Memoized
   // MUST be before conditional return to maintain hook order
   const timeRangeFilters = useMemo(() => (
-    <div className="flex items-center gap-0.5 px-1.5 py-1 bg-muted/60 rounded-lg border border-border/50">
-      {(["7d", "30d", "90d", "all"] as const).map((range) => (
-        <Button
-          key={range}
-          variant="ghost"
-          size="sm"
-          onClick={() => handleTimeRangeChange(range)}
-          className={cn(
-            "px-3 text-xs font-medium transition-all rounded-md",
-            timeRange === range
-              ? "bg-primary text-primary-foreground shadow-sm hover:bg-primary/90"
-              : "hover:bg-muted/80 text-muted-foreground hover:text-foreground"
-          )}
+    <Tabs value={timeRange} onValueChange={(v) => handleTimeRangeChange(v as "7d" | "30d" | "90d" | "all")}>
+      <TabsList className="inline-flex h-10 items-center justify-center rounded-lg bg-muted p-1 text-muted-foreground">
+        <TabsTrigger
+          value="7d"
+          className="data-[state=active]:bg-background data-[state=active]:text-foreground data-[state=active]:shadow-sm transition-all px-4 text-sm"
         >
-          {range === "7d" ? t('timeRange.7d') :
-           range === "30d" ? t('timeRange.30d') :
-           range === "90d" ? t('timeRange.90d') :
-           t('timeRange.all')}
-        </Button>
-      ))}
-    </div>
+          {t('timeRange.7d')}
+        </TabsTrigger>
+        <TabsTrigger
+          value="30d"
+          className="data-[state=active]:bg-background data-[state=active]:text-foreground data-[state=active]:shadow-sm transition-all px-4 text-sm"
+        >
+          {t('timeRange.30d')}
+        </TabsTrigger>
+        <TabsTrigger
+          value="90d"
+          className="data-[state=active]:bg-background data-[state=active]:text-foreground data-[state=active]:shadow-sm transition-all px-4 text-sm"
+        >
+          {t('timeRange.90d')}
+        </TabsTrigger>
+        <TabsTrigger
+          value="all"
+          className="data-[state=active]:bg-background data-[state=active]:text-foreground data-[state=active]:shadow-sm transition-all px-4 text-sm"
+        >
+          {t('timeRange.all')}
+        </TabsTrigger>
+      </TabsList>
+    </Tabs>
   ), [timeRange, handleTimeRangeChange, t])
 
   // Conditional return AFTER all hooks

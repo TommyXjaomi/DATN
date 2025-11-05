@@ -26,6 +26,11 @@ function RemindersContent() {
   const t = useTranslations('reminders')
   const tCommon = useTranslations('common')
   const [createDialogOpen, setCreateDialogOpen] = useState(false)
+  const [refreshTrigger, setRefreshTrigger] = useState(0)
+
+  const handleReminderCreated = () => {
+    setRefreshTrigger(prev => prev + 1)
+  }
 
   return (
     <AppLayout showSidebar={true} showFooter={false} hideNavbar={true} hideTopBar={true}>
@@ -42,7 +47,7 @@ function RemindersContent() {
       <PageContainer>
         {/* Reminders List */}
         <Suspense fallback={<PageLoading translationKey="loading" />}>
-          <RemindersList />
+          <RemindersList key={refreshTrigger} />
         </Suspense>
 
         {/* Create Reminder Dialog */}
@@ -51,6 +56,7 @@ function RemindersContent() {
             <CreateReminderDialog
               open={createDialogOpen}
               onOpenChange={setCreateDialogOpen}
+              onSuccess={handleReminderCreated}
             />
           </Suspense>
         )}

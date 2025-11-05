@@ -197,6 +197,7 @@
     "total_users": "Total Users",
     "total_courses": "Total Courses",
     "total_exercises": "Total Exercises",
+    "total_attempts": "Total Attempts",
     "total_students": "Total Students",
     "recent_activity": "Recent Activity",
     "no_recent_activity": "No recent activity",
@@ -713,7 +714,17 @@
     "choose_sort_option": "Choose how to sort exercises",
     "select_sort_option": "Select sort option",
     "standalone": "Standalone",
-    "part_of_course": "Part of Course"
+    "part_of_course": "Part of Course",
+    "exercise_graded": "Exercise Graded",
+    "system": "System",
+    "info": "Info",
+    "alert": "Alert",
+    "read": "Read",
+    "unread": "Unread",
+    "achievement": "Achievement",
+    "reminder": "Reminder",
+    "course_update": "Course Update",
+    "clear_search": "Clear Search"
   },
   "homepage": {
     "heroTitle": "Master IELTS with",
@@ -1343,7 +1354,11 @@
     "notification_deleted": "Notification deleted",
     "failed_to_delete_notification": "Failed to delete notification",
     "all_notifications_marked_read": "All notifications marked as read",
-    "failed_to_mark_all_read": "Failed to mark all as read"
+    "failed_to_mark_all_read": "Failed to mark all as read",
+    "search_notifications": "Search notifications...",
+    "no_search_results": "No notifications found",
+    "no_search_results_description": "Try adjusting your search terms or filters",
+    "manage_your_notifications": "View and manage all your notifications"
   },
   "leaderboard": {
     "leaderboard_title": "Leaderboard",
@@ -1460,6 +1475,8 @@
     "is_active": "Active",
     "active": "On",
     "inactive": "Off",
+    "turn_on": "Turn On",
+    "turn_off": "Turn Off",
     "no_reminders": "No reminders yet",
     "no_reminders_description": "Create your first reminder to stay on track",
     "create_first_reminder": "Create First Reminder",

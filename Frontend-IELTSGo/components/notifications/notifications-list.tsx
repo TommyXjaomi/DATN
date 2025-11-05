@@ -20,7 +20,7 @@ export function NotificationsList() {
   const [loading, setLoading] = useState(true)
   const [filters, setFilters] = useState<NotificationFilters>({})
   const [page, setPage] = useState(1)
-  const [hasMore, setHasMore] = useState(true)
+  const [totalPages, setTotalPages] = useState(1)
 
   // Memoize filter key to trigger refetch only when filters actually change
   const filterKey = useMemo(() => {
@@ -41,13 +41,12 @@ export function NotificationsList() {
       const response = await notificationsApi.getNotifications(filters, page, 20)
       const newNotifications = response.notifications || []
       
-      setNotifications(prev => 
-        page === 1 ? newNotifications : [...prev, ...newNotifications]
-      )
+      // Set notifications (no need to append for pagination)
+      setNotifications(newNotifications)
       
       // Use total_pages from backend response
-      const totalPages = response.pagination?.total_pages || 0
-      setHasMore(page < totalPages)
+      const apiTotalPages = response.pagination?.total_pages || 1
+      setTotalPages(apiTotalPages)
     } catch (error: any) {
       console.error('[Notifications] Error loading notifications:', error)
       toast({
@@ -60,9 +59,15 @@ export function NotificationsList() {
     }
   }, [filters, page, toast, tCommon, t])
 
+  // Reset page and notifications when filters change
+  useEffect(() => {
+    setPage(1)
+    setNotifications([])
+  }, [filterKey])
+
   useEffect(() => {
     loadNotifications()
-  }, [loadNotifications, filterKey])
+  }, [filterKey, page])
 
   const handleMarkAsRead = async (notificationId: string) => {
     try {
@@ -104,48 +109,75 @@ export function NotificationsList() {
     setPage(1)
   }
 
+  const handleSearch = (search: string) => {
+    setFilters(prev => ({ ...prev, search }))
+    setPage(1)
+  }
+
   if (loading && page === 1) {
     return <PageLoading translationKey="loading" />
   }
 
   return (
     <div className="space-y-6">
-      {/* Filters */}
+      {/* Filters with Search */}
       <div>
-        <NotificationFiltersComponent filters={filters} onFiltersChange={handleFiltersChange} />
+        <NotificationFiltersComponent 
+          filters={filters} 
+          onFiltersChange={handleFiltersChange}
+          onSearch={handleSearch}
+        />
       </div>
 
       {/* Notifications List */}
-      {notifications.length === 0 && !loading ? (
+      {loading ? (
+        <PageLoading translationKey="loading" />
+      ) : notifications.length === 0 ? (
         <EmptyState
           icon={Bell}
-          title={t('no_notifications')}
-          description={t('no_notifications_description')}
+          title={filters.search ? t('no_search_results') : t('no_notifications')}
+          description={filters.search ? t('no_search_results_description') : t('no_notifications_description')}
+          actionLabel={filters.search ? tCommon('clear_search') : undefined}
+          actionOnClick={filters.search ? () => handleSearch("") : undefined}
         />
       ) : (
-        <div className="space-y-4">
-          {notifications.map((notification) => (
-            <NotificationCard
-              key={notification.id}
-              notification={notification}
-              onMarkAsRead={handleMarkAsRead}
-              onDelete={handleDelete}
-            />
-          ))}
-        </div>
-      )}
+        <>
+          <div className="space-y-4">
+            {notifications.map((notification) => (
+              <NotificationCard
+                key={notification.id}
+                notification={notification}
+                onMarkAsRead={handleMarkAsRead}
+                onDelete={handleDelete}
+              />
+            ))}
+          </div>
 
-      {/* Load More Button */}
-      {hasMore && !loading && (
-        <div className="flex justify-center pt-4">
-          <Button
-            variant="outline"
-            onClick={() => setPage(prev => prev + 1)}
-            disabled={loading}
-          >
-            {loading ? tCommon('loading') : tCommon('load_more')}
-          </Button>
-        </div>
+          {/* Pagination */}
+          {totalPages > 1 && (
+            <div className="flex items-center justify-center gap-2 mt-8">
+              <Button
+                variant="outline"
+                disabled={page === 1}
+                onClick={() => setPage(page - 1)}
+                className="bg-transparent"
+              >
+                {tCommon('previous')}
+              </Button>
+              <span className="text-sm text-muted-foreground">
+                {tCommon('page_of', { page: page.toString(), totalPages: totalPages.toString() })}
+              </span>
+              <Button
+                variant="outline"
+                disabled={page === totalPages}
+                onClick={() => setPage(page + 1)}
+                className="bg-transparent"
+              >
+                {tCommon('next')}
+              </Button>
+            </div>
+          )}
+        </>
       )}
     </div>
   )

@@ -1,16 +1,19 @@
 "use client"
 
-import { useState } from "react"
 import { AppLayout } from "@/components/layout/app-layout"
 import { PageContainer } from "@/components/layout/page-container"
 import { PageHeader } from "@/components/layout/page-header"
 import { ProtectedRoute } from "@/components/auth/protected-route"
-import { NotificationsList } from "@/components/notifications/notifications-list"
-import { useTranslations } from "@/lib/i18n"
 import { Button } from "@/components/ui/button"
 import { CheckCheck } from "lucide-react"
+import { useTranslations } from "@/lib/i18n"
+import { PageLoading } from "@/components/ui/page-loading"
+import { useState, lazy, Suspense } from "react"
 import { notificationsApi } from "@/lib/api/notifications"
 import { useToast } from "@/hooks/use-toast"
+
+// Lazy load heavy components to improve initial load time
+const NotificationsList = lazy(() => import("@/components/notifications/notifications-list").then(m => ({ default: m.NotificationsList })))
 
 export default function NotificationsPage() {
   return (
@@ -29,14 +32,16 @@ function NotificationsContent() {
     <AppLayout showSidebar={true} showFooter={false} hideNavbar={true} hideTopBar={true}>
       <PageHeader
         title={t('title') || tCommon('notifications')}
-        subtitle={t('subtitle')}
+        subtitle={t('subtitle') || t('manage_your_notifications')}
         rightActions={
           <MarkAllReadButton onSuccess={() => setRefreshKey(prev => prev + 1)} />
         }
       />
       <PageContainer>
         {/* Notifications List */}
-        <NotificationsList key={refreshKey} />
+        <Suspense fallback={<PageLoading translationKey="loading" />}>
+          <NotificationsList key={refreshKey} />
+        </Suspense>
       </PageContainer>
     </AppLayout>
   )
@@ -69,7 +74,7 @@ function MarkAllReadButton({ onSuccess }: { onSuccess?: () => void }) {
   }
 
   return (
-    <Button onClick={handleMarkAllRead} size="sm" variant="outline" disabled={loading}>
+    <Button onClick={handleMarkAllRead} size="sm" disabled={loading}>
       <CheckCheck className="h-4 w-4 mr-2" />
       {loading ? tCommon('loading') : t('mark_all_read')}
     </Button>

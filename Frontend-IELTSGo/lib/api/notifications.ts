@@ -4,6 +4,7 @@ import type { Notification, PaginatedResponse } from "@/types"
 import { sseManager } from "./sse-manager"
 
 export interface NotificationFilters {
+  search?: string
   is_read?: boolean
   type?: string[]
   category?: string[]

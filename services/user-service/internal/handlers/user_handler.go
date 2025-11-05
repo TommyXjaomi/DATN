@@ -1,8 +1,8 @@
 package handlers
 
 import (
-	"math"
 	"log"
+	"math"
 	"net/http"
 	"strconv"
 
@@ -1197,22 +1197,8 @@ func (h *UserHandler) ToggleReminder(c *gin.Context) {
 		return
 	}
 
-	var req struct {
-		IsActive bool `json:"is_active"`
-	}
-	if err := c.ShouldBindJSON(&req); err != nil {
-		c.JSON(http.StatusBadRequest, models.Response{
-			Success: false,
-			Error: &models.ErrorInfo{
-				Code:    "INVALID_REQUEST",
-				Message: "Invalid request body",
-				Details: err.Error(),
-			},
-		})
-		return
-	}
-
-	err = h.service.ToggleReminder(reminderID, userID, req.IsActive)
+	// Toggle the reminder and get the updated reminder back
+	updatedReminder, err := h.service.ToggleReminder(reminderID, userID)
 	if err != nil {
 		log.Printf("❌ Error toggling reminder: %v", err)
 		c.JSON(http.StatusInternalServerError, models.Response{
@@ -1229,6 +1215,7 @@ func (h *UserHandler) ToggleReminder(c *gin.Context) {
 	c.JSON(http.StatusOK, models.Response{
 		Success: true,
 		Message: "Reminder toggled successfully",
+		Data:    updatedReminder,
 	})
 }
 
@@ -1239,12 +1226,12 @@ func (h *UserHandler) GetLeaderboard(c *gin.Context) {
 	period := c.DefaultQuery("period", "all-time") // daily, weekly, monthly, all-time
 	pageStr := c.DefaultQuery("page", "1")
 	limitStr := c.DefaultQuery("limit", "50")
-	
+
 	page, err := strconv.Atoi(pageStr)
 	if err != nil || page < 1 {
 		page = 1
 	}
-	
+
 	limit, err := strconv.Atoi(limitStr)
 	if err != nil || limit <= 0 || limit > 100 {
 		limit = 50
@@ -1265,7 +1252,7 @@ func (h *UserHandler) GetLeaderboard(c *gin.Context) {
 	}
 
 	totalPages := int(math.Ceil(float64(total) / float64(limit)))
-	
+
 	c.JSON(http.StatusOK, models.Response{
 		Success: true,
 		Data: gin.H{
@@ -1587,12 +1574,12 @@ func (h *UserHandler) GetFollowers(c *gin.Context) {
 
 	pageStr := c.DefaultQuery("page", "1")
 	pageSizeStr := c.DefaultQuery("pageSize", "20")
-	
+
 	page, err := strconv.Atoi(pageStr)
 	if err != nil || page < 1 {
 		page = 1
 	}
-	
+
 	pageSize, err := strconv.Atoi(pageSizeStr)
 	if err != nil || pageSize <= 0 || pageSize > 100 {
 		pageSize = 20
@@ -1670,12 +1657,12 @@ func (h *UserHandler) GetFollowing(c *gin.Context) {
 
 	pageStr := c.DefaultQuery("page", "1")
 	pageSizeStr := c.DefaultQuery("pageSize", "20")
-	
+
 	page, err := strconv.Atoi(pageStr)
 	if err != nil || page < 1 {
 		page = 1
 	}
-	
+
 	pageSize, err := strconv.Atoi(pageSizeStr)
 	if err != nil || pageSize <= 0 || pageSize > 100 {
 		pageSize = 20

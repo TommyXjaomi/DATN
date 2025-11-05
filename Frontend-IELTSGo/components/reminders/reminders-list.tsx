@@ -24,7 +24,9 @@ export function RemindersList() {
     try {
       setLoading(true)
       const response = await remindersApi.getReminders()
-      setReminders(response.reminders || [])
+      // Ensure we always have a valid array of reminders, filtering out any invalid entries
+      const validReminders = (response.reminders || []).filter(r => r && typeof r === 'object')
+      setReminders(validReminders)
     } catch (error: any) {
       console.error('[Reminders] Error loading reminders:', error)
       toast({
@@ -56,13 +58,27 @@ export function RemindersList() {
 
   const handleToggle = async (reminderId: string) => {
     try {
+      console.log('[Reminders] Toggling reminder:', reminderId)
       const updated = await remindersApi.toggleReminder(reminderId)
-      setReminders(reminders.map(r => r.id === reminderId ? updated : r))
-      toast({
-        title: t('toggle_reminder'),
-        description: updated.is_active ? t('active') : t('inactive'),
-      })
+      console.log('[Reminders] Toggle response:', updated)
+      
+      // Update the reminder in the list with the returned data
+      if (updated && typeof updated === 'object') {
+        setReminders(reminders.map(r => r && r.id === reminderId ? updated : r))
+        toast({
+          title: t('toggle_reminder'),
+          description: updated.is_active ? t('active') : t('inactive'),
+        })
+      } else {
+        // Fallback: reload entire list if response is invalid
+        await loadReminders()
+        toast({
+          title: t('toggle_reminder'),
+          description: tCommon('success'),
+        })
+      }
     } catch (error: any) {
+      console.error('[Reminders] Toggle error:', error)
       toast({
         title: tCommon('error'),
         description: error?.message || t('failed_to_toggle'),
@@ -89,9 +105,9 @@ export function RemindersList() {
     )
   }
 
-  // Group reminders by active status
-  const activeReminders = reminders.filter(r => r.is_active)
-  const inactiveReminders = reminders.filter(r => !r.is_active)
+  // Group reminders by active status - Filter out any undefined/null values
+  const activeReminders = reminders.filter(r => r && r.is_active)
+  const inactiveReminders = reminders.filter(r => r && !r.is_active)
 
   return (
     <div className="space-y-8">
