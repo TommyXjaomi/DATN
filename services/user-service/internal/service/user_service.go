@@ -1154,3 +1154,122 @@ func (s *UserService) EndSession(sessionID uuid.UUID, isCompleted bool, score fl
 func (s *UserService) RecordCompletedSession(session *models.StudySession) error {
 	return s.repo.CreateStudySession(session)
 }
+
+// ============= Official Test Results =============
+
+// RecordOfficialTestResult records an official full test result and updates user progress
+func (s *UserService) RecordOfficialTestResult(result *models.OfficialTestResult) error {
+	// 1. Save test result to database
+	if err := s.repo.CreateOfficialTestResult(result); err != nil {
+		return fmt.Errorf("failed to create test result: %w", err)
+	}
+
+	// 2. Update learning_progress for each skill
+	skills := []struct {
+		name  string
+		score float64
+	}{
+		{"listening", result.ListeningScore},
+		{"reading", result.ReadingScore},
+		{"writing", result.WritingScore},
+		{"speaking", result.SpeakingScore},
+	}
+
+	for _, skill := range skills {
+		if err := s.repo.UpdateLearningProgressWithTestScore(
+			result.UserID,
+			skill.name,
+			skill.score,
+			true, // increment test count
+		); err != nil {
+			log.Printf("⚠️  Failed to update learning progress for %s: %v", skill.name, err)
+		}
+	}
+
+	// 3. Update overall score in learning_progress
+	if err := s.repo.UpdateLearningProgressWithTestScore(
+		result.UserID,
+		"overall",
+		result.OverallBandScore,
+		false, // don't increment test count for overall
+	); err != nil {
+		log.Printf("⚠️  Failed to update overall score: %v", err)
+	}
+
+	log.Printf("✅ Recorded official test result for user %s: overall=%.1f", 
+		result.UserID, result.OverallBandScore)
+	return nil
+}
+
+// ============= Practice Activities =============
+
+// RecordPracticeActivity records a practice activity and updates statistics
+func (s *UserService) RecordPracticeActivity(activity *models.PracticeActivity) error {
+	// 1. Save practice activity to database
+	if err := s.repo.CreatePracticeActivity(activity); err != nil {
+		return fmt.Errorf("failed to create practice activity: %w", err)
+	}
+
+	// 2. Update skill_statistics (practice stats only - NOT official scores)
+	if activity.CompletionStatus == "completed" {
+		// Get current stats
+		statsMap, err := s.repo.GetAllSkillStatistics(activity.UserID)
+		if err != nil {
+			log.Printf("⚠️  Failed to get skill statistics: %v", err)
+		} else {
+			stats, exists := statsMap[activity.Skill]
+			if !exists {
+				// Create new stats entry
+				stats = &models.SkillStatistics{
+					UserID:    activity.UserID,
+					SkillType: activity.Skill,
+				}
+			}
+
+			// Update stats
+			stats.TotalPractices++
+			stats.CompletedPractices++
+			
+			if activity.Score != nil {
+				// Recalculate average score
+				if stats.AverageScore == 0 {
+					stats.AverageScore = *activity.Score
+				} else {
+					stats.AverageScore = (stats.AverageScore*float64(stats.CompletedPractices-1) + *activity.Score) / float64(stats.CompletedPractices)
+				}
+				
+				// Update best score
+				if *activity.Score > stats.BestScore {
+					stats.BestScore = *activity.Score
+				}
+				
+				stats.LastPracticeScore = activity.Score
+			}
+			
+			if activity.TimeSpentSeconds != nil {
+				stats.TotalTimeMinutes += *activity.TimeSpentSeconds / 60
+			}
+			
+			if activity.CompletedAt != nil {
+				stats.LastPracticeDate = activity.CompletedAt
+			}
+
+			// Save updated stats
+			if err := s.repo.UpsertSkillStatistics(stats); err != nil {
+				log.Printf("⚠️  Failed to update skill statistics: %v", err)
+			}
+		}
+
+		// 3. Increment exercises_completed in learning_progress
+		updates := map[string]interface{}{
+			"total_exercises_completed": "total_exercises_completed + 1",
+		}
+		if err := s.repo.UpdateLearningProgress(activity.UserID, updates); err != nil {
+			log.Printf("⚠️  Failed to update exercises completed: %v", err)
+		}
+	}
+
+	log.Printf("✅ Recorded practice activity for user %s: skill=%s, type=%s", 
+		activity.UserID, activity.Skill, activity.ActivityType)
+	return nil
+}
