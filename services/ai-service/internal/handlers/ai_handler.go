@@ -689,3 +689,17 @@ func (h *AIHandler) EvaluateSpeaking(c *gin.Context) {
 		"data":    result,
 	})
 }
+
+// GET /api/v1/ai/cache/stats
+func (h *AIHandler) GetCacheStatistics(c *gin.Context) {
+	stats, err := h.service.GetCacheStatistics()
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		return
+	}
+
+	c.JSON(http.StatusOK, gin.H{
+		"success": true,
+		"data":    stats,
+	})
+}

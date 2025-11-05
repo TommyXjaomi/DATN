@@ -17,6 +17,7 @@ type AIService struct {
 	repo         *repository.AIRepository
 	config       *config.Config
 	openAIClient *OpenAIClient
+	cacheService *CacheService
 }
 
 func NewAIService(repo *repository.AIRepository, cfg *config.Config) *AIService {
@@ -24,6 +25,7 @@ func NewAIService(repo *repository.AIRepository, cfg *config.Config) *AIService 
 		repo:         repo,
 		config:       cfg,
 		openAIClient: NewOpenAIClient(cfg.OpenAIAPIKey),
+		cacheService: NewCacheService(repo),
 	}
 }
 
@@ -570,19 +572,27 @@ func downloadAudio(url string) ([]byte, error) {
 
 // ========== PURE STATELESS APIs (Phase 5.2) ==========
 
-// EvaluateWritingPure evaluates writing without database operations (stateless)
+// EvaluateWritingPure evaluates writing without database operations (stateless with cache)
 func (s *AIService) EvaluateWritingPure(essayText, taskType, promptText string) (*models.OpenAIWritingEvaluation, error) {
 	if essayText == "" {
 		return nil, fmt.Errorf("essay text is required")
 	}
 
+	// Check cache first (Phase 5.3)
+	if cached, hit := s.cacheService.CheckWritingCache(essayText, taskType, promptText); hit {
+		return cached, nil
+	}
+
 	wordCount := len(strings.Fields(essayText))
 
-	// Call OpenAI for evaluation (pure, no DB)
+	// Call OpenAI for evaluation (cache miss)
 	evalResult, err := s.openAIClient.EvaluateWriting(promptText, essayText, wordCount, 0)
 	if err != nil {
 		return nil, fmt.Errorf("evaluation failed: %w", err)
 	}
+
+	// Save to cache (async, don't block on cache errors)
+	go s.cacheService.SaveWritingCache(essayText, taskType, promptText, evalResult)
 
 	return evalResult, nil
 }
@@ -608,7 +618,7 @@ func (s *AIService) TranscribeSpeakingPure(audioURL string) (string, error) {
 	return transcript.Text, nil
 }
 
-// EvaluateSpeakingPure evaluates speaking without database operations (stateless)
+// EvaluateSpeakingPure evaluates speaking without database operations (stateless with cache)
 func (s *AIService) EvaluateSpeakingPure(audioURL, transcriptText string, partNumber int) (*models.OpenAISpeakingEvaluation, error) {
 	if audioURL == "" {
 		return nil, fmt.Errorf("audio URL is required")
@@ -623,11 +633,24 @@ func (s *AIService) EvaluateSpeakingPure(audioURL, transcriptText string, partNu
 		}
 	}
 
-	// Evaluate speaking with OpenAI (dummy values for compatibility)
+	// Check cache first (Phase 5.3)
+	if cached, hit := s.cacheService.CheckSpeakingCache(audioURL, transcriptText, partNumber); hit {
+		return cached, nil
+	}
+
+	// Evaluate speaking with OpenAI (cache miss)
 	evalResult, err := s.openAIClient.EvaluateSpeaking(transcriptText, "", audioURL, partNumber, 0)
 	if err != nil {
 		return nil, fmt.Errorf("evaluation failed: %w", err)
 	}
 
+	// Save to cache (async, don't block on cache errors)
+	go s.cacheService.SaveSpeakingCache(audioURL, transcriptText, partNumber, evalResult)
+
 	return evalResult, nil
+}
+
+// GetCacheStatistics returns cache hit/miss statistics
+func (s *AIService) GetCacheStatistics() (map[string]interface{}, error) {
+	return s.cacheService.GetCacheStatistics()
 }

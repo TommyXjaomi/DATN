@@ -67,6 +67,9 @@ func SetupRoutes(handler *handlers.AIHandler, authMiddleware *middleware.AuthMid
 		admin.Use(authMiddleware.AuthRequired())
 		admin.Use(authMiddleware.RequireRole("admin"))
 		{
+			// Cache management (Phase 5.3)
+			admin.GET("/cache/stats", handler.GetCacheStatistics)
+
 			// Writing prompts management
 			adminWriting := admin.Group("/writing/prompts")
 			{

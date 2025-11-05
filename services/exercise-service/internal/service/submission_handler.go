@@ -298,12 +298,12 @@ func (s *ExerciseService) evaluateSpeakingAsync(
 		transcriptResult, transcribeErr = s.aiServiceClient.TranscribeSpeaking(aiClient.SpeakingTranscriptionRequest{
 			AudioURL: audioURL,
 		})
-		
+
 		if transcribeErr != nil && IsRetryableError(transcribeErr) {
 			log.Printf("⚠️ Retryable error in transcription: %v", transcribeErr)
 			return transcribeErr
 		}
-		
+
 		return transcribeErr
 	})
 
@@ -334,12 +334,12 @@ func (s *ExerciseService) evaluateSpeakingAsync(
 			TranscriptText: transcriptResult.Data.TranscriptText,
 			PartNumber:     partNum,
 		})
-		
+
 		if evalErr != nil && IsRetryableError(evalErr) {
 			log.Printf("⚠️ Retryable error in speaking evaluation: %v", evalErr)
 			return evalErr
 		}
-		
+
 		return evalErr
 	})
 
@@ -433,7 +433,7 @@ func (s *ExerciseService) recordToUserService(
 		err := RetryWithBackoff(DefaultRetryConfig(), func() error {
 			return s.userServiceClient.RecordTestResult(submission.UserID.String(), req)
 		})
-		
+
 		if err != nil {
 			log.Printf("❌ Failed to record test result after retries: %v", err)
 			// Don't fail the whole operation - user service recording is not critical
@@ -463,7 +463,7 @@ func (s *ExerciseService) recordToUserService(
 		err := RetryWithBackoff(DefaultRetryConfig(), func() error {
 			return s.userServiceClient.RecordPracticeActivity(submission.UserID.String(), req)
 		})
-		
+
 		if err != nil {
 			log.Printf("❌ Failed to record practice activity after retries: %v", err)
 			// Don't fail the whole operation - user service recording is not critical

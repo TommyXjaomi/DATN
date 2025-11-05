@@ -1196,7 +1196,7 @@ func (s *UserService) RecordOfficialTestResult(result *models.OfficialTestResult
 		log.Printf("⚠️  Failed to update overall score: %v", err)
 	}
 
-	log.Printf("✅ Recorded official test result for user %s: overall=%.1f", 
+	log.Printf("✅ Recorded official test result for user %s: overall=%.1f",
 		result.UserID, result.OverallBandScore)
 	return nil
 }
@@ -1229,7 +1229,7 @@ func (s *UserService) RecordPracticeActivity(activity *models.PracticeActivity) 
 			// Update stats
 			stats.TotalPractices++
 			stats.CompletedPractices++
-			
+
 			if activity.Score != nil {
 				// Recalculate average score
 				if stats.AverageScore == 0 {
@@ -1237,19 +1237,19 @@ func (s *UserService) RecordPracticeActivity(activity *models.PracticeActivity) 
 				} else {
 					stats.AverageScore = (stats.AverageScore*float64(stats.CompletedPractices-1) + *activity.Score) / float64(stats.CompletedPractices)
 				}
-				
+
 				// Update best score
 				if *activity.Score > stats.BestScore {
 					stats.BestScore = *activity.Score
 				}
-				
+
 				stats.LastPracticeScore = activity.Score
 			}
-			
+
 			if activity.TimeSpentSeconds != nil {
 				stats.TotalTimeMinutes += *activity.TimeSpentSeconds / 60
 			}
-			
+
 			if activity.CompletedAt != nil {
 				stats.LastPracticeDate = activity.CompletedAt
 			}
@@ -1269,7 +1269,7 @@ func (s *UserService) RecordPracticeActivity(activity *models.PracticeActivity) 
 		}
 	}
 
-	log.Printf("✅ Recorded practice activity for user %s: skill=%s, type=%s", 
+	log.Printf("✅ Recorded practice activity for user %s: skill=%s, type=%s",
 		activity.UserID, activity.Skill, activity.ActivityType)
 	return nil
 }

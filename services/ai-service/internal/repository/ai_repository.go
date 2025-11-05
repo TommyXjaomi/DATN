@@ -68,7 +68,7 @@ func (r *AIRepository) CreateWritingEvaluation(eval *models.WritingEvaluation) e
 	weaknessesArray := pq.Array(eval.Weaknesses)
 	linkingWordsArray := pq.Array(eval.LinkingWordsUsed)
 	improvementsArray := pq.Array(eval.ImprovementSuggestions)
-	
+
 	// Keep JSON for JSONB columns
 	grammarErrorsJSON, _ := json.Marshal(eval.GrammarErrors)
 	vocabSuggestionsJSON, _ := json.Marshal(eval.VocabularySuggestions)
@@ -233,7 +233,7 @@ func (r *AIRepository) CreateSpeakingEvaluation(eval *models.SpeakingEvaluation)
 	fillerWordsArray := pq.Array(eval.FillerWordsUsed)
 	advancedWordsArray := pq.Array(eval.AdvancedWordsUsed)
 	improvementsArray := pq.Array(eval.ImprovementSuggestions)
-	
+
 	// Keep JSON for JSONB columns
 	grammarErrorsJSON, _ := json.Marshal(eval.GrammarErrors)
 	vocabSuggestionsJSON, _ := json.Marshal(eval.VocabularySuggestions)
@@ -653,4 +653,81 @@ func (r *AIRepository) DeleteSpeakingPrompt(id uuid.UUID) error {
 	query := `DELETE FROM speaking_prompts WHERE id = $1`
 	_, err := r.db.DB.Exec(query, id)
 	return err
+}
+
+// ========== CACHE METHODS (Phase 5.3) ==========
+
+// CacheEntry for storing evaluation results
+type CacheEntry struct {
+	Hash      string
+	Content   string
+	ExpiresAt sql.NullTime
+}
+
+// GetCachedEvaluation retrieves cached evaluation by hash
+func (r *AIRepository) GetCachedEvaluation(hash string) (*CacheEntry, error) {
+	// For now, use a simple table structure
+	// In production, you might use Redis or dedicated cache table
+	query := `
+		SELECT hash, content, expires_at 
+		FROM evaluation_cache 
+		WHERE hash = $1 AND (expires_at IS NULL OR expires_at > NOW())
+		LIMIT 1
+	`
+
+	var entry CacheEntry
+	err := r.db.DB.QueryRow(query, hash).Scan(&entry.Hash, &entry.Content, &entry.ExpiresAt)
+	if err == sql.ErrNoRows {
+		return nil, nil
+	}
+	if err != nil {
+		return nil, err
+	}
+
+	return &entry, nil
+}
+
+// SaveCachedEvaluation saves evaluation result to cache
+func (r *AIRepository) SaveCachedEvaluation(hash, content string, expiresAt interface{}) error {
+	query := `
+		INSERT INTO evaluation_cache (hash, content, expires_at, created_at)
+		VALUES ($1, $2, $3, NOW())
+		ON CONFLICT (hash) 
+		DO UPDATE SET content = $2, expires_at = $3, created_at = NOW()
+	`
+	_, err := r.db.DB.Exec(query, hash, content, expiresAt)
+	return err
+}
+
+// DeleteCachedEvaluation removes cached entry
+func (r *AIRepository) DeleteCachedEvaluation(hash string) error {
+	query := `DELETE FROM evaluation_cache WHERE hash = $1`
+	_, err := r.db.DB.Exec(query, hash)
+	return err
+}
+
+// GetCacheStatistics returns cache statistics
+func (r *AIRepository) GetCacheStatistics() (map[string]interface{}, error) {
+	query := `
+		SELECT 
+			COUNT(*) as total_entries,
+			COUNT(*) FILTER (WHERE expires_at < NOW()) as expired_entries,
+			COUNT(*) FILTER (WHERE expires_at >= NOW() OR expires_at IS NULL) as valid_entries,
+			ROUND(pg_total_relation_size('evaluation_cache')::numeric / 1024 / 1024, 2) as cache_size_mb
+		FROM evaluation_cache
+	`
+
+	var total, expired, valid int
+	var sizeMB float64
+	err := r.db.DB.QueryRow(query).Scan(&total, &expired, &valid, &sizeMB)
+	if err != nil {
+		return nil, err
+	}
+
+	return map[string]interface{}{
+		"total_entries":   total,
+		"expired_entries": expired,
+		"valid_entries":   valid,
+		"cache_size_mb":   sizeMB,
+	}, nil
 }
