@@ -169,3 +169,108 @@ func (c *UserServiceClient) RecordCompletedSession(userID, sessionType, skillTyp
 
 	return nil
 }
+
+// ============= Scoring System Methods =============
+
+// RecordTestResultRequest represents official test result recording request
+type RecordTestResultRequest struct {
+	TestType          string     `json:"test_type"`
+	OverallBandScore  float64    `json:"overall_band_score"`
+	ListeningScore    float64    `json:"listening_score"`
+	ReadingScore      float64    `json:"reading_score"`
+	WritingScore      float64    `json:"writing_score"`
+	SpeakingScore     float64    `json:"speaking_score"`
+	ListeningRawScore *int       `json:"listening_raw_score,omitempty"`
+	ReadingRawScore   *int       `json:"reading_raw_score,omitempty"`
+	TestDate          *time.Time `json:"test_date,omitempty"`
+	TestSource        string     `json:"test_source,omitempty"`
+	Notes             *string    `json:"notes,omitempty"`
+}
+
+// RecordPracticeActivityRequest represents practice activity recording request
+type RecordPracticeActivityRequest struct {
+	Skill              string     `json:"skill"`
+	ActivityType       string     `json:"activity_type"`
+	ExerciseID         *string    `json:"exercise_id,omitempty"`
+	ExerciseTitle      *string    `json:"exercise_title,omitempty"`
+	Score              *float64   `json:"score,omitempty"`
+	MaxScore           *float64   `json:"max_score,omitempty"`
+	BandScore          *float64   `json:"band_score,omitempty"`
+	CorrectAnswers     int        `json:"correct_answers"`
+	TotalQuestions     *int       `json:"total_questions,omitempty"`
+	AccuracyPercentage *float64   `json:"accuracy_percentage,omitempty"`
+	TimeSpentSeconds   *int       `json:"time_spent_seconds,omitempty"`
+	StartedAt          *time.Time `json:"started_at,omitempty"`
+	CompletedAt        *time.Time `json:"completed_at,omitempty"`
+	CompletionStatus   string     `json:"completion_status"`
+	AIEvaluated        bool       `json:"ai_evaluated"`
+	AIFeedbackSummary  *string    `json:"ai_feedback_summary,omitempty"`
+	DifficultyLevel    *string    `json:"difficulty_level,omitempty"`
+	Notes              *string    `json:"notes,omitempty"`
+}
+
+// RecordTestResult records an official test result (source of truth for band scores)
+func (c *UserServiceClient) RecordTestResult(userID string, req RecordTestResultRequest) error {
+	endpoint := fmt.Sprintf("/api/v1/user/internal/scoring/%s/test-result", userID)
+
+	err := c.PostWithRetry(endpoint, req, 3)
+	if err != nil {
+		return fmt.Errorf("record test result: %w", err)
+	}
+
+	return nil
+}
+
+// RecordPracticeActivity records a practice activity (separate from official test scores)
+func (c *UserServiceClient) RecordPracticeActivity(userID string, req RecordPracticeActivityRequest) error {
+	endpoint := fmt.Sprintf("/api/v1/user/internal/scoring/%s/practice-activity", userID)
+
+	err := c.PostWithRetry(endpoint, req, 3)
+	if err != nil {
+		return fmt.Errorf("record practice activity: %w", err)
+	}
+
+	return nil
+}
+
+// GetTestHistory retrieves user's test history with pagination
+func (c *UserServiceClient) GetTestHistory(userID string, page, limit int, skillType *string) (interface{}, error) {
+	endpoint := fmt.Sprintf("/api/v1/user/internal/scoring/%s/test-history?page=%d&limit=%d", userID, page, limit)
+	if skillType != nil && *skillType != "" {
+		endpoint += fmt.Sprintf("&skill=%s", *skillType)
+	}
+
+	resp, err := c.Get(endpoint)
+	if err != nil {
+		return nil, fmt.Errorf("get test history: %w", err)
+	}
+	defer resp.Body.Close()
+
+	var result StandardResponse
+	if err := json.NewDecoder(resp.Body).Decode(&result); err != nil {
+		return nil, fmt.Errorf("decode response: %w", err)
+	}
+
+	return result.Data, nil
+}
+
+// GetPracticeStatistics retrieves user's practice statistics
+func (c *UserServiceClient) GetPracticeStatistics(userID string, skillType *string) (interface{}, error) {
+	endpoint := fmt.Sprintf("/api/v1/user/internal/scoring/%s/practice-statistics", userID)
+	if skillType != nil && *skillType != "" {
+		endpoint += fmt.Sprintf("?skill=%s", *skillType)
+	}
+
+	resp, err := c.Get(endpoint)
+	if err != nil {
+		return nil, fmt.Errorf("get practice statistics: %w", err)
+	}
+	defer resp.Body.Close()
+
+	var result StandardResponse
+	if err := json.NewDecoder(resp.Body).Decode(&result); err != nil {
+		return nil, fmt.Errorf("decode response: %w", err)
+	}
+
+	return result.Data, nil
+}
