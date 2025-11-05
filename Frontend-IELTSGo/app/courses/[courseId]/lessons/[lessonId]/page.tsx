@@ -9,6 +9,7 @@ import { Button } from "@/components/ui/button"
 import { AppLayout } from "@/components/layout/app-layout"
 import { PageContainer } from "@/components/layout/page-container"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
+import { Badge } from "@/components/ui/badge"
 import { Textarea } from "@/components/ui/textarea"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import {
@@ -48,6 +49,7 @@ export default function LessonPlayerPage() {
   const [lesson, setLesson] = useState<Lesson | null>(null)
   const [videos, setVideos] = useState<any[]>([])
   const [modules, setModules] = useState<Module[]>([])
+  const [courseLevelExercises, setCourseLevelExercises] = useState<any[]>([]) // NEW: Course-level exercises
   const [loading, setLoading] = useState(true)
   const [isPlaying, setIsPlaying] = useState(false)
   const [isMuted, setIsMuted] = useState(false)
@@ -215,20 +217,46 @@ export default function LessonPlayerPage() {
         
         // Transform the modules data to match our Module type
         // UPDATED: Include exercises from API
-        const transformedModules: Module[] = courseDetail.modules.map((moduleData: any, index: number) => ({
-          id: moduleData.module.id,
-          course_id: params.courseId as string,
-          title: moduleData.module.title || `${tCommon('module')} ${index + 1}`,
-          display_order: moduleData.module.display_order || index + 1,
-          total_lessons: moduleData.lessons?.length || 0,
-          total_exercises: moduleData.exercises?.length || 0,  // NEW
-          is_published: true,
-          created_at: moduleData.module.created_at || new Date().toISOString(),
-          updated_at: moduleData.module.updated_at || new Date().toISOString(),
-          lessons: moduleData.lessons || [],
-          exercises: moduleData.exercises || [],  // NEW
-        }))
+        console.log('[Lesson Player] Course Detail:', courseDetail)
+        console.log('[Lesson Player] Modules from API:', courseDetail.modules)
         
+        // Debug: Check exercises in raw response
+        if (courseDetail.modules && Array.isArray(courseDetail.modules)) {
+          courseDetail.modules.forEach((m: any, i: number) => {
+            console.log(`[Lesson Player] Raw Module ${i + 1} from API:`, {
+              module: m.module,
+              exercises: m.exercises,
+              exercisesType: typeof m.exercises,
+              exercisesIsArray: Array.isArray(m.exercises)
+            })
+          })
+        }
+        
+        // Store course-level exercises separately
+        console.log('[Lesson Player] Course-level exercises:', courseDetail.course_level_exercises)
+        setCourseLevelExercises(courseDetail.course_level_exercises || [])
+        
+        const transformedModules: Module[] = courseDetail.modules.map((moduleData: any, index: number) => {
+          console.log(`[Lesson Player] Module ${index + 1}:`, moduleData.module.title)
+          console.log(`[Lesson Player] Module ${index + 1} exercises:`, moduleData.exercises)
+          console.log(`[Lesson Player] Module ${index + 1} exercises count:`, moduleData.exercises?.length || 0)
+          
+          return {
+            id: moduleData.module.id,
+            course_id: params.courseId as string,
+            title: moduleData.module.title || `${tCommon('module')} ${index + 1}`,
+            display_order: moduleData.module.display_order || index + 1,
+            total_lessons: moduleData.lessons?.length || 0,
+            total_exercises: moduleData.exercises?.length || 0,  // NEW
+            is_published: true,
+            created_at: moduleData.module.created_at || new Date().toISOString(),
+            updated_at: moduleData.module.updated_at || new Date().toISOString(),
+            lessons: moduleData.lessons || [],
+            exercises: moduleData.exercises || [],  // NEW
+          }
+        })
+        
+        console.log('[Lesson Player] Transformed modules:', transformedModules)
         setModules(transformedModules)
 
         // TODO: Backend notes endpoint not implemented yet
@@ -786,6 +814,21 @@ export default function LessonPlayerPage() {
 
                         {/* Exercises - NEW */}
                         {module.exercises?.map((ex, index) => {
+                          // Get exercise type label
+                          const getExerciseTypeLabel = (type?: string) => {
+                            if (!type) return t('practice') || 'Practice'
+                            if (type === 'practice') return t('practice') || 'Practice'
+                            if (type === 'mock_test') return t('mock_test') || 'Mock Test'
+                            if (type === 'full_test') return t('full_test') || 'Full Test'
+                            return type.replace('_', ' ').replace(/\b\w/g, l => l.toUpperCase())
+                          }
+
+                          const getExerciseTypeBadgeColor = (type?: string) => {
+                            if (type === 'mock_test') return 'bg-blue-100 text-blue-700 border-blue-300 dark:bg-blue-950 dark:text-blue-300 dark:border-blue-800'
+                            if (type === 'full_test') return 'bg-red-100 text-red-700 border-red-300 dark:bg-red-950 dark:text-red-300 dark:border-red-800'
+                            return 'bg-pink-100 text-pink-700 border-pink-300 dark:bg-pink-950 dark:text-pink-300 dark:border-pink-800'
+                          }
+
                           return (
                             <button
                               key={ex.id}
@@ -798,10 +841,15 @@ export default function LessonPlayerPage() {
                                 </div>
 
                                 <div className="flex-1 min-w-0">
-                                  <p className="text-sm font-medium truncate text-pink-700 dark:text-pink-300">
-                                    {ex.title}
-                                  </p>
-                                  <div className="flex items-center gap-2 mt-1">
+                                  <div className="flex items-center gap-2 flex-wrap">
+                                    <p className="text-sm font-medium truncate text-pink-700 dark:text-pink-300">
+                                      {ex.title}
+                                    </p>
+                                    <Badge variant="outline" className={`${getExerciseTypeBadgeColor(ex.exercise_type)} text-xs`}>
+                                      {getExerciseTypeLabel(ex.exercise_type)}
+                                    </Badge>
+                                  </div>
+                                  <div className="flex items-center gap-2 mt-1 flex-wrap">
                                     <span className="text-xs text-pink-600 dark:text-pink-400 flex items-center gap-1 font-medium">
                                       <PenTool className="w-3 h-3" />
                                       {ex.total_questions} {t('questions')}
@@ -820,6 +868,75 @@ export default function LessonPlayerPage() {
                       </div>
                     </div>
                   ))}
+                  
+                  {/* Course-Level Exercises Section - NEW */}
+                  {courseLevelExercises && courseLevelExercises.length > 0 && (
+                    <div className="border-t-2 border-pink-200 dark:border-pink-800 mt-4">
+                      <div className="p-4 bg-pink-50/50 dark:bg-pink-950/20">
+                        <h4 className="font-semibold text-sm text-pink-700 dark:text-pink-300 flex items-center gap-2">
+                          <Target className="w-4 h-4" />
+                          {t('course_exercises') || 'Course Exercises'}
+                        </h4>
+                        <p className="text-xs text-pink-600 dark:text-pink-400 mt-1">
+                          {courseLevelExercises.length} {t('exercise_plural')} {t('for_entire_course') || 'for entire course'}
+                        </p>
+                      </div>
+                      <div className="divide-y">
+                        {courseLevelExercises.map((ex, index) => {
+                          // Get exercise type label
+                          const getExerciseTypeLabel = (type?: string) => {
+                            if (!type) return t('practice') || 'Practice'
+                            if (type === 'practice') return t('practice') || 'Practice'
+                            if (type === 'mock_test') return t('mock_test') || 'Mock Test'
+                            if (type === 'full_test') return t('full_test') || 'Full Test'
+                            return type.replace('_', ' ').replace(/\b\w/g, l => l.toUpperCase())
+                          }
+
+                          const getExerciseTypeBadgeColor = (type?: string) => {
+                            if (type === 'mock_test') return 'bg-blue-100 text-blue-700 border-blue-300 dark:bg-blue-950 dark:text-blue-300 dark:border-blue-800'
+                            if (type === 'full_test') return 'bg-red-100 text-red-700 border-red-300 dark:bg-red-950 dark:text-red-300 dark:border-red-800'
+                            return 'bg-pink-100 text-pink-700 border-pink-300 dark:bg-pink-950 dark:text-pink-300 dark:border-pink-800'
+                          }
+
+                          return (
+                            <button
+                              key={ex.id}
+                              onClick={() => router.push(`/exercises/${ex.id}`)}
+                              className="w-full text-left p-3 transition-all bg-pink-50/50 dark:bg-pink-950/10 hover:bg-pink-100 dark:hover:bg-pink-950/20 border-l-4 border-transparent hover:border-pink-500"
+                            >
+                              <div className="flex items-start gap-3">
+                                <div className="flex-shrink-0 w-6 h-6 rounded-full flex items-center justify-center text-xs font-medium bg-pink-200 dark:bg-pink-900 text-pink-700 dark:text-pink-300">
+                                  <Target className="w-3 h-3" />
+                                </div>
+
+                                <div className="flex-1 min-w-0">
+                                  <div className="flex items-center gap-2 flex-wrap">
+                                    <p className="text-sm font-medium truncate text-pink-700 dark:text-pink-300">
+                                      {ex.title}
+                                    </p>
+                                    <Badge variant="outline" className={`${getExerciseTypeBadgeColor(ex.exercise_type)} text-xs`}>
+                                      {getExerciseTypeLabel(ex.exercise_type)}
+                                    </Badge>
+                                  </div>
+                                  <div className="flex items-center gap-2 mt-1 flex-wrap">
+                                    <span className="text-xs text-pink-600 dark:text-pink-400 flex items-center gap-1 font-medium">
+                                      <PenTool className="w-3 h-3" />
+                                      {ex.total_questions} {t('questions')}
+                                    </span>
+                                    {ex.time_limit_minutes && (
+                                      <span className="text-xs text-pink-600 dark:text-pink-400">
+                                        • {ex.time_limit_minutes}{t('minutes_short')}
+                                      </span>
+                                    )}
+                                  </div>
+                                </div>
+                              </div>
+                            </button>
+                          )
+                        })}
+                      </div>
+                    </div>
+                  )}
                 </div>
               </CardContent>
             </Card>

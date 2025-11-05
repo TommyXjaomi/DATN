@@ -8,7 +8,7 @@ import { PageHeader } from "@/components/layout/page-header"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
-import { Clock, Target, TrendingUp, Eye, Calendar } from "lucide-react"
+import { Clock, Target, TrendingUp, Eye, Calendar, BookOpen } from "lucide-react"
 import { PageLoading } from "@/components/ui/page-loading"
 import { EmptyState } from "@/components/ui/empty-state"
 import { exercisesApi, type SubmissionFilters } from "@/lib/api/exercises"
@@ -29,10 +29,8 @@ export default function ExerciseHistoryPage() {
   const router = useRouter()
   const [submissions, setSubmissions] = useState<SubmissionWithExercise[]>([])
   const [loading, setLoading] = useState(true)
-  // Default filter: chỉ hiển thị completed và abandoned (không có in_progress)
-  const [filters, setFilters] = useState<SubmissionFilters>({
-    status: ['completed', 'abandoned']
-  })
+  // Default: không áp sẵn filter trạng thái; hiển thị tất cả
+  const [filters, setFilters] = useState<SubmissionFilters>({})
   const [page, setPage] = useState(1)
   const [total, setTotal] = useState(0)
 
@@ -187,12 +185,12 @@ export default function ExerciseHistoryPage() {
                   <p className="text-sm text-muted-foreground">{t('avg_score')}</p>
                   <p className="text-2xl font-bold">
                     {submissions.length > 0
-                      ? (
+                      ? `${(
                           submissions
                             .filter((s) => s.submission.score !== undefined)
                             .reduce((sum, s) => sum + (s.submission.score || 0), 0) /
                           submissions.filter((s) => s.submission.score !== undefined).length
-                        ).toFixed(1)
+                        ).toFixed(1)}%`
                       : t('not_available')}
                   </p>
                 </div>
@@ -236,13 +234,47 @@ export default function ExerciseHistoryPage() {
                   <CardHeader>
                     <div className="flex items-start justify-between">
                       <div className="flex-1">
-                        <CardTitle className="text-lg mb-1">{exercise.title}</CardTitle>
-                        <CardDescription className="flex items-center gap-2">
+                        <div className="flex items-center gap-2 mb-1 flex-wrap">
+                          <CardTitle className="text-lg">{exercise.title}</CardTitle>
+                          {/* Source Badge - Show if exercise belongs to a course */}
+                          {exercise.course_id && (
+                            <Badge 
+                              variant="outline" 
+                              className="bg-blue-50 text-blue-700 border-blue-200 dark:bg-blue-950 dark:text-blue-300 text-xs"
+                            >
+                              <BookOpen className="w-3 h-3 mr-1" />
+                              {exercise.module_id ? t('part_of_module') || 'Part of Module' : t('part_of_course') || 'Part of Course'}
+                            </Badge>
+                          )}
+                          {!exercise.course_id && (
+                            <Badge 
+                              variant="outline" 
+                              className="bg-gray-50 text-gray-700 border-gray-200 dark:bg-gray-950 dark:text-gray-300 text-xs"
+                            >
+                              {t('standalone') || 'Standalone'}
+                            </Badge>
+                          )}
+                        </div>
+                        <CardDescription className="flex items-center gap-2 flex-wrap">
                           <Calendar className="w-3 h-3" />
                           {formatDate(submission.started_at)}
                           {submission.completed_at && (
                             <span className="ml-2">
                               • {t('completed_label')} {formatDate(submission.completed_at)}
+                            </span>
+                          )}
+                          {/* Course Link - Show if exercise belongs to a course */}
+                          {exercise.course_id && (
+                            <span className="ml-2">
+                              • <button
+                                onClick={(e) => {
+                                  e.stopPropagation()
+                                  router.push(`/courses/${exercise.course_id}`)
+                                }}
+                                className="text-blue-600 hover:text-blue-800 dark:text-blue-400 dark:hover:text-blue-300 underline"
+                              >
+                                {t('view_course') || 'View Course'}
+                              </button>
                             </span>
                           )}
                         </CardDescription>
@@ -266,12 +298,15 @@ export default function ExerciseHistoryPage() {
                         <p className="text-lg font-semibold">#{submission.attempt_number}</p>
                       </div>
 
-                      {/* Score */}
-                      {submission.status === "completed" && submission.score !== undefined ? (
+                      {/* Performance (combine percentage + correct/total) */}
+                      {submission.status === "completed" ? (
                         <div>
-                          <p className="text-sm text-muted-foreground">{t('score')}</p>
-                          <p className={`text-lg font-semibold ${getScoreColor(percentage)}`}>
-                            {submission.score}/{submission.total_questions}
+                          <p className="text-sm text-muted-foreground">{t('percentage')}</p>
+                          <p className={`text-2xl font-semibold ${getScoreColor(percentage)}`}>
+                            {percentage.toFixed(1)}%
+                          </p>
+                          <p className="text-xs text-muted-foreground">
+                            {submission.correct_answers}/{submission.total_questions} {t('questions')}
                           </p>
                         </div>
                       ) : (
@@ -279,16 +314,6 @@ export default function ExerciseHistoryPage() {
                           <p className="text-sm text-muted-foreground">{t('progress')}</p>
                           <p className="text-lg font-semibold">
                             {submission.questions_answered}/{submission.total_questions}
-                          </p>
-                        </div>
-                      )}
-
-                      {/* Percentage */}
-                      {submission.status === "completed" && (
-                        <div>
-                          <p className="text-sm text-muted-foreground">{t('percentage')}</p>
-                          <p className={`text-lg font-semibold ${getScoreColor(percentage)}`}>
-                            {percentage.toFixed(1)}%
                           </p>
                         </div>
                       )}

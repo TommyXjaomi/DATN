@@ -24,7 +24,8 @@ function ExerciseCardComponent({ exercise, showCourseLink = true }: ExerciseCard
   // Use null instead of 0 to distinguish "not set" from "actually 0"
   const questionCount = exercise.total_questions ?? exercise.questionCount ?? null
   const timeLimit = exercise.time_limit_minutes || exercise.timeLimit || 0
-  const isFromCourse = !!(exercise.module_id && exercise.course_id)
+  // Exercise belongs to course if course_id exists (module_id can be null)
+  const isFromCourse = !!(exercise.course_id)
   const averageScore = exercise.average_score // Percentage (0-100)
   const totalAttempts = exercise.total_attempts || 0
   const ieltsTestType = exercise.ielts_test_type // academic or general_training (only for Reading)
@@ -77,24 +78,50 @@ function ExerciseCardComponent({ exercise, showCourseLink = true }: ExerciseCard
           </Badge>
         )}
       </div>
-      <div className="absolute top-3 right-3 z-20">
+      <div className="absolute top-3 right-3 z-20 flex flex-col gap-2 items-end">
+        {/* Exercise Type Badge */}
+        {(() => {
+          const exerciseType = exercise.exercise_type || 'practice'
+          const getExerciseTypeLabel = (type: string) => {
+            if (type === 'practice') return tExercises('practice') || 'Practice'
+            if (type === 'mock_test') return tExercises('mock_test') || 'Mock Test'
+            if (type === 'full_test') return tExercises('full_test') || 'Full Test'
+            return type.replace('_', ' ').replace(/\b\w/g, l => l.toUpperCase())
+          }
+          const getExerciseTypeColor = (type: string) => {
+            if (type === 'mock_test') return 'bg-blue-50 text-blue-700 border-blue-200 dark:bg-blue-950 dark:text-blue-300'
+            if (type === 'full_test') return 'bg-red-50 text-red-700 border-red-200 dark:bg-red-950 dark:text-red-300'
+            return 'bg-purple-50 text-purple-700 border-purple-200 dark:bg-purple-950 dark:text-purple-300'
+          }
+          return (
+            <Badge 
+              variant="outline" 
+              className={getExerciseTypeColor(exerciseType)}
+              aria-label={getExerciseTypeLabel(exerciseType)}
+            >
+              {getExerciseTypeLabel(exerciseType)}
+            </Badge>
+          )
+        })()}
+        
+        {/* Course/Standalone Badge */}
         {isFromCourse ? (
           <Badge 
             variant="outline" 
             className="bg-blue-50 text-blue-700 border-blue-200 dark:bg-blue-950 dark:text-blue-300"
-            aria-label={t('from_course') || 'From Course'}
+            aria-label={t('part_of_course') || 'Part of Course'}
           >
             <GraduationCap className="w-3 h-3 mr-1" aria-hidden="true" />
-            {t('course') || 'Course'}
+            {t('part_of_course') || 'Part of Course'}
           </Badge>
         ) : (
           <Badge 
             variant="outline" 
-            className="bg-purple-50 text-purple-700 border-purple-200 dark:bg-purple-950 dark:text-purple-300"
-            aria-label={t('practice') || 'Practice'}
+            className="bg-gray-50 text-gray-700 border-gray-200 dark:bg-gray-950 dark:text-gray-300"
+            aria-label={t('standalone') || 'Standalone'}
           >
             <Zap className="w-3 h-3 mr-1" aria-hidden="true" />
-            {t('practice') || 'Practice'}
+            {t('standalone') || 'Standalone'}
           </Badge>
         )}
       </div>

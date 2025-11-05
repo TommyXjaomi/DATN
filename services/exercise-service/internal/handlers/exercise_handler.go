@@ -73,6 +73,11 @@ func (h *ExerciseHandler) GetExercises(c *gin.Context) {
 			query.ModuleID = &id
 		}
 	}
+	
+	// Parse course_level_only flag
+	if courseLevelOnly := c.Query("course_level_only"); courseLevelOnly == "true" {
+		query.CourseLevelOnly = true
+	}
 
 	exercises, total, err := h.service.GetExercises(query)
 	if err != nil {

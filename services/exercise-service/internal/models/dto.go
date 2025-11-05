@@ -4,17 +4,18 @@ import "github.com/google/uuid"
 
 // ExerciseListQuery for filtering exercises
 type ExerciseListQuery struct {
-	Page         int        `form:"page"`
-	Limit        int        `form:"limit"`
-	SkillType    string     `form:"skill_type"`    // listening, reading
-	Difficulty   string     `form:"difficulty"`    // easy, medium, hard
-	ExerciseType string     `form:"exercise_type"` // practice, mock_test, full_test
-	IsFree       *bool      `form:"is_free"`
-	CourseID     *uuid.UUID `form:"course_id"`
-	ModuleID     *uuid.UUID `form:"module_id"`
-	Search       string     `form:"search"`
-	SortBy       string     `form:"sort_by"`       // newest, popular, difficulty, title
-	SortOrder    string     `form:"sort_order"`    // asc, desc
+	Page            int        `form:"page"`
+	Limit           int        `form:"limit"`
+	SkillType       string     `form:"skill_type"`    // listening, reading
+	Difficulty      string     `form:"difficulty"`    // easy, medium, hard
+	ExerciseType    string     `form:"exercise_type"` // practice, mock_test, full_test
+	IsFree          *bool      `form:"is_free"`
+	CourseID        *uuid.UUID `form:"course_id"`
+	ModuleID        *uuid.UUID `form:"module_id"`
+	CourseLevelOnly bool       `form:"course_level_only"` // If true, only return exercises with course_id but module_id = NULL
+	Search          string     `form:"search"`
+	SortBy          string     `form:"sort_by"`       // newest, popular, difficulty, title
+	SortOrder       string     `form:"sort_order"`    // asc, desc
 }
 
 // ExerciseDetailResponse includes exercise with sections and questions

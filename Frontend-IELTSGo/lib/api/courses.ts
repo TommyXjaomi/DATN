@@ -112,16 +112,38 @@ export const coursesApi = {
     modules: Array<{
       module: any
       lessons: Lesson[]
+      exercises?: any[]  // Module-specific exercises only
     }>
+    course_level_exercises?: any[]  // NEW: Course-level exercises (not tied to specific module)
     is_enrolled: boolean
     enrollment_details?: any
   }> => {
     const cacheKey = apiCache.generateKey(`/courses/${id}`)
+    
+    // TEMPORARY: Clear cache for course detail to force fresh fetch
+    // Remove this after confirming exercises are working
+    // apiCache.delete(cacheKey) // Commented out - let cache work normally
+    
     const cached = apiCache.get(cacheKey)
-    if (cached) return cached
+    if (cached) {
+      console.log('[API] Using cached course data')
+      return cached
+    }
 
     const response = await apiClient.get<ApiResponse<any>>(`/courses/${id}`)
     const result = response.data.data
+    
+    // Debug: Log exercises from API response
+    console.log('[API] Raw response from server:', result)
+    if (result.modules && Array.isArray(result.modules)) {
+      result.modules.forEach((m: any, i: number) => {
+        console.log(`[API] Module ${i + 1} from API:`, {
+          title: m.module?.title,
+          exercises: m.exercises,
+          exercisesCount: m.exercises?.length || 0
+        })
+      })
+    }
     
     // Cache for 60 seconds (course detail is less likely to change)
     apiCache.set(cacheKey, result, 60000)

@@ -441,7 +441,7 @@ export default function CourseDetailPage() {
                           {module.exercises && module.exercises.length > 0 && (
                             <div className="space-y-2">
                               <h4 className="text-xs font-semibold text-pink-600 dark:text-pink-400 uppercase tracking-wide px-3">
-                                ✍️ {tCourses('practice_exercises')}
+                                ✍️ {tCourses('exercises_in_module')}
                               </h4>
                               {module.exercises.map((exercise) => {
                                 const handleExerciseClick = () => {
@@ -450,6 +450,21 @@ export default function CourseDetailPage() {
                                   } else {
                                     toast.error(tCourses('please_enroll_to_take_exercise'))
                                   }
+                                }
+
+                                // Get exercise type label
+                                const getExerciseTypeLabel = (type?: string) => {
+                                  if (!type) return tCourses('practice') || 'Practice'
+                                  if (type === 'practice') return tCourses('practice') || 'Practice'
+                                  if (type === 'mock_test') return tCourses('mock_test') || 'Mock Test'
+                                  if (type === 'full_test') return tCourses('full_test') || 'Full Test'
+                                  return type.replace('_', ' ').replace(/\b\w/g, l => l.toUpperCase())
+                                }
+
+                                const getExerciseTypeBadgeColor = (type?: string) => {
+                                  if (type === 'mock_test') return 'bg-blue-100 text-blue-700 border-blue-300 dark:bg-blue-950 dark:text-blue-300 dark:border-blue-800'
+                                  if (type === 'full_test') return 'bg-red-100 text-red-700 border-red-300 dark:bg-red-950 dark:text-red-300 dark:border-red-800'
+                                  return 'bg-pink-100 text-pink-700 border-pink-300 dark:bg-pink-950 dark:text-pink-300 dark:border-pink-800'
                                 }
 
                                 return (
@@ -461,10 +476,13 @@ export default function CourseDetailPage() {
                                     <div className="flex items-center gap-3 flex-1">
                                       <Target className="w-4 h-4 text-pink-500" />
                                       <div className="flex-1">
-                                        <div className="flex items-center gap-2">
+                                        <div className="flex items-center gap-2 flex-wrap">
                                           <span className="text-sm font-medium">{exercise.title}</span>
-                                          <Badge variant="outline" className="bg-pink-100 text-pink-700 border-pink-300 dark:bg-pink-950 dark:text-pink-300 text-xs capitalize">
-                                            {exercise.exercise_type?.replace('_', ' ') || 'Practice'}
+                                          <Badge variant="outline" className={`${getExerciseTypeBadgeColor(exercise.exercise_type)} text-xs`}>
+                                            {getExerciseTypeLabel(exercise.exercise_type)}
+                                          </Badge>
+                                          <Badge variant="outline" className="bg-blue-50 text-blue-700 border-blue-200 dark:bg-blue-950 dark:text-blue-300 text-xs">
+                                            📍 {tCourses('part_of_course') || 'Part of Course'}
                                           </Badge>
                                         </div>
                                         {exercise.description && (

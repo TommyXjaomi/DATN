@@ -62,6 +62,34 @@ func (s *CourseService) GetCourseDetail(courseID uuid.UUID, userID *uuid.UUID) (
 
 	// Get lessons and exercises for each module
 	var modulesWithLessons []models.ModuleWithLessons
+	var courseLevelExercises []models.ExerciseSummary // Store course-level exercises separately
+	
+	// First, get course-level exercises once (only if course has modules)
+	if len(modules) > 0 && s.exerciseClient != nil {
+		courseLevelExercisesList, err := s.exerciseClient.GetExercisesByCourseIDWithFilter(modules[0].CourseID.String(), true)
+		if err != nil {
+			log.Printf("Warning: failed to get course-level exercises for course %s: %v", modules[0].CourseID, err)
+		} else {
+			// Convert to models.ExerciseSummary
+			for _, ex := range courseLevelExercisesList {
+				courseLevelExercises = append(courseLevelExercises, models.ExerciseSummary{
+					ID:             uuid.MustParse(ex.ID),
+					Title:          ex.Title,
+					Slug:           ex.Slug,
+					Description:    ex.Description,
+					ExerciseType:   ex.ExerciseType,
+					SkillType:      ex.SkillType,
+					Difficulty:     ex.Difficulty,
+					TotalQuestions: ex.TotalQuestions,
+					TotalSections:  ex.TotalSections,
+					TimeLimitMins:  ex.TimeLimitMins,
+					PassingScore:   ex.PassingScore,
+					DisplayOrder:   ex.DisplayOrder,
+				})
+			}
+		}
+	}
+	
 	for _, module := range modules {
 		// Get lessons
 		lessons, err := s.repo.GetLessonsByModuleID(module.ID)
@@ -89,14 +117,16 @@ func (s *CourseService) GetCourseDetail(courseID uuid.UUID, userID *uuid.UUID) (
 		}
 
 		// Get exercises for this module from Exercise Service
+		// NOTE: Only get module-specific exercises, NOT course-level exercises
 		var exercises []models.ExerciseSummary
 		if s.exerciseClient != nil {
-			exercisesData, err := s.exerciseClient.GetExercisesByModuleID(module.ID.String())
+			// Get module-specific exercises (module_id = module.ID)
+			moduleExercises, err := s.exerciseClient.GetExercisesByModuleID(module.ID.String())
 			if err != nil {
 				log.Printf("Warning: failed to get exercises for module %s: %v", module.ID, err)
 			} else {
 				// Convert client.ExerciseSummary to models.ExerciseSummary
-				for _, ex := range exercisesData {
+				for _, ex := range moduleExercises {
 					exercises = append(exercises, models.ExerciseSummary{
 						ID:             uuid.MustParse(ex.ID),
 						Title:          ex.Title,
@@ -133,8 +163,9 @@ func (s *CourseService) GetCourseDetail(courseID uuid.UUID, userID *uuid.UUID) (
 	}())
 
 	response := &models.CourseDetailResponse{
-		Course:  *course,
-		Modules: modulesWithLessons,
+		Course:               *course,
+		Modules:              modulesWithLessons,
+		CourseLevelExercises: courseLevelExercises, // NEW: Return course-level exercises separately
 	}
 
 	// Check enrollment if user is authenticated

@@ -45,6 +45,8 @@ export default function TakeExercisePage() {
   const [currentQuestionIndex, setCurrentQuestionIndex] = useState(0)
   const [answers, setAnswers] = useState<Map<string, any>>(new Map())
   const [timeSpent, setTimeSpent] = useState(0)
+  const [timeRemaining, setTimeRemaining] = useState<number | null>(null) // Countdown timer (seconds)
+  const [hasTimeLimit, setHasTimeLimit] = useState(false)
   const [submitting, setSubmitting] = useState(false)
   const [showSectionContent, setShowSectionContent] = useState(true) // Show passage/audio
   
@@ -69,13 +71,169 @@ export default function TakeExercisePage() {
     setWordCount(count)
   }, [essayText])
 
-  // Timer
+  // Auto-submit ref to avoid dependency issues
+  const autoSubmitRef = useRef(false)
+  const answersRef = useRef(answers)
+  const submittingRef = useRef(submitting)
+  const timerInitializedRef = useRef(false) // Track if timer has been initialized
+  const exerciseDataRef = useRef<ExerciseData | null>(null) // Store exerciseData for auto-submit
+  const routerRef = useRef(router)
+  const toastRef = useRef(toast)
+  const tRef = useRef(t)
+
+  // Update refs when state changes
   useEffect(() => {
-    const timer = setInterval(() => {
-      setTimeSpent((prev) => prev + 1)
-    }, 1000)
-    return () => clearInterval(timer)
-  }, [])
+    answersRef.current = answers
+  }, [answers])
+
+  useEffect(() => {
+    submittingRef.current = submitting
+  }, [submitting])
+
+  useEffect(() => {
+    exerciseDataRef.current = exerciseData
+  }, [exerciseData])
+
+  useEffect(() => {
+    routerRef.current = router
+    toastRef.current = toast
+    tRef.current = t
+  }, [router, toast, t])
+
+  // Timer - Count UP for exercises without time limit, Countdown for exercises with time limit
+  useEffect(() => {
+    if (!exerciseData) {
+      console.log('[Timer Debug] No exerciseData yet, skipping timer setup')
+      return
+    }
+
+    // Prevent re-initialization if timer already running
+    if (timerInitializedRef.current) {
+      console.log('[Timer Debug] Timer already initialized, skipping')
+      return
+    }
+
+    const timeLimitMinutes = exerciseData.exercise.time_limit_minutes
+    console.log('[Timer Debug] timeLimitMinutes:', timeLimitMinutes)
+    console.log('[Timer Debug] hasTimeLimit will be:', timeLimitMinutes && timeLimitMinutes > 0)
+    
+    if (timeLimitMinutes && timeLimitMinutes > 0) {
+      // Exercise has time limit - use countdown timer
+      setHasTimeLimit(true)
+      const totalSeconds = timeLimitMinutes * 60
+      console.log('[Timer Debug] Setting countdown timer:', totalSeconds, 'seconds')
+      setTimeRemaining(totalSeconds)
+      timerInitializedRef.current = true
+      
+      const countdown = setInterval(() => {
+        setTimeRemaining((prev) => {
+          if (prev === null || prev <= 0) {
+            clearInterval(countdown)
+            timerInitializedRef.current = false
+            // Auto-submit when time runs out
+            if (!submittingRef.current && !autoSubmitRef.current) {
+              autoSubmitRef.current = true
+              
+              // Auto-submit logic (inline to avoid dependency issues)
+              const currentExerciseData = exerciseDataRef.current
+              if (!currentExerciseData) return 0
+              
+              const skillType = currentExerciseData.exercise.skill_type?.toLowerCase()
+              const isAIExerciseLocal = skillType === "writing" || skillType === "speaking"
+              
+              if (!isAIExerciseLocal) {
+                // For Listening/Reading exercises, submit answers directly
+                setSubmitting(true)
+                toastRef.current.info(tRef.current('time_up_auto_submitting') || 'Hết giờ! Đang tự động nộp bài...')
+                
+                const answersArray = Array.from(answersRef.current.entries()).map(([questionId, answer]) => ({
+                  question_id: questionId,
+                  selected_option_id: answer.selectedOptionId || null,
+                  answer_text: answer.answerText || null,
+                }))
+
+                exercisesApi.submitAnswers(submissionId, answersArray)
+                  .then(() => {
+                    routerRef.current.push(`/exercises/${exerciseId}/result/${submissionId}`)
+                  })
+                  .catch((error) => {
+                    console.error("Auto-submit failed:", error)
+                    toastRef.current.error(tRef.current('auto_submit_failed') || 'Tự động nộp bài thất bại')
+                    setSubmitting(false)
+                    autoSubmitRef.current = false
+                  })
+              } else {
+                // For Writing/Speaking, just show warning
+                toastRef.current.warning(tRef.current('time_up') || 'Hết giờ! Vui lòng nộp bài thủ công.')
+              }
+            }
+            return 0
+          }
+          const newValue = prev - 1
+          // Debug: Log countdown every 5 seconds
+          if (newValue % 5 === 0) {
+            console.log('[Timer Debug] Countdown:', newValue, 'seconds remaining')
+          }
+          return newValue
+        })
+        // Also update timeSpent for tracking
+        setTimeSpent((prev) => prev + 1)
+      }, 1000)
+      
+      return () => {
+        console.log('[Timer Debug] Cleaning up countdown timer')
+        clearInterval(countdown)
+        timerInitializedRef.current = false
+      }
+    } else {
+      // Exercise has no time limit - use count up timer
+      console.log('[Timer Debug] No time limit, using count-up timer')
+      setHasTimeLimit(false)
+      setTimeRemaining(null)
+      timerInitializedRef.current = true
+      
+      const timer = setInterval(() => {
+        setTimeSpent((prev) => prev + 1)
+      }, 1000)
+      return () => {
+        console.log('[Timer Debug] Cleaning up count-up timer')
+        clearInterval(timer)
+        timerInitializedRef.current = false
+      }
+    }
+  }, [exerciseData?.exercise?.time_limit_minutes, submissionId, exerciseId])
+
+  // Show warning toast when time is running low (only once)
+  const warningShownRef = useRef(false)
+  useEffect(() => {
+    if (!hasTimeLimit || !timeRemaining || submitting) return
+    
+    const isVeryLow = timeRemaining > 0 && timeRemaining <= 60 // 1 minute
+    const isRunningLow = timeRemaining > 60 && timeRemaining <= 300 // 5 minutes
+    
+    if (isVeryLow && !warningShownRef.current) {
+      toast.warning(t('time_almost_up') || 'Còn ít hơn 1 phút! Hãy nộp bài ngay!')
+      warningShownRef.current = true
+    } else if (isRunningLow && !warningShownRef.current) {
+      const minutesLeft = Math.floor(timeRemaining / 60)
+      toast.warning(
+        t('time_running_low')?.replace('{minutes}', minutesLeft.toString()) || `Còn ${minutesLeft} phút!`
+      )
+      warningShownRef.current = true
+    }
+  }, [timeRemaining, submitting, hasTimeLimit, t, toast])
+
+  // Debug: Log timer state (must be before any conditional returns)
+  useEffect(() => {
+    if (exerciseData && hasTimeLimit) {
+      console.log('[Timer Debug] Current state:', {
+        hasTimeLimit,
+        timeRemaining,
+        timeSpent,
+        timeLimitMinutes: exerciseData.exercise.time_limit_minutes
+      })
+    }
+  }, [hasTimeLimit, timeRemaining, timeSpent, exerciseData])
 
   // Fetch exercise data
   useEffect(() => {
@@ -83,6 +241,9 @@ export default function TakeExercisePage() {
       try {
         const data = await exercisesApi.getExerciseById(exerciseId)
         setExerciseData(data)
+        // Debug: Log time_limit_minutes
+        console.log('[Timer Debug] Exercise data:', data)
+        console.log('[Timer Debug] time_limit_minutes:', data?.exercise?.time_limit_minutes)
       } catch (error) {
         console.error("Failed to fetch exercise:", error)
       } finally {
@@ -287,8 +448,9 @@ export default function TakeExercisePage() {
     }
   }
 
-  const handleSubmit = async () => {
-    if (!confirm(t('are_you_sure_you_want_to_submit_you_cann'))) {
+  const handleSubmit = async (autoSubmit = false) => {
+    // Skip confirmation for auto-submit (when time runs out)
+    if (!autoSubmit && !confirm(t('are_you_sure_you_want_to_submit_you_cann'))) {
       return
     }
 
@@ -493,13 +655,13 @@ export default function TakeExercisePage() {
           return {
             question_id: questionId,
             selected_option_id: answer,
-            time_spent_seconds: Math.floor(timeSpent / allQuestions.length),
+            time_spent_seconds: 0, // Will be calculated by backend from started_at to completed_at
           }
         } else {
           return {
             question_id: questionId,
             text_answer: answer,
-            time_spent_seconds: Math.floor(timeSpent / allQuestions.length),
+            time_spent_seconds: 0, // Will be calculated by backend from started_at to completed_at
           }
         }
       })
@@ -524,7 +686,25 @@ export default function TakeExercisePage() {
     if (hours > 0) {
       return `${hours}:${minutes.toString().padStart(2, "0")}:${secs.toString().padStart(2, "0")}`
     }
-    return `${minutes}:${secs.toString().padStart(2, "0")}`
+    return `${minutes.toString().padStart(2, "0")}:${secs.toString().padStart(2, "0")}`
+  }
+
+  // Format time for display - show countdown if has time limit, otherwise show time spent
+  const getDisplayTime = () => {
+    if (hasTimeLimit && timeRemaining !== null) {
+      return formatTime(timeRemaining)
+    }
+    return formatTime(timeSpent)
+  }
+
+  // Check if time is running low (less than 5 minutes remaining)
+  const isTimeRunningLow = () => {
+    return hasTimeLimit && timeRemaining !== null && timeRemaining > 0 && timeRemaining <= 300 // 5 minutes
+  }
+
+  // Check if time is very low (less than 1 minute remaining)
+  const isTimeVeryLow = () => {
+    return hasTimeLimit && timeRemaining !== null && timeRemaining > 0 && timeRemaining <= 60 // 1 minute
   }
 
   // Check if this is a Writing or Speaking exercise (AI evaluation)
@@ -591,9 +771,24 @@ export default function TakeExercisePage() {
                   </p>
                 </div>
                 <div className="flex items-center gap-4">
-                  <div className="flex items-center gap-2">
+                  <div className={`flex items-center gap-2 ${isTimeVeryLow() ? 'text-red-600 dark:text-red-400 animate-pulse' : isTimeRunningLow() ? 'text-orange-600 dark:text-orange-400' : ''}`}>
                     <Clock className="w-4 h-4" />
-                    <span className="font-mono text-lg">{formatTime(timeSpent)}</span>
+                    <span className="font-mono text-lg">
+                      {hasTimeLimit ? (
+                        <>
+                          {timeRemaining !== null && timeRemaining > 0 ? (
+                            <>
+                              {getDisplayTime()}
+                              {isTimeVeryLow() && ' ⚠️'}
+                            </>
+                          ) : (
+                            t('time_up') || 'Hết giờ'
+                          )}
+                        </>
+                      ) : (
+                        getDisplayTime()
+                      )}
+                    </span>
                   </div>
                 </div>
               </div>
@@ -690,6 +885,17 @@ export default function TakeExercisePage() {
     )
   }
 
+  // Original logic for Listening/Reading exercises with questions
+  if (!currentQuestion) {
+    return (
+      <AppLayout>
+        <div className="flex items-center justify-center min-h-[60vh]">
+          <PageLoading translationKey="loading" />
+        </div>
+      </AppLayout>
+    )
+  }
+
   const progress = ((currentQuestionIndex + 1) / allQuestions.length) * 100
   const answeredCount = answers.size
 
@@ -707,9 +913,24 @@ export default function TakeExercisePage() {
                 </p>
               </div>
               <div className="flex items-center gap-4">
-                <div className="flex items-center gap-2">
+                <div className={`flex items-center gap-2 ${isTimeVeryLow() ? 'text-red-600 dark:text-red-400 animate-pulse' : isTimeRunningLow() ? 'text-orange-600 dark:text-orange-400' : ''}`}>
                   <Clock className="w-4 h-4" />
-                  <span className="font-mono text-lg">{formatTime(timeSpent)}</span>
+                  <span className="font-mono text-lg">
+                    {hasTimeLimit ? (
+                      <>
+                        {timeRemaining !== null && timeRemaining > 0 ? (
+                          <>
+                            {getDisplayTime()}
+                            {isTimeVeryLow() && ' ⚠️'}
+                          </>
+                        ) : (
+                          t('time_up') || 'Hết giờ'
+                        )}
+                      </>
+                    ) : (
+                      getDisplayTime()
+                    )}
+                  </span>
                 </div>
                 <Badge variant="outline">
                   {answeredCount}/{allQuestions.length} {t('answered')}

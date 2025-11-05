@@ -70,7 +70,15 @@ func (c *ExerciseServiceClient) GetExercisesByModuleID(moduleID string) ([]Exerc
 
 // GetExercisesByCourseID retrieves exercises for a specific course
 func (c *ExerciseServiceClient) GetExercisesByCourseID(courseID string) ([]ExerciseSummary, error) {
+	return c.GetExercisesByCourseIDWithFilter(courseID, false)
+}
+
+// GetExercisesByCourseIDWithFilter retrieves exercises for a specific course with optional filter
+func (c *ExerciseServiceClient) GetExercisesByCourseIDWithFilter(courseID string, courseLevelOnly bool) ([]ExerciseSummary, error) {
 	endpoint := fmt.Sprintf("/api/v1/exercises?course_id=%s", courseID)
+	if courseLevelOnly {
+		endpoint += "&course_level_only=true"
+	}
 
 	resp, err := c.Get(endpoint)
 	if err != nil {

@@ -57,3 +57,6 @@ def fix_uuid_in_file(filepath):
 if __name__ == "__main__":
     fix_uuid_in_file("database/seed_comprehensive_courses.sql")
 
+
+
+

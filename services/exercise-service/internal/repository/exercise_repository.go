@@ -91,12 +91,21 @@ func (r *ExerciseRepository) GetExercises(query *models.ExerciseListQuery) ([]mo
 
 	if query.CourseID != nil {
 		argCount++
-		where = append(where, fmt.Sprintf("course_id = $%d", argCount))
+		if query.CourseLevelOnly {
+			// Only return exercises with course_id but module_id = NULL
+			where = append(where, fmt.Sprintf("course_id = $%d AND module_id IS NULL", argCount))
+		} else {
+			where = append(where, fmt.Sprintf("course_id = $%d", argCount))
+		}
 		args = append(args, *query.CourseID)
 	}
 
 	if query.ModuleID != nil {
 		argCount++
+		// Get course_id for this module (we need to join with course_db, but that's cross-database)
+		// Instead, we'll use a subquery or handle this in Course Service
+		// For now, query exercises that belong to this module OR are course-level (module_id = NULL)
+		// Note: Course Service should pass course_id as well for proper filtering
 		where = append(where, fmt.Sprintf("module_id = $%d", argCount))
 		args = append(args, *query.ModuleID)
 	}
@@ -556,11 +565,12 @@ func (r *ExerciseRepository) CompleteSubmission(submissionID uuid.UUID) error {
 	var startedAt time.Time
 	var totalQuestions int
 	var exerciseID uuid.UUID
+	var timeLimitMinutes *int
 	err = tx.QueryRow(`
-		SELECT status, started_at, total_questions, exercise_id 
+		SELECT status, started_at, total_questions, exercise_id, time_limit_minutes
 		FROM user_exercise_attempts 
 		WHERE id = $1
-	`, submissionID).Scan(&currentStatus, &startedAt, &totalQuestions, &exerciseID)
+	`, submissionID).Scan(&currentStatus, &startedAt, &totalQuestions, &exerciseID, &timeLimitMinutes)
 	if err != nil {
 		return err
 	}
@@ -696,9 +706,24 @@ func (r *ExerciseRepository) CompleteSubmission(submissionID uuid.UUID) error {
 	}
 
 	// Calculate time spent (seconds since started)
+	// Use time difference between started_at and completed_at, not SUM from user_answers
+	// because user_answers.time_spent_seconds might not be accurate
 	timeSpent := int(time.Since(startedAt).Seconds())
-	if totalTimeSpent > 0 {
+	// Fallback: if totalTimeSpent from answers is significantly larger, use it (but prefer time difference)
+	if totalTimeSpent > timeSpent {
 		timeSpent = totalTimeSpent
+	}
+
+	// Soft validation: Cap time_spent_seconds at time_limit_minutes if exceeded
+	// This ensures data integrity without rejecting legitimate submissions
+	if timeLimitMinutes != nil && *timeLimitMinutes > 0 {
+		maxSeconds := *timeLimitMinutes * 60
+		if timeSpent > maxSeconds {
+			exceededBy := timeSpent - maxSeconds
+			log.Printf("[Exercise-Repo] WARNING: Submission %s exceeded time limit by %d seconds (spent: %d, limit: %d). Capping at limit.", 
+				submissionID, exceededBy, timeSpent, maxSeconds)
+			timeSpent = maxSeconds
+		}
 	}
 
 	// Update attempt
@@ -831,13 +856,15 @@ func (r *ExerciseRepository) GetSubmissionResult(submissionID uuid.UUID) (*model
 		// Get correct answer
 		var correctAnswer interface{}
 		if question.QuestionType == "multiple_choice" {
+			var correctLabel string
 			var correctText string
 			err := r.db.QueryRow(`
-				SELECT option_text FROM question_options 
+				SELECT option_label, option_text FROM question_options 
 				WHERE question_id = $1 AND is_correct = true
-			`, question.ID).Scan(&correctText)
+			`, question.ID).Scan(&correctLabel, &correctText)
 			if err == nil {
-				correctAnswer = correctText
+				// Format as "Option A: text" for better display
+				correctAnswer = fmt.Sprintf("Option %s: %s", correctLabel, correctText)
 			}
 		} else {
 			var correctText string
@@ -847,6 +874,23 @@ func (r *ExerciseRepository) GetSubmissionResult(submissionID uuid.UUID) (*model
 			`, question.ID).Scan(&correctText)
 			if err == nil {
 				correctAnswer = correctText
+			}
+		}
+		
+		// Get selected option text if user selected an option
+		if submissionAnswer.SelectedOptionID != nil && question.QuestionType == "multiple_choice" {
+			var selectedLabel string
+			var selectedText string
+			err := r.db.QueryRow(`
+				SELECT option_label, option_text FROM question_options 
+				WHERE id = $1
+			`, submissionAnswer.SelectedOptionID).Scan(&selectedLabel, &selectedText)
+			if err == nil {
+				// Update answer_text with formatted option text
+				if submissionAnswer.AnswerText == nil || *submissionAnswer.AnswerText == "" {
+					formattedText := fmt.Sprintf("Option %s: %s", selectedLabel, selectedText)
+					submissionAnswer.AnswerText = &formattedText
+				}
 			}
 		}
 

@@ -914,31 +914,60 @@ export default function ExerciseResultPage() {
               {passed ? t('congratulations') : t('better_luck_next_time')}
             </CardTitle>
             <p className="text-muted-foreground">
-              {t('you_scored')} {performance.score.toFixed(1)}% {t('out_of')} {exercise.total_points || 100} {t('points')}
+              {t('you_scored')} {performance.correct_answers}/{performance.total_questions} {t('questions_correct')}
+            </p>
+            <p className="text-2xl font-semibold text-primary mt-2">
+              {performance.score.toFixed(1)}%
             </p>
           </CardHeader>
           <CardContent>
             <div className="flex justify-center mb-4">
-              <Progress value={(performance.score / (exercise.total_points || 100)) * 100} className="w-full max-w-md" />
+              <Progress value={performance.score} className="w-full max-w-md" />
             </div>
             <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mt-6">
               <div className="text-center p-4 bg-green-50 dark:bg-green-950 rounded-lg">
                 <p className="text-xs text-muted-foreground mb-2">{t('correct_answers')}</p>
-                <p className="text-2xl font-bold text-green-600">{performance.correct_count}</p>
+                <p className="text-2xl font-bold text-green-600">{performance.correct_answers ?? 0}</p>
               </div>
               <div className="text-center p-4 bg-red-50 dark:bg-red-950 rounded-lg">
                 <p className="text-xs text-muted-foreground mb-2">{t('incorrect_answers')}</p>
-                <p className="text-2xl font-bold text-red-600">{performance.incorrect_count}</p>
+                <p className="text-2xl font-bold text-red-600">{performance.incorrect_answers ?? 0}</p>
               </div>
               <div className="text-center p-4 bg-gray-50 dark:bg-gray-950 rounded-lg">
                 <p className="text-xs text-muted-foreground mb-2">{t('skipped_answers')}</p>
-                <p className="text-2xl font-bold text-gray-600">{performance.skipped_count}</p>
+                <p className="text-2xl font-bold text-gray-600">{performance.skipped_answers ?? 0}</p>
               </div>
               <div className="text-center p-4 bg-blue-50 dark:bg-blue-950 rounded-lg">
                 <p className="text-xs text-muted-foreground mb-2">{t('time_spent')}</p>
-                <p className="text-2xl font-bold text-blue-600">{Math.floor(performance.time_spent_seconds / 60)}m</p>
+                <p className="text-2xl font-bold text-blue-600">
+                  {(() => {
+                    const totalSeconds = performance.time_spent_seconds ?? 0
+                    const minutes = Math.floor(totalSeconds / 60)
+                    const seconds = totalSeconds % 60
+                    if (minutes > 0) {
+                      return `${minutes}m ${seconds}s`
+                    }
+                    return `${seconds}s`
+                  })()}
+                </p>
               </div>
             </div>
+            
+            {/* Band Score Display for Listening/Reading exercises */}
+            {performance.band_score && exercise.skill_type && 
+             (exercise.skill_type.toLowerCase() === 'listening' || exercise.skill_type.toLowerCase() === 'reading') && (
+              <div className="mt-6 flex justify-center">
+                <div className="text-center p-6 bg-purple-50 dark:bg-purple-950 rounded-lg border-2 border-purple-200 dark:border-purple-800">
+                  <p className="text-sm text-muted-foreground mb-2">{t('ielts_band_score') || 'IELTS Band Score'}</p>
+                  <p className="text-5xl font-bold text-purple-600 dark:text-purple-400">
+                    {performance.band_score.toFixed(1)}
+                  </p>
+                  <p className="text-xs text-muted-foreground mt-2">
+                    {t('band_score_description') || 'Điểm theo thang IELTS chuẩn (0.0 - 9.0)'}
+                  </p>
+                </div>
+              </div>
+            )}
           </CardContent>
         </Card>
 
@@ -950,26 +979,48 @@ export default function ExerciseResultPage() {
             </CardHeader>
             <CardContent>
               <div className="space-y-4">
-                {answers.map((answer, idx) => (
-                  <div key={idx} className={`p-4 rounded-lg border ${answer.is_correct ? 'bg-green-50 dark:bg-green-950 border-green-200' : 'bg-red-50 dark:bg-red-950 border-red-200'}`}>
-                    <div className="flex items-start justify-between mb-2">
-                      <Badge variant={answer.is_correct ? "default" : "destructive"}>
-                        {answer.is_correct ? t('correct') : t('incorrect')}
-                      </Badge>
-                      <span className="text-sm text-muted-foreground">{t('question')} {answer.question_number}</span>
+                {answers.map((answerItem, idx) => {
+                  const answer = answerItem.answer
+                  const question = answerItem.question
+                  const isCorrect = answer.is_correct ?? false
+                  const userAnswer = answer.answer_text || null
+                  const correctAnswer = answerItem.correct_answer
+                  
+                  // Format correct answer for display
+                  let correctAnswerDisplay = ''
+                  if (correctAnswer) {
+                    if (typeof correctAnswer === 'string') {
+                      correctAnswerDisplay = correctAnswer
+                    } else if (correctAnswer && typeof correctAnswer === 'object' && 'option_text' in correctAnswer) {
+                      correctAnswerDisplay = `Option ${correctAnswer.option_text || ''}`
+                    }
+                  }
+                  
+                  // Format user answer for display
+                  // Backend now formats answer_text as "Option A: text" for multiple_choice
+                  const userAnswerDisplay = userAnswer || t('no_answer')
+                  
+                  return (
+                    <div key={idx} className={`p-4 rounded-lg border ${isCorrect ? 'bg-green-50 dark:bg-green-950 border-green-200' : 'bg-red-50 dark:bg-red-950 border-red-200'}`}>
+                      <div className="flex items-start justify-between mb-2">
+                        <Badge variant={isCorrect ? "default" : "destructive"}>
+                          {isCorrect ? t('correct') : t('incorrect')}
+                        </Badge>
+                        <span className="text-sm text-muted-foreground">{t('question')} {question.question_number ?? idx + 1}</span>
+                      </div>
+                      <p className="font-semibold mb-2">{question.question_text || t('question')}</p>
+                      <div className="space-y-1 text-sm">
+                        <p><span className="font-medium">{t('your_answer')}:</span> {userAnswerDisplay}</p>
+                        {!isCorrect && correctAnswerDisplay && (
+                          <p><span className="font-medium text-green-600">{t('correct_answer')}:</span> {correctAnswerDisplay}</p>
+                        )}
+                        {showExplanations && question.explanation && (
+                          <p className="mt-2 text-muted-foreground">{question.explanation}</p>
+                        )}
+                      </div>
                     </div>
-                    <p className="font-semibold mb-2">{answer.question_text}</p>
-                    <div className="space-y-1 text-sm">
-                      <p><span className="font-medium">{t('your_answer')}:</span> {answer.user_answer || t('no_answer')}</p>
-                      {!answer.is_correct && answer.correct_answer && (
-                        <p><span className="font-medium text-green-600">{t('correct_answer')}:</span> {answer.correct_answer}</p>
-                      )}
-                      {showExplanations && answer.explanation && (
-                        <p className="mt-2 text-muted-foreground">{answer.explanation}</p>
-                      )}
-                    </div>
-                  </div>
-                ))}
+                  )
+                })}
               </div>
             </CardContent>
           </Card>

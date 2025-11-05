@@ -15,8 +15,6 @@ import type { Exercise } from "@/types"
 import { useTranslations } from '@/lib/i18n'
 import { usePullToRefresh } from "@/lib/hooks/use-swipe-gestures"
 
-type ExerciseSource = "all" | "course" | "standalone"
-
 export default function ExercisesListPage() {
 
   const t = useTranslations('exercises')
@@ -31,7 +29,7 @@ export default function ExercisesListPage() {
     difficulty: [],
     search: "",
   })
-  const [sourceFilter, setSourceFilter] = useState<ExerciseSource>("all")
+  const [showOnlyStandalone, setShowOnlyStandalone] = useState(false)
   const [page, setPage] = useState(1)
   const [totalPages, setTotalPages] = useState(1)
 
@@ -59,12 +57,10 @@ export default function ExercisesListPage() {
 
         if (!isMounted) return
 
-        // Filter by source (course-linked vs standalone)
+        // Show all exercises, but filter standalone if toggle is ON
         let filteredExercises = response.data
-        if (sourceFilter === "course") {
-          filteredExercises = response.data.filter(ex => ex.module_id !== null && ex.module_id !== undefined)
-        } else if (sourceFilter === "standalone") {
-          filteredExercises = response.data.filter(ex => ex.module_id === null || ex.module_id === undefined)
+        if (showOnlyStandalone) {
+          filteredExercises = response.data.filter(ex => ex.course_id === null || ex.course_id === undefined)
         }
 
         setExercises(filteredExercises)
@@ -90,7 +86,7 @@ export default function ExercisesListPage() {
       isMounted = false
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [filterKey, page, sourceFilter]) // filterKey is stable string, page and sourceFilter are primitives
+  }, [filterKey, page, showOnlyStandalone]) // filterKey is stable string, page and showOnlyStandalone are primitives
 
   // Refetch function for pull to refresh
   const refetchExercises = useCallback(async () => {
@@ -99,12 +95,10 @@ export default function ExercisesListPage() {
       setError(null)
       const response = await exercisesApi.getExercises(filters, page, 12)
 
-      // Filter by source (course-linked vs standalone)
+      // Show all exercises, but filter standalone if toggle is ON
       let filteredExercises = response.data
-      if (sourceFilter === "course") {
-        filteredExercises = response.data.filter(ex => ex.module_id !== null && ex.module_id !== undefined)
-      } else if (sourceFilter === "standalone") {
-        filteredExercises = response.data.filter(ex => ex.module_id === null || ex.module_id === undefined)
+      if (showOnlyStandalone) {
+        filteredExercises = response.data.filter(ex => ex.course_id === null || ex.course_id === undefined)
       }
 
       setExercises(filteredExercises)
@@ -116,7 +110,7 @@ export default function ExercisesListPage() {
     } finally {
       setLoading(false)
     }
-  }, [filters, page, sourceFilter, t])
+  }, [filters, page, showOnlyStandalone, t])
 
   // Pull to refresh
   const { ref: pullToRefreshRef } = usePullToRefresh(() => {
@@ -162,6 +156,22 @@ export default function ExercisesListPage() {
           <p className="text-base text-muted-foreground">
             {t('exercises_description')}
           </p>
+          <div className="flex items-center gap-4 mt-4">
+            <label className="flex items-center gap-2 cursor-pointer">
+              <input
+                type="checkbox"
+                checked={showOnlyStandalone}
+                onChange={(e) => setShowOnlyStandalone(e.target.checked)}
+                className="w-4 h-4"
+              />
+              <span className="text-sm text-muted-foreground">
+                {t('show_only_standalone') || 'Chỉ hiển thị bài tập độc lập'}
+              </span>
+            </label>
+            <span className="text-xs text-muted-foreground">
+              💡 {t('exercises_from_courses_info') || 'Bài tập thuộc khóa học được hiển thị ở đây và trong trang khóa học tương ứng'}
+            </span>
+          </div>
         </div>
 
         <ExerciseFiltersComponent filters={filters} onFiltersChange={handleFiltersChange} onSearch={handleSearch} />

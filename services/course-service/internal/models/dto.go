@@ -69,10 +69,11 @@ type CourseListQuery struct {
 
 // CourseDetailResponse represents detailed course with modules and lessons
 type CourseDetailResponse struct {
-	Course            Course              `json:"course"`
-	Modules           []ModuleWithLessons `json:"modules"`
-	IsEnrolled        bool                `json:"is_enrolled"`
-	EnrollmentDetails *CourseEnrollment   `json:"enrollment_details,omitempty"`
+	Course                Course              `json:"course"`
+	Modules               []ModuleWithLessons `json:"modules"`
+	CourseLevelExercises  []ExerciseSummary   `json:"course_level_exercises,omitempty"` // NEW: Course-level exercises (not tied to specific module)
+	IsEnrolled            bool                `json:"is_enrolled"`
+	EnrollmentDetails     *CourseEnrollment   `json:"enrollment_details,omitempty"`
 }
 
 // ModuleWithLessons represents a module with its lessons and exercises

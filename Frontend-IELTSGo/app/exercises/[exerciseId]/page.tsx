@@ -156,6 +156,38 @@ export default function ExerciseDetailPage() {
                   : tCommon('general_training')}
               </Badge>
             )}
+            {/* Exercise Type Badge */}
+            {exercise.exercise_type && (
+              <Badge variant="outline" className={
+                exercise.exercise_type === 'mock_test' 
+                  ? 'bg-blue-50 text-blue-700 border-blue-200 dark:bg-blue-950 dark:text-blue-300'
+                  : exercise.exercise_type === 'full_test'
+                  ? 'bg-red-50 text-red-700 border-red-200 dark:bg-red-950 dark:text-red-300'
+                  : 'bg-purple-50 text-purple-700 border-purple-200 dark:bg-purple-950 dark:text-purple-300'
+              }>
+                {exercise.exercise_type === 'practice' 
+                  ? t('practice') || 'Practice'
+                  : exercise.exercise_type === 'mock_test'
+                  ? t('mock_test') || 'Mock Test'
+                  : exercise.exercise_type === 'full_test'
+                  ? t('full_test') || 'Full Test'
+                  : exercise.exercise_type.replace('_', ' ').replace(/\b\w/g, l => l.toUpperCase())}
+              </Badge>
+            )}
+            {/* Course Badge - Show if exercise belongs to a course */}
+            {exercise.course_id && (
+              <Badge 
+                variant="outline" 
+                className="bg-blue-50 text-blue-700 border-blue-200 dark:bg-blue-950 dark:text-blue-300 cursor-pointer hover:bg-blue-100 dark:hover:bg-blue-900"
+                onClick={(e) => {
+                  e.preventDefault()
+                  router.push(`/courses/${exercise.course_id}`)
+                }}
+              >
+                <BookOpen className="w-3 h-3 mr-1" />
+                {t('part_of_course') || 'Part of Course'}
+              </Badge>
+            )}
             {exercise.is_official && (
               <Badge variant="secondary">
                 <Award className="w-3 h-3 mr-1" />
@@ -167,6 +199,19 @@ export default function ExerciseDetailPage() {
           <h1 className="text-3xl font-bold tracking-tight mb-2">{exercise.title}</h1>
           {exercise.description && (
             <p className="text-base text-muted-foreground">{exercise.description}</p>
+          )}
+          {/* Course Link - Show if exercise belongs to a course */}
+          {exercise.course_id && (
+            <div className="mt-2">
+              <Button
+                variant="link"
+                onClick={() => router.push(`/courses/${exercise.course_id}`)}
+                className="p-0 h-auto text-muted-foreground hover:text-primary"
+              >
+                <BookOpen className="w-4 h-4 mr-1" />
+                {t('view_course') || 'View Course'}
+              </Button>
+            </div>
           )}
         </div>
 
@@ -199,9 +244,12 @@ export default function ExerciseDetailPage() {
                   <div className="flex items-center gap-3">
                     <Target className="w-5 h-5 text-muted-foreground" />
                     <div>
-                      <p className="text-sm text-muted-foreground">{t('maximum_score')}</p>
+                      <p className="text-sm text-muted-foreground">{t('total_points')}</p>
                       <p className="font-medium">
-                        {exercise.total_points || exercise.max_score || totalQuestions} {t('points')}
+                        {exercise.total_points || totalQuestions} {t('points')}
+                      </p>
+                      <p className="text-xs text-muted-foreground mt-1">
+                        {t('calculated_from')} {totalQuestions} {t('questions')}
                       </p>
                     </div>
                   </div>
