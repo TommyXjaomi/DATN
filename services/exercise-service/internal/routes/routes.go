@@ -6,13 +6,24 @@ import (
 	"github.com/gin-gonic/gin"
 )
 
-func SetupRoutes(router *gin.Engine, handler *handlers.ExerciseHandler, authMiddleware *middleware.AuthMiddleware) {
+func SetupRoutes(router *gin.Engine, handler *handlers.ExerciseHandler, storageHandler *handlers.StorageHandler, authMiddleware *middleware.AuthMiddleware) {
 	// Health check
 	router.GET("/health", handler.HealthCheck)
 
 	// API routes
 	api := router.Group("/api/v1")
 	{
+		// Storage routes (auth required) - Proxy to Storage Service
+		storage := api.Group("/storage")
+		storage.Use(authMiddleware.AuthRequired())
+		{
+			audio := storage.Group("/audio")
+			{
+				audio.POST("/upload", storageHandler.UploadAudio)            // Direct upload (proxy)
+				audio.GET("/info/*object_name", storageHandler.GetAudioInfo) // Get audio info
+			}
+		}
+
 		// Public routes (optional auth)
 		exercises := api.Group("/exercises")
 		exercises.Use(authMiddleware.OptionalAuth())

@@ -1,14 +1,15 @@
 package repository
 
 import (
-	"database/sql"
-	"fmt"
-	"strings"
-	"time"
+    "database/sql"
+    "fmt"
+    "log"
+    "strings"
+    "time"
 
-	"github.com/bisosad1501/ielts-platform/notification-service/internal/models"
-	"github.com/google/uuid"
-	"github.com/lib/pq"
+    "github.com/bisosad1501/ielts-platform/notification-service/internal/models"
+    "github.com/google/uuid"
+    "github.com/lib/pq"
 )
 
 type NotificationRepository struct {
@@ -300,20 +301,27 @@ func (r *NotificationRepository) DeleteNotification(id uuid.UUID) error {
 
 // GetUnreadCount gets count of unread notifications for a user
 func (r *NotificationRepository) GetUnreadCount(userID uuid.UUID) (int, error) {
-	query := `
-		SELECT COUNT(*) 
-		FROM notifications 
-		WHERE user_id = $1 AND is_read = false 
-		  AND (expires_at IS NULL OR expires_at > NOW())
-	`
+    query := `
+        SELECT COUNT(*) 
+        FROM notifications 
+        WHERE user_id = $1 AND is_read = false 
+          AND (expires_at IS NULL OR expires_at > NOW())
+    `
 
-	var count int
-	err := r.db.QueryRow(query, userID).Scan(&count)
-	if err != nil {
-		return 0, fmt.Errorf("failed to get unread count: %w", err)
-	}
+    var count int
+    err := r.db.QueryRow(query, userID).Scan(&count)
+    if err != nil {
+        // If schema hasn't been applied yet, avoid 500 by returning 0 unread
+        if pqErr, ok := err.(*pq.Error); ok {
+            if string(pqErr.Code) == "42P01" { // undefined_table
+                log.Printf("[Notification-Repo] WARNING: notifications table missing (undefined_table). Returning unread_count=0. Apply schema 06_notification_service.sql.")
+                return 0, nil
+            }
+        }
+        return 0, fmt.Errorf("failed to get unread count: %w", err)
+    }
 
-	return count, nil
+    return count, nil
 }
 
 // RegisterDeviceToken registers or updates a device token

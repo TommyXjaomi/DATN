@@ -5,6 +5,7 @@ import (
 	"io"
 	"net/http"
 	"strings"
+	"time"
 
 	"github.com/bisosad1501/DATN/services/ai-service/internal/config"
 	"github.com/bisosad1501/DATN/services/ai-service/internal/models"
@@ -114,17 +115,53 @@ func (s *AIService) GetCacheStatistics() (map[string]interface{}, error) {
 	return s.cacheService.GetCacheStatistics()
 }
 
-// Helper function
+// Helper function to download audio with retry logic
 func downloadAudio(url string) ([]byte, error) {
-	resp, err := http.Get(url)
-	if err != nil {
-		return nil, err
-	}
-	defer resp.Body.Close()
+	// Support both external URLs and internal MinIO URLs
+	// Internal: http://minio:9000/ielts-audio/audio/user-id/file.mp3
+	// External: https://storage.example.com/audio.mp3
 
-	if resp.StatusCode != http.StatusOK {
-		return nil, fmt.Errorf("failed to download audio: status %d", resp.StatusCode)
+	client := &http.Client{
+		Timeout: 30 * time.Second,
 	}
 
-	return io.ReadAll(resp.Body)
+	var lastErr error
+	maxRetries := 3
+
+	for attempt := 1; attempt <= maxRetries; attempt++ {
+		resp, err := client.Get(url)
+		if err != nil {
+			lastErr = fmt.Errorf("attempt %d: %w", attempt, err)
+			if attempt < maxRetries {
+				time.Sleep(time.Duration(attempt) * time.Second)
+				continue
+			}
+			return nil, lastErr
+		}
+		defer resp.Body.Close()
+
+		if resp.StatusCode != http.StatusOK {
+			body, _ := io.ReadAll(resp.Body)
+			lastErr = fmt.Errorf("attempt %d: status %d, body: %s", attempt, resp.StatusCode, string(body))
+			if attempt < maxRetries && (resp.StatusCode >= 500 || resp.StatusCode == 429) {
+				time.Sleep(time.Duration(attempt) * time.Second)
+				continue
+			}
+			return nil, lastErr
+		}
+
+		audioData, err := io.ReadAll(resp.Body)
+		if err != nil {
+			lastErr = fmt.Errorf("attempt %d: failed to read response: %w", attempt, err)
+			if attempt < maxRetries {
+				time.Sleep(time.Duration(attempt) * time.Second)
+				continue
+			}
+			return nil, lastErr
+		}
+
+		return audioData, nil
+	}
+
+	return nil, fmt.Errorf("failed after %d attempts: %w", maxRetries, lastErr)
 }

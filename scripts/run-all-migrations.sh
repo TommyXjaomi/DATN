@@ -97,7 +97,9 @@ run_database_migrations() {
     local skipped=0
     
     # Find numbered migration files (001_*.sql, 002_*.sql, etc.)
+    local found_migrations=false
     for migration_file in $(ls ${MIGRATION_DIR}/[0-9][0-9][0-9]_*.sql 2>/dev/null | sort); do
+        found_migrations=true
         local filename=$(basename "$migration_file")
         
         # Skip rollback files
@@ -141,6 +143,43 @@ run_database_migrations() {
             fi
         fi
     done
+
+    # If no migrations found in ${MIGRATION_DIR}, attempt to apply base schema from /schemas
+    if [ "$found_migrations" = false ]; then
+        # Determine base schema file path by db_name
+        local schema_file=""
+        case "$db_name" in
+            auth_db) schema_file="/schemas/01_auth_service.sql" ;;
+            user_db) schema_file="/schemas/02_user_service.sql" ;;
+            course_db) schema_file="/schemas/03_course_service.sql" ;;
+            exercise_db) schema_file="/schemas/04_exercise_service.sql" ;;
+            ai_db) schema_file="/schemas/05_ai_service.sql" ;;
+            notification_db) schema_file="/schemas/06_notification_service.sql" ;;
+        esac
+
+        if [ -n "$schema_file" ] && [ -f "$schema_file" ]; then
+            # Apply base schema only if DB is empty (no user tables) to avoid duplicate CREATE errors
+            local table_count=$($PSQL_CMD_BASE -d $db_name -t -c "SELECT COUNT(*) FROM information_schema.tables WHERE table_schema='public';" 2>/dev/null | tr -d ' ')
+            if [ -z "$table_count" ]; then table_count=0; fi
+            if [ "$table_count" -eq 0 ]; then
+                echo -e "${CYAN}🧱 No migrations found. Applying base schema for ${service_name} from ${schema_file}${NC}"
+                if [ -f /.dockerenv ]; then
+                    $PSQL_CMD_BASE -d $db_name < "$schema_file" 2>&1 || true
+                else
+                    cat "$schema_file" | $PSQL_CMD_BASE -d $db_name 2>&1 || true
+                fi
+                # Recompute table count
+                table_count=$($PSQL_CMD_BASE -d $db_name -t -c "SELECT COUNT(*) FROM information_schema.tables WHERE table_schema='public';" 2>/dev/null | tr -d ' ')
+                if [ "$table_count" -gt 0 ]; then
+                    echo -e "${GREEN}✅ Base schema applied for ${service_name}${NC}"
+                else
+                    echo -e "${YELLOW}⚠️  Could not apply base schema for ${service_name}. Please check logs.${NC}"
+                fi
+            else
+                echo -e "${YELLOW}ℹ️  ${service_name} already has tables; skipping base schema.${NC}"
+            fi
+        fi
+    fi
     
     TOTAL_APPLIED=$((TOTAL_APPLIED + applied))
     TOTAL_SKIPPED=$((TOTAL_SKIPPED + skipped))
@@ -187,4 +226,3 @@ else
     echo -e "${GREEN}✅ All migrations completed successfully!${NC}"
     exit 0
 fi
-

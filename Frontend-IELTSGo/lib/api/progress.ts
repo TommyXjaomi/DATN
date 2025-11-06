@@ -18,9 +18,8 @@ import { apiCache } from "@/lib/utils/api-cache"
  * 
  * API Endpoints:
  * - /user/progress - Returns overall progress with official band scores
- * - /user/test-results - Official test history
- * - /user/practice-activities - Practice exercise history
- * - /user/practice-statistics - Aggregated practice stats
+ * - /submissions/my - Practice exercise history (via Exercise Service)
+ * - /user/statistics - Aggregated statistics (via User Service)
  */
 
 interface ApiResponse<T> {
@@ -342,110 +341,131 @@ export const progressApi = {
 
   // ============= NEW SCORING SYSTEM ENDPOINTS =============
 
-  // Get user's official test results history
-  // Uses: GET /api/v1/user/test-results (User Service)
+  // Get user's practice/test submissions history (use Exercise Service endpoint)
+  // Uses: GET /api/v1/submissions/my (Exercise Service)
   getTestResults: async (skillType?: SkillType, page = 1, limit = 20) => {
     const params = new URLSearchParams({
       page: page.toString(),
       limit: limit.toString()
     })
     if (skillType) {
-      params.append('skill', skillType)
+      params.append('skill_type', skillType)
     }
 
-    const response = await apiClient.get<ApiResponse<{
-      results: Array<{
-        id: string
-        user_id: string
-        test_type: string
-        skill_type: string
-        raw_score?: number
-        total_questions?: number
-        band_score: number
-        time_spent_minutes?: number
-        test_date: string
-        test_source?: string
-        created_at: string
-      }>
-      pagination: {
-        page: number
-        limit: number
-        total: number
-        total_pages: number
-      }
-    }>>(`/user/test-results?${params}`)
+    const response = await apiClient.get<{
+      success: boolean
+      data: { submissions: any[]; total: number }
+    }>(`/submissions/my?${params}`)
+
+    const submissions = response.data.data.submissions || []
+    // Map to FE expected shape
+    const results = submissions.map((s: any) => ({
+      id: s.submission?.id || s.id,
+      user_id: s.submission?.user_id || s.user_id,
+      test_type: s.exercise?.exercise_type || s.exercise_type,
+      skill_type: s.exercise?.skill_type || s.skill_type,
+      raw_score: s.submission?.correct_answers,
+      total_questions: s.submission?.total_questions,
+      band_score: s.submission?.band_score ?? 0,
+      time_spent_minutes: Math.round((s.submission?.time_spent_seconds || 0) / 60),
+      test_date: s.submission?.completed_at || s.submission?.created_at || s.created_at,
+      test_source: 'platform',
+      created_at: s.submission?.created_at || s.created_at,
+    }))
+
+    const total = response.data.data.total || results.length
+    const totalPages = Math.ceil(total / limit)
 
     return {
-      results: response.data.data.results,
-      pagination: response.data.data.pagination
+      results,
+      pagination: {
+        page,
+        limit,
+        total,
+        total_pages: totalPages,
+      }
     }
   },
 
-  // Get user's practice activities
-  // Uses: GET /api/v1/user/practice-activities (User Service)
+  // Get user's practice activities (reuse submissions/my as practice history)
+  // Uses: GET /api/v1/submissions/my (Exercise Service)
   getPracticeActivities: async (skillType?: SkillType, page = 1, limit = 20) => {
     const params = new URLSearchParams({
       page: page.toString(),
       limit: limit.toString()
     })
     if (skillType) {
-      params.append('skill', skillType)
+      params.append('skill_type', skillType)
     }
 
-    const response = await apiClient.get<ApiResponse<{
-      activities: Array<{
-        id: string
-        user_id: string
-        skill: string
-        activity_type: string
-        exercise_id?: string
-        exercise_title?: string
-        score?: number
-        band_score?: number
-        correct_answers: number
-        total_questions?: number
-        accuracy_percentage?: number
-        time_spent_seconds?: number
-        completed_at?: string
-        created_at: string
-      }>
-      pagination: {
-        page: number
-        limit: number
-        total: number
-        total_pages: number
-      }
-    }>>(`/user/practice-activities?${params}`)
+    const response = await apiClient.get<{
+      success: boolean
+      data: { submissions: any[]; total: number }
+    }>(`/submissions/my?${params}`)
+
+    const submissions = response.data.data.submissions || []
+    const activities = submissions.map((s: any) => ({
+      id: s.submission?.id || s.id,
+      user_id: s.submission?.user_id || s.user_id,
+      skill: s.exercise?.skill_type || s.skill_type,
+      activity_type: s.exercise?.exercise_type || s.exercise_type,
+      exercise_id: s.exercise?.id,
+      exercise_title: s.exercise?.title,
+      score: s.submission?.score,
+      band_score: s.submission?.band_score ?? 0,
+      correct_answers: s.submission?.correct_answers || 0,
+      total_questions: s.submission?.total_questions || 0,
+      accuracy_percentage: s.submission?.score,
+      time_spent_seconds: s.submission?.time_spent_seconds || 0,
+      completed_at: s.submission?.completed_at,
+      created_at: s.submission?.created_at,
+    }))
+
+    const total = response.data.data.total || activities.length
+    const totalPages = Math.ceil(total / limit)
 
     return {
-      activities: response.data.data.activities,
-      pagination: response.data.data.pagination
+      activities,
+      pagination: { page, limit, total, total_pages: totalPages }
     }
   },
 
-  // Get practice statistics
-  // Uses: GET /api/v1/user/practice-statistics (User Service)
+  // Get practice/statistics snapshot using existing endpoints
+  // Combines /user/statistics and /submissions/my to provide a summary
   getPracticeStatistics: async (skillType?: SkillType) => {
-    const params = skillType ? `?skill=${skillType}` : ''
-    const response = await apiClient.get<ApiResponse<{
-      total_activities: number
-      total_time_spent_seconds: number
-      average_accuracy?: number
-      best_accuracy?: number
-      activities_by_type: Array<{
-        activity_type: string
-        count: number
-        average_accuracy?: number
-      }>
-      recent_activities: Array<{
-        id: string
-        skill: string
-        activity_type: string
-        accuracy_percentage?: number
-        completed_at: string
-      }>
-    }>>(`/user/practice-statistics${params}`)
+    // 1) Fetch overall statistics (User Service) without self-referencing progressApi
+    const skill = skillType || 'listening'
+    const statsResp = await apiClient.get<ApiResponse<{
+      skill_type: string
+      total_practices: number
+      total_time_minutes: number
+      average_score?: number
+      best_score?: number
+      recent_scores: Array<{ score: number; created_at: string }>
+      strengths: string[]
+      weaknesses: string[]
+    }>>(`/user/statistics/${skill}`)
+    const statsData = statsResp.data.data
+    const averageScore = normalizeScore(statsData.average_score)
+    const bestScore = normalizeScore(statsData.best_score)
 
-    return response.data.data
+    // 2) Fetch recent activities (Exercise Service)
+    const recent = await progressApi.getPracticeActivities(skillType, 1, 5)
+    const totalTime = recent.activities.reduce((sum, a) => sum + (a.time_spent_seconds || 0), 0)
+
+    return {
+      total_activities: recent.pagination.total,
+      total_time_spent_seconds: totalTime,
+      average_accuracy: averageScore ? (averageScore / 9) * 100 : undefined,
+      best_accuracy: bestScore ? (bestScore / 9) * 100 : undefined,
+      activities_by_type: [],
+      recent_activities: recent.activities.map(a => ({
+        id: a.id,
+        skill: a.skill,
+        activity_type: a.activity_type,
+        accuracy_percentage: a.accuracy_percentage,
+        completed_at: a.completed_at || a.created_at,
+      }))
+    }
   },
 }

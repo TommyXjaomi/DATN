@@ -32,12 +32,14 @@ func main() {
 	userServiceClient := client.NewUserServiceClient(cfg.UserServiceURL, cfg.InternalAPIKey)
 	notificationClient := client.NewNotificationServiceClient(cfg.NotificationServiceURL, cfg.InternalAPIKey)
 	aiServiceClient := aiClient.NewAIServiceClient(cfg.AIServiceURL, cfg.InternalAPIKey)
+	storageServiceClient := aiClient.NewStorageServiceClient(cfg.StorageServiceURL)
 	log.Println("✅ Service clients initialized")
 
 	// Initialize layers
 	exerciseRepo := repository.NewExerciseRepository(db)
 	exerciseService := service.NewExerciseService(exerciseRepo, userServiceClient, notificationClient, aiServiceClient)
 	exerciseHandler := handlers.NewExerciseHandler(exerciseService)
+	storageHandler := handlers.NewStorageHandler(storageServiceClient)
 	authMiddleware := middleware.NewAuthMiddleware(cfg)
 
 	// Setup Gin
@@ -48,7 +50,7 @@ func main() {
 	// to avoid duplicate headers (Access-Control-Allow-Origin: *, *)
 
 	// Setup routes
-	routes.SetupRoutes(router, exerciseHandler, authMiddleware)
+	routes.SetupRoutes(router, exerciseHandler, storageHandler, authMiddleware)
 
 	// FIX #8, #9: Start background sync retry worker
 	go exerciseService.StartSyncRetryWorker()

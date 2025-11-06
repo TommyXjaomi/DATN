@@ -68,6 +68,30 @@ services:
       retries: 3
 
   # ============================================
+  # MinIO Object Storage (S3-compatible)
+  # ============================================
+  
+  minio:
+    image: minio/minio:latest
+    container_name: ielts_minio
+    environment:
+      MINIO_ROOT_USER: ielts_admin
+      MINIO_ROOT_PASSWORD: ielts_minio_password_2025
+    ports:
+      - "9000:9000"  # API port
+      - "9001:9001"  # Console port
+    volumes:
+      - minio_data:/data
+    networks:
+      - ielts_network
+    command: server /data --console-address ":9001" --address ":9000"
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:9000/minio/health/live"]
+      interval: 30s
+      timeout: 20s
+      retries: 3
+
+  # ============================================
   # Database Migrations Runner
   # ============================================
   
@@ -76,6 +100,7 @@ services:
     container_name: ielts_migrations
     volumes:
       - ./database/migrations:/migrations
+      - ./database/schemas:/schemas:ro
       - ./scripts/run-all-migrations.sh:/run-all-migrations.sh
     networks:
       - ielts_network
@@ -293,6 +318,7 @@ services:
       - USER_SERVICE_URL=http://user-service:8082
       - NOTIFICATION_SERVICE_URL=http://notification-service:8086
       - AI_SERVICE_URL=http://ai-service:8085
+      - STORAGE_SERVICE_URL=http://storage-service:8087
       - INTERNAL_API_KEY=${INTERNAL_API_KEY:-internal_secret_key_ielts_2025_change_in_production}
     volumes:
       - ./database/schemas:/schemas:ro
@@ -309,6 +335,8 @@ services:
       user-service:
         condition: service_started
       notification-service:
+        condition: service_started
+      storage-service:
         condition: service_started
     healthcheck:
       test: ["CMD", "curl", "-f", "http://localhost:8084/health"]
@@ -403,6 +431,35 @@ services:
     restart: unless-stopped
 
   # ============================================
+  # Storage Service (FREE MinIO-based)
+  # ============================================
+  storage-service:
+    build:
+      context: ./services/storage-service
+      dockerfile: Dockerfile
+    container_name: ielts_storage_service
+    environment:
+      - PORT=8087
+      - MINIO_ENDPOINT=minio:9000
+      - MINIO_ACCESS_KEY=ielts_admin
+      - MINIO_SECRET_KEY=ielts_minio_password_2025
+      - MINIO_BUCKET_NAME=ielts-audio
+      - MINIO_USE_SSL=false
+    ports:
+      - "8087:8087"
+    networks:
+      - ielts_network
+    depends_on:
+      minio:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8087/health"]
+      interval: 10s
+      timeout: 5s
+      retries: 3
+    restart: unless-stopped
+
+  # ============================================
   # AI Service
   # ============================================
   ai-service:
@@ -423,6 +480,7 @@ services:
       - USER_SERVICE_URL=http://user-service:8082
       - EXERCISE_SERVICE_URL=http://exercise-service:8083
       - NOTIFICATION_SERVICE_URL=http://notification-service:8086
+      - STORAGE_SERVICE_URL=http://storage-service:8087
       - INTERNAL_API_KEY=${INTERNAL_API_KEY:-internal_secret_key_ielts_2025_change_in_production}
     volumes:
       - ./database/schemas:/schemas:ro
@@ -436,6 +494,8 @@ services:
         condition: service_healthy
       auth-service:
         condition: service_started
+      minio:
+        condition: service_healthy
     healthcheck:
       test: ["CMD", "curl", "-f", "http://localhost:8085/health"]
       interval: 10s
@@ -461,6 +521,8 @@ volumes:
   redis_data:
     driver: local
   rabbitmq_data:
+    driver: local
+  minio_data:
     driver: local
   pgadmin_data:
     driver: local

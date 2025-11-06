@@ -18,6 +18,7 @@ type Config struct {
 	UserServiceURL         string
 	NotificationServiceURL string
 	AIServiceURL           string
+	StorageServiceURL      string
 	InternalAPIKey         string
 }
 
@@ -35,6 +36,7 @@ func LoadConfig() *Config {
 		UserServiceURL:         getEnv("USER_SERVICE_URL", "http://user-service:8082"),
 		NotificationServiceURL: getEnv("NOTIFICATION_SERVICE_URL", "http://notification-service:8085"),
 		AIServiceURL:           getEnv("AI_SERVICE_URL", "http://ai-service:8086"),
+		StorageServiceURL:      getEnv("STORAGE_SERVICE_URL", "http://storage-service:8087"),
 		InternalAPIKey:         getEnv("INTERNAL_API_KEY", "internal_secret_key_ielts_2025_change_in_production"),
 	}
 

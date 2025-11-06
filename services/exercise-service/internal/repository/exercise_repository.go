@@ -231,7 +231,10 @@ func (r *ExerciseRepository) GetExerciseByID(id uuid.UUID) (*models.ExerciseDeta
 			e.passage_count, e.course_id, e.module_id, e.passing_score, e.total_points,
 			e.is_free, e.is_published, e.total_attempts, e.average_score,
 			e.average_completion_time, e.display_order, e.created_by, e.published_at,
-			e.created_at, e.updated_at
+			e.created_at, e.updated_at,
+			e.writing_task_type, e.writing_prompt_text, e.writing_visual_type, e.writing_visual_url, e.writing_word_requirement,
+			e.speaking_part_number, e.speaking_prompt_text, e.speaking_cue_card_topic, e.speaking_cue_card_points,
+			e.speaking_preparation_time_seconds, e.speaking_response_time_seconds, e.speaking_follow_up_questions
 		FROM exercises e
 		WHERE e.id = $1 AND e.is_published = true
 	`, id).Scan(
@@ -245,6 +248,9 @@ func (r *ExerciseRepository) GetExerciseByID(id uuid.UUID) (*models.ExerciseDeta
 		&exercise.TotalAttempts, &exercise.AverageScore, &exercise.AverageCompletionTime,
 		&exercise.DisplayOrder, &exercise.CreatedBy, &exercise.PublishedAt,
 		&exercise.CreatedAt, &exercise.UpdatedAt,
+		&exercise.WritingTaskType, &exercise.WritingPromptText, &exercise.WritingVisualType, &exercise.WritingVisualURL, &exercise.WritingWordRequirement,
+		&exercise.SpeakingPartNumber, &exercise.SpeakingPromptText, &exercise.SpeakingCueCardTopic, pq.Array(&exercise.SpeakingCueCardPoints),
+		&exercise.SpeakingPreparationTime, &exercise.SpeakingResponseTime, pq.Array(&exercise.SpeakingFollowUpQuestions),
 	)
 	if err != nil {
 		return nil, err
