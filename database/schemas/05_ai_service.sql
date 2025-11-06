@@ -2,274 +2,67 @@
 -- AI Service Database Schema
 -- ============================================
 -- Database: ai_db
--- Purpose: AI-powered evaluation for Writing and Speaking
+-- Purpose: AI-powered evaluation system for IELTS Writing and Speaking
+-- Author: IELTS Platform Backend Team
+-- Created: 2025-11-06
+-- Last Modified: 2025-11-06
 
+-- Create database (run separately)
 -- CREATE DATABASE ai_db;
 
+-- ============================================
+-- EXTENSIONS
+-- ============================================
+
+-- Enable UUID extension for UUID generation
 CREATE EXTENSION IF NOT EXISTS "uuid-ossp";
 
--- ============================================
--- WRITING_SUBMISSIONS TABLE
--- ============================================
--- Writing essays submitted by users for AI evaluation
-CREATE TABLE writing_submissions (
-    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
-    user_id UUID NOT NULL,
-    
-    -- Task information
-    task_type VARCHAR(20) NOT NULL, -- task1, task2
-    task_prompt_id UUID, -- Reference to the writing prompt/question
-    task_prompt_text TEXT NOT NULL,
-    
-    -- Submission content
-    essay_text TEXT NOT NULL,
-    word_count INT NOT NULL,
-    
-    -- Metadata
-    time_spent_seconds INT,
-    submitted_from VARCHAR(20), -- web, android, ios
-    
-    -- Status
-    status VARCHAR(20) DEFAULT 'pending', -- pending, processing, completed, failed
-    
-    -- Related exercise/course
-    exercise_id UUID,
-    course_id UUID,
-    lesson_id UUID,
-    
-    -- Timestamps
-    submitted_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-    evaluated_at TIMESTAMP,
-    
-    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
-);
+-- Enable dblink for cross-database queries
+-- Used to query exercise_db from ai_db for submission details
+CREATE EXTENSION IF NOT EXISTS dblink;
 
--- Indexes
-CREATE INDEX idx_writing_submissions_user_id ON writing_submissions(user_id);
-CREATE INDEX idx_writing_submissions_status ON writing_submissions(status);
-CREATE INDEX idx_writing_submissions_submitted_at ON writing_submissions(submitted_at);
-CREATE INDEX idx_writing_submissions_task_type ON writing_submissions(task_type);
+-- Enable pg_trgm for text similarity search
+-- Used for fuzzy matching of prompts and feedback
+CREATE EXTENSION IF NOT EXISTS pg_trgm;
 
 -- ============================================
--- WRITING_EVALUATIONS TABLE
+-- PROMPT MANAGEMENT TABLES
 -- ============================================
--- AI evaluation results for writing submissions
-CREATE TABLE writing_evaluations (
-    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
-    submission_id UUID UNIQUE NOT NULL REFERENCES writing_submissions(id) ON DELETE CASCADE,
-    
-    -- Overall score
-    overall_band_score DECIMAL(2,1) NOT NULL,
-    
-    -- IELTS criteria scores (0-9.0)
-    task_achievement_score DECIMAL(2,1) NOT NULL,
-    coherence_cohesion_score DECIMAL(2,1) NOT NULL,
-    lexical_resource_score DECIMAL(2,1) NOT NULL,
-    grammar_accuracy_score DECIMAL(2,1) NOT NULL,
-    
-    -- Detailed analysis
-    strengths TEXT[], -- Array of strength points
-    weaknesses TEXT[], -- Array of weakness points
-    
-    -- Grammar analysis
-    grammar_errors JSONB, -- [{type: "subject-verb agreement", example: "...", correction: "..."}]
-    grammar_error_count INT DEFAULT 0,
-    
-    -- Vocabulary analysis
-    vocabulary_level VARCHAR(20), -- basic, intermediate, advanced
-    vocabulary_range_score DECIMAL(3,2), -- 0-1 score
-    vocabulary_suggestions JSONB, -- [{word: "good", suggestion: "excellent/outstanding"}]
-    
-    -- Structure analysis
-    paragraph_count INT,
-    has_introduction BOOLEAN DEFAULT false,
-    has_conclusion BOOLEAN DEFAULT false,
-    structure_feedback TEXT,
-    
-    -- Coherence analysis
-    linking_words_used TEXT[],
-    coherence_feedback TEXT,
-    
-    -- Task-specific analysis
-    addresses_all_parts BOOLEAN DEFAULT false,
-    task_response_feedback TEXT,
-    
-    -- Overall feedback
-    detailed_feedback TEXT NOT NULL,
-    detailed_feedback_json JSONB, -- Structured bilingual feedback: {"task_achievement": {"vi": "...", "en": "..."}, ...}
-    improvement_suggestions TEXT[],
-    
-    -- AI model info
-    ai_model_name VARCHAR(100),
-    ai_model_version VARCHAR(50),
-    confidence_score DECIMAL(3,2), -- 0-1 confidence in evaluation
-    
-    -- Processing time
-    processing_time_ms INT,
-    
-    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
-);
-
--- Indexes
-CREATE INDEX idx_writing_evaluations_submission_id ON writing_evaluations(submission_id);
-CREATE INDEX idx_writing_evaluations_overall_band_score ON writing_evaluations(overall_band_score);
-
--- ============================================
--- SPEAKING_SUBMISSIONS TABLE
--- ============================================
--- Speaking recordings submitted for AI evaluation
-CREATE TABLE speaking_submissions (
-    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
-    user_id UUID NOT NULL,
-    
-    -- Task information
-    part_number INT NOT NULL, -- 1, 2, or 3
-    task_prompt_id UUID,
-    task_prompt_text TEXT NOT NULL,
-    
-    -- Audio submission
-    audio_url TEXT NOT NULL,
-    audio_duration_seconds INT NOT NULL,
-    audio_format VARCHAR(20), -- mp3, wav, m4a
-    audio_file_size_bytes BIGINT,
-    
-    -- Transcription
-    transcript_text TEXT,
-    transcript_word_count INT,
-    
-    -- Metadata
-    recorded_from VARCHAR(20), -- web, android, ios
-    
-    -- Status
-    status VARCHAR(20) DEFAULT 'pending', -- pending, transcribing, processing, completed, failed
-    
-    -- Related exercise/course
-    exercise_id UUID,
-    course_id UUID,
-    lesson_id UUID,
-    
-    -- Timestamps
-    submitted_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-    transcribed_at TIMESTAMP,
-    evaluated_at TIMESTAMP,
-    
-    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
-);
-
--- Indexes
-CREATE INDEX idx_speaking_submissions_user_id ON speaking_submissions(user_id);
-CREATE INDEX idx_speaking_submissions_status ON speaking_submissions(status);
-CREATE INDEX idx_speaking_submissions_submitted_at ON speaking_submissions(submitted_at);
-CREATE INDEX idx_speaking_submissions_part_number ON speaking_submissions(part_number);
-
--- ============================================
--- SPEAKING_EVALUATIONS TABLE
--- ============================================
--- AI evaluation results for speaking submissions
-CREATE TABLE speaking_evaluations (
-    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
-    submission_id UUID UNIQUE NOT NULL REFERENCES speaking_submissions(id) ON DELETE CASCADE,
-    
-    -- Overall score
-    overall_band_score DECIMAL(2,1) NOT NULL,
-    
-    -- IELTS criteria scores (0-9.0)
-    fluency_coherence_score DECIMAL(2,1) NOT NULL,
-    lexical_resource_score DECIMAL(2,1) NOT NULL,
-    grammar_accuracy_score DECIMAL(2,1) NOT NULL,
-    pronunciation_score DECIMAL(2,1) NOT NULL,
-    
-    -- Pronunciation analysis
-    pronunciation_accuracy DECIMAL(5,2), -- 0-100%
-    problematic_sounds JSONB, -- [{phoneme: "θ", word: "think", issue: "..."}]
-    intonation_score DECIMAL(3,2), -- 0-1
-    stress_accuracy DECIMAL(3,2), -- 0-1
-    
-    -- Fluency analysis
-    speech_rate_wpm INT, -- Words per minute
-    pause_frequency DECIMAL(5,2), -- Pauses per minute
-    filler_words_count INT, -- "um", "uh", "like"
-    filler_words_used TEXT[],
-    hesitation_count INT,
-    
-    -- Vocabulary analysis
-    vocabulary_level VARCHAR(20), -- basic, intermediate, advanced
-    unique_words_count INT,
-    advanced_words_used TEXT[],
-    vocabulary_suggestions JSONB,
-    
-    -- Grammar analysis
-    grammar_errors JSONB,
-    grammar_error_count INT DEFAULT 0,
-    sentence_complexity VARCHAR(20), -- simple, compound, complex
-    
-    -- Coherence analysis
-    answers_question_directly BOOLEAN DEFAULT false,
-    uses_linking_devices BOOLEAN DEFAULT false,
-    coherence_feedback TEXT,
-    
-    -- Content analysis
-    content_relevance_score DECIMAL(3,2), -- 0-1
-    idea_development_score DECIMAL(3,2), -- 0-1
-    content_feedback TEXT,
-    
-    -- Detailed feedback
-    strengths TEXT[],
-    weaknesses TEXT[],
-    detailed_feedback TEXT NOT NULL,
-    improvement_suggestions TEXT[],
-    
-    -- AI model info
-    transcription_model VARCHAR(100),
-    evaluation_model VARCHAR(100),
-    model_version VARCHAR(50),
-    confidence_score DECIMAL(3,2),
-    
-    -- Processing time
-    transcription_time_ms INT,
-    evaluation_time_ms INT,
-    
-    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
-);
-
--- Indexes
-CREATE INDEX idx_speaking_evaluations_submission_id ON speaking_evaluations(submission_id);
-CREATE INDEX idx_speaking_evaluations_overall_band_score ON speaking_evaluations(overall_band_score);
 
 -- ============================================
 -- WRITING_PROMPTS TABLE
 -- ============================================
--- Collection of IELTS writing prompts
+-- Stores IELTS Writing Task 1 & Task 2 prompts
+-- Used for generating writing exercises and evaluations
 CREATE TABLE writing_prompts (
     id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
     
     -- Task information
-    task_type VARCHAR(20) NOT NULL, -- task1, task2
+    task_type VARCHAR(20) NOT NULL, -- 'task1' or 'task2'
     prompt_text TEXT NOT NULL,
     
-    -- For Task 1 (charts, graphs, diagrams)
-    visual_type VARCHAR(50), -- bar_chart, line_graph, pie_chart, table, diagram, map, process
-    visual_url TEXT,
+    -- Visual data for Task 1
+    visual_type VARCHAR(50), -- 'bar_chart', 'line_graph', 'pie_chart', 'table', 'process_diagram'
+    visual_url TEXT, -- URL to chart/diagram image
     
-    -- Metadata
-    topic VARCHAR(100), -- education, technology, environment, health, etc.
-    difficulty VARCHAR(20), -- easy, medium, hard
+    -- Categorization
+    topic VARCHAR(100), -- e.g., 'education', 'environment', 'technology'
+    difficulty VARCHAR(20), -- 'beginner', 'intermediate', 'advanced'
     
     -- Sample answer
     has_sample_answer BOOLEAN DEFAULT false,
     sample_answer_text TEXT,
-    sample_answer_band_score DECIMAL(2,1),
+    sample_answer_band_score NUMERIC(2,1), -- 0.0 to 9.0
     
-    -- Usage tracking
+    -- Usage statistics
     times_used INT DEFAULT 0,
-    average_score DECIMAL(2,1),
+    average_score NUMERIC(2,1), -- Average score from all submissions
     
-    -- Status
+    -- Publishing
     is_published BOOLEAN DEFAULT true,
-    created_by UUID,
+    created_by UUID, -- User ID of creator (instructor/admin)
     
+    -- Timestamps
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );
@@ -282,41 +75,42 @@ CREATE INDEX idx_writing_prompts_difficulty ON writing_prompts(difficulty);
 -- ============================================
 -- SPEAKING_PROMPTS TABLE
 -- ============================================
--- Collection of IELTS speaking prompts
+-- Stores IELTS Speaking prompts for Part 1, 2, 3
 CREATE TABLE speaking_prompts (
     id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
     
     -- Part information
-    part_number INT NOT NULL, -- 1, 2, 3
+    part_number INT NOT NULL, -- 1, 2, or 3
     prompt_text TEXT NOT NULL,
     
-    -- For Part 2 (cue cards)
-    cue_card_topic VARCHAR(200),
-    cue_card_points TEXT[], -- Points to cover
+    -- Part 2 specific: Cue card
+    cue_card_topic VARCHAR(200), -- Main topic for Part 2
+    cue_card_points TEXT[], -- Array of points to cover
     preparation_time_seconds INT DEFAULT 60, -- Usually 1 minute
     speaking_time_seconds INT DEFAULT 120, -- Usually 2 minutes
     
-    -- For Part 1 & 3 (follow-up questions)
-    follow_up_questions TEXT[],
+    -- Part 3 specific: Follow-up questions
+    follow_up_questions TEXT[], -- Array of related questions
     
-    -- Metadata
-    topic_category VARCHAR(100), -- family, hobbies, work, travel, etc.
+    -- Categorization
+    topic_category VARCHAR(100), -- 'hobbies', 'work', 'family', etc.
     difficulty VARCHAR(20),
     
     -- Sample answer
     has_sample_answer BOOLEAN DEFAULT false,
     sample_answer_text TEXT,
-    sample_answer_audio_url TEXT,
-    sample_answer_band_score DECIMAL(2,1),
+    sample_answer_audio_url TEXT, -- URL to audio file
+    sample_answer_band_score NUMERIC(2,1),
     
-    -- Usage tracking
+    -- Usage statistics
     times_used INT DEFAULT 0,
-    average_score DECIMAL(2,1),
+    average_score NUMERIC(2,1),
     
-    -- Status
+    -- Publishing
     is_published BOOLEAN DEFAULT true,
     created_by UUID,
     
+    -- Timestamps
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );
@@ -327,76 +121,167 @@ CREATE INDEX idx_speaking_prompts_topic_category ON speaking_prompts(topic_categ
 CREATE INDEX idx_speaking_prompts_difficulty ON speaking_prompts(difficulty);
 
 -- ============================================
+-- GRADING & EVALUATION TABLES
+-- ============================================
+
+-- ============================================
 -- GRADING_CRITERIA TABLE
 -- ============================================
--- Detailed IELTS grading criteria for reference
+-- Stores official IELTS band descriptors for each skill
+-- Used as reference for AI evaluation
 CREATE TABLE grading_criteria (
     id SERIAL PRIMARY KEY,
     
-    skill_type VARCHAR(20) NOT NULL, -- writing, speaking
-    criterion_name VARCHAR(100) NOT NULL, -- task_achievement, coherence_cohesion, etc.
-    band_score DECIMAL(2,1) NOT NULL,
+    skill_type VARCHAR(20) NOT NULL, -- 'writing' or 'speaking'
+    criterion_name VARCHAR(100) NOT NULL, -- 'Task Achievement', 'Coherence and Cohesion', etc.
+    band_score NUMERIC(2,1) NOT NULL, -- 0.0 to 9.0
     
-    description TEXT NOT NULL,
-    key_features TEXT[],
+    description TEXT NOT NULL, -- Band descriptor text
+    key_features TEXT[], -- Array of key features for this band
     
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );
 
--- Insert IELTS Writing criteria
-INSERT INTO grading_criteria (skill_type, criterion_name, band_score, description, key_features) VALUES
-('writing', 'task_achievement', 9.0, 'Band 9 Task Achievement', ARRAY['Fully addresses all parts', 'Presents fully developed position', 'Ideas are relevant, extended and supported']),
-('writing', 'task_achievement', 7.0, 'Band 7 Task Achievement', ARRAY['Addresses all parts', 'Presents clear position', 'Main ideas are extended and supported']),
-('writing', 'coherence_cohesion', 9.0, 'Band 9 Coherence and Cohesion', ARRAY['Uses cohesion seamlessly', 'Skillful paragraph management', 'No errors in cohesive devices']),
-('writing', 'lexical_resource', 9.0, 'Band 9 Lexical Resource', ARRAY['Wide range of vocabulary', 'Natural and sophisticated usage', 'Rare minor errors']),
-('writing', 'grammar_accuracy', 9.0, 'Band 9 Grammatical Range and Accuracy', ARRAY['Wide range of structures', 'Full flexibility and accuracy', 'Rare minor errors']);
-
 -- ============================================
 -- AI_MODEL_VERSIONS TABLE
 -- ============================================
--- Track different AI model versions used
+-- Track different AI model versions for evaluation
+-- Allows A/B testing and gradual rollout
 CREATE TABLE ai_model_versions (
     id SERIAL PRIMARY KEY,
     
-    model_type VARCHAR(50) NOT NULL, -- transcription, writing_evaluation, speaking_evaluation
-    model_name VARCHAR(100) NOT NULL,
-    version VARCHAR(50) NOT NULL,
+    model_type VARCHAR(50) NOT NULL, -- 'writing_evaluator', 'speaking_evaluator'
+    model_name VARCHAR(100) NOT NULL, -- 'gpt-4', 'claude-3', etc.
+    version VARCHAR(50) NOT NULL, -- '1.0', '2.0', etc.
     
     description TEXT,
     
     -- Performance metrics
-    average_accuracy DECIMAL(5,2),
+    average_accuracy NUMERIC(5,2), -- Percentage
     average_processing_time_ms INT,
     
     -- Status
     is_active BOOLEAN DEFAULT true,
-    is_default BOOLEAN DEFAULT false,
+    is_default BOOLEAN DEFAULT false, -- Only one default per model_type
     
     deployed_at TIMESTAMP,
     deprecated_at TIMESTAMP,
-    
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     
     UNIQUE(model_type, model_name, version)
 );
 
 -- ============================================
+-- AI_EVALUATION_CACHE TABLE
+-- ============================================
+-- Cache AI evaluation results to reduce API costs and improve speed
+-- If same content submitted again, return cached result
+CREATE TABLE ai_evaluation_cache (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    
+    -- Cache key
+    content_hash VARCHAR(64) NOT NULL UNIQUE, -- SHA-256 hash of submission content
+    
+    -- Submission info
+    skill_type VARCHAR(20) NOT NULL CHECK (skill_type IN ('writing', 'speaking')),
+    task_type VARCHAR(20), -- 'task1', 'task2', 'part1', 'part2', 'part3'
+    
+    -- Evaluation results
+    overall_band_score NUMERIC(3,1) NOT NULL CHECK (overall_band_score >= 0 AND overall_band_score <= 9),
+    detailed_scores JSONB NOT NULL, -- Score breakdown by criteria
+    feedback JSONB NOT NULL, -- Detailed feedback
+    
+    -- AI model info
+    ai_model_name VARCHAR(100),
+    ai_model_version VARCHAR(50),
+    
+    -- Performance metrics
+    processing_time_ms INT,
+    confidence_score NUMERIC(3,2), -- 0.00 to 1.00
+    
+    -- API usage tracking
+    prompt_tokens INT,
+    completion_tokens INT,
+    total_cost_usd NUMERIC(10,6),
+    
+    -- Cache management
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    expires_at TIMESTAMP, -- NULL = never expires
+    hit_count INT DEFAULT 0, -- Number of cache hits
+    last_hit_at TIMESTAMP,
+    
+    notes TEXT -- Optional notes about this cache entry
+);
+
+-- Indexes
+CREATE INDEX idx_ai_cache_content_hash ON ai_evaluation_cache(content_hash);
+CREATE INDEX idx_ai_cache_skill_type ON ai_evaluation_cache(skill_type);
+CREATE INDEX idx_ai_cache_expires_at ON ai_evaluation_cache(expires_at) WHERE expires_at IS NOT NULL;
+CREATE INDEX idx_ai_cache_hit_count ON ai_evaluation_cache(hit_count DESC);
+
+-- ============================================
+-- PROCESSING QUEUE TABLES
+-- ============================================
+
+-- ============================================
+-- AI_PROCESSING_QUEUE TABLE
+-- ============================================
+-- Queue for async AI evaluation tasks
+-- Used when evaluation takes longer than request timeout
+CREATE TABLE ai_processing_queue (
+    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    
+    -- Task info
+    task_type VARCHAR(50) NOT NULL, -- 'writing_evaluation', 'speaking_evaluation'
+    submission_id UUID NOT NULL, -- Reference to writing_submission or speaking_submission
+    submission_type VARCHAR(20) NOT NULL, -- 'writing' or 'speaking'
+    
+    -- Queue management
+    priority INT DEFAULT 5, -- 1 (highest) to 10 (lowest)
+    status VARCHAR(20) DEFAULT 'queued', -- 'queued', 'processing', 'completed', 'failed'
+    
+    -- Retry logic
+    retry_count INT DEFAULT 0,
+    max_retries INT DEFAULT 3,
+    error_message TEXT,
+    
+    -- Worker info
+    worker_id VARCHAR(100), -- ID of worker processing this task
+    started_at TIMESTAMP,
+    completed_at TIMESTAMP,
+    
+    -- Timestamps
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
+
+-- Indexes
+CREATE INDEX idx_ai_processing_queue_status ON ai_processing_queue(status);
+CREATE INDEX idx_ai_processing_queue_priority ON ai_processing_queue(priority DESC, created_at);
+CREATE INDEX idx_ai_processing_queue_submission ON ai_processing_queue(submission_id, submission_type);
+
+-- ============================================
+-- FEEDBACK & QUALITY TABLES
+-- ============================================
+
+-- ============================================
 -- EVALUATION_FEEDBACK_RATINGS TABLE
 -- ============================================
--- User feedback on AI evaluations
+-- Collect user feedback on AI evaluations
+-- Used to improve model accuracy and quality
 CREATE TABLE evaluation_feedback_ratings (
     id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
-    user_id UUID NOT NULL,
     
-    evaluation_type VARCHAR(20) NOT NULL, -- writing, speaking
-    evaluation_id UUID NOT NULL, -- Can reference either writing or speaking evaluation
+    user_id UUID NOT NULL, -- User who provided feedback
     
-    -- Rating
-    is_helpful BOOLEAN,
-    accuracy_rating INT CHECK (accuracy_rating >= 1 AND accuracy_rating <= 5),
+    -- Reference to evaluation
+    evaluation_type VARCHAR(20) NOT NULL, -- 'writing' or 'speaking'
+    evaluation_id UUID NOT NULL, -- writing_evaluation_id or speaking_evaluation_id
     
     -- Feedback
-    feedback_text TEXT,
+    is_helpful BOOLEAN, -- Was the feedback helpful?
+    accuracy_rating INT CHECK (accuracy_rating BETWEEN 1 AND 5), -- 1-5 stars
+    feedback_text TEXT, -- Optional written feedback
     
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );
@@ -406,43 +291,26 @@ CREATE INDEX idx_evaluation_feedback_user_id ON evaluation_feedback_ratings(user
 CREATE INDEX idx_evaluation_feedback_evaluation_id ON evaluation_feedback_ratings(evaluation_id);
 
 -- ============================================
--- AI_PROCESSING_QUEUE TABLE
+-- SYSTEM TABLES
 -- ============================================
--- Queue for AI processing tasks
-CREATE TABLE ai_processing_queue (
-    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
-    
-    task_type VARCHAR(50) NOT NULL, -- transcribe_audio, evaluate_writing, evaluate_speaking
-    submission_id UUID NOT NULL,
-    submission_type VARCHAR(20) NOT NULL, -- writing, speaking
-    
-    priority INT DEFAULT 5, -- 1-10, higher is more urgent
-    
-    status VARCHAR(20) DEFAULT 'queued', -- queued, processing, completed, failed
-    retry_count INT DEFAULT 0,
-    max_retries INT DEFAULT 3,
-    
-    error_message TEXT,
-    
-    -- Processing info
-    worker_id VARCHAR(100),
-    started_at TIMESTAMP,
-    completed_at TIMESTAMP,
-    
-    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
-);
 
--- Indexes
-CREATE INDEX idx_ai_processing_queue_status ON ai_processing_queue(status);
-CREATE INDEX idx_ai_processing_queue_priority ON ai_processing_queue(priority DESC, created_at ASC);
-CREATE INDEX idx_ai_processing_queue_submission ON ai_processing_queue(submission_id, submission_type);
+-- ============================================
+-- SCHEMA_MIGRATIONS TABLE
+-- ============================================
+-- Tracks database migrations that have been applied
+-- Used by migration system to prevent re-running migrations
+CREATE TABLE schema_migrations (
+    id SERIAL PRIMARY KEY,
+    migration_file VARCHAR(255) UNIQUE NOT NULL,
+    applied_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    checksum VARCHAR(64) -- Optional: MD5/SHA hash of migration file
+);
 
 -- ============================================
 -- FUNCTIONS & TRIGGERS
 -- ============================================
 
--- Update updated_at timestamp
+-- Function to update updated_at timestamp
 CREATE OR REPLACE FUNCTION update_updated_at_column()
 RETURNS TRIGGER AS $$
 BEGIN
@@ -451,17 +319,52 @@ BEGIN
 END;
 $$ language 'plpgsql';
 
--- Apply triggers
-CREATE TRIGGER update_writing_submissions_updated_at BEFORE UPDATE ON writing_submissions
-    FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
-    
-CREATE TRIGGER update_speaking_submissions_updated_at BEFORE UPDATE ON speaking_submissions
-    FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
-    
-CREATE TRIGGER update_ai_processing_queue_updated_at BEFORE UPDATE ON ai_processing_queue
-    FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
+-- Triggers for tables with updated_at
+CREATE TRIGGER update_writing_prompts_updated_at
+    BEFORE UPDATE ON writing_prompts
+    FOR EACH ROW
+    EXECUTE FUNCTION update_updated_at_column();
 
--- Function to create AI processing task when submission is created
+CREATE TRIGGER update_speaking_prompts_updated_at
+    BEFORE UPDATE ON speaking_prompts
+    FOR EACH ROW
+    EXECUTE FUNCTION update_updated_at_column();
+
+CREATE TRIGGER update_ai_processing_queue_updated_at
+    BEFORE UPDATE ON ai_processing_queue
+    FOR EACH ROW
+    EXECUTE FUNCTION update_updated_at_column();
+
+-- Function to calculate IELTS Writing band score
+-- Takes 4 criteria scores and returns overall band score
+CREATE OR REPLACE FUNCTION calculate_writing_band_score(
+    task_achievement NUMERIC,
+    coherence_cohesion NUMERIC,
+    lexical_resource NUMERIC,
+    grammar_accuracy NUMERIC
+)
+RETURNS NUMERIC AS $$
+BEGIN
+    RETURN ROUND((task_achievement + coherence_cohesion + lexical_resource + grammar_accuracy) / 4, 1);
+END;
+$$ LANGUAGE plpgsql;
+
+-- Function to calculate IELTS Speaking band score
+-- Takes 4 criteria scores and returns overall band score
+CREATE OR REPLACE FUNCTION calculate_speaking_band_score(
+    fluency_coherence NUMERIC,
+    lexical_resource NUMERIC,
+    grammar_accuracy NUMERIC,
+    pronunciation NUMERIC
+)
+RETURNS NUMERIC AS $$
+BEGIN
+    RETURN ROUND((fluency_coherence + lexical_resource + grammar_accuracy + pronunciation) / 4, 1);
+END;
+$$ LANGUAGE plpgsql;
+
+-- Function to create AI processing task automatically
+-- Triggered when new submission is created in exercise_db
 CREATE OR REPLACE FUNCTION create_ai_processing_task()
 RETURNS TRIGGER AS $$
 BEGIN
@@ -469,7 +372,7 @@ BEGIN
         INSERT INTO ai_processing_queue (task_type, submission_id, submission_type)
         VALUES ('evaluate_writing', NEW.id, 'writing');
     ELSIF TG_TABLE_NAME = 'speaking_submissions' THEN
-        -- First transcribe, then evaluate
+        -- First transcribe audio, then evaluate
         INSERT INTO ai_processing_queue (task_type, submission_id, submission_type, priority)
         VALUES ('transcribe_audio', NEW.id, 'speaking', 8);
     END IF;
@@ -478,49 +381,40 @@ BEGIN
 END;
 $$ LANGUAGE plpgsql;
 
-CREATE TRIGGER trigger_create_writing_task
-    AFTER INSERT ON writing_submissions
-    FOR EACH ROW
-    EXECUTE FUNCTION create_ai_processing_task();
-    
-CREATE TRIGGER trigger_create_speaking_task
-    AFTER INSERT ON speaking_submissions
-    FOR EACH ROW
-    EXECUTE FUNCTION create_ai_processing_task();
+-- Note: Triggers for create_ai_processing_task are in exercise_db
+-- They are created on writing_submissions and speaking_submissions tables
 
--- Function to calculate overall writing band score
-CREATE OR REPLACE FUNCTION calculate_writing_band_score(
-    task_achievement DECIMAL,
-    coherence_cohesion DECIMAL,
-    lexical_resource DECIMAL,
-    grammar_accuracy DECIMAL
-)
-RETURNS DECIMAL(2,1) AS $$
-BEGIN
-    RETURN ROUND((task_achievement + coherence_cohesion + lexical_resource + grammar_accuracy) / 4, 1);
-END;
-$$ LANGUAGE plpgsql;
+-- ============================================
+-- SEED DATA (Optional)
+-- ============================================
 
--- Function to calculate overall speaking band score
-CREATE OR REPLACE FUNCTION calculate_speaking_band_score(
-    fluency_coherence DECIMAL,
-    lexical_resource DECIMAL,
-    grammar_accuracy DECIMAL,
-    pronunciation DECIMAL
-)
-RETURNS DECIMAL(2,1) AS $$
-BEGIN
-    RETURN ROUND((fluency_coherence + lexical_resource + grammar_accuracy + pronunciation) / 4, 1);
-END;
-$$ LANGUAGE plpgsql;
+-- Insert default AI models
+INSERT INTO ai_model_versions (model_type, model_name, version, description, is_default) VALUES
+('writing_evaluator', 'gpt-4', '1.0', 'OpenAI GPT-4 for writing evaluation', true),
+('speaking_evaluator', 'gpt-4', '1.0', 'OpenAI GPT-4 for speaking evaluation', true);
+
+-- Insert sample grading criteria (Task Achievement for Writing Task 2)
+INSERT INTO grading_criteria (skill_type, criterion_name, band_score, description, key_features) VALUES
+('writing', 'Task Achievement', 9.0, 'Fully addresses all parts of the task', 
+ ARRAY['fully addresses the task', 'presents a fully developed position', 'ideas are highly relevant']),
+('writing', 'Task Achievement', 8.0, 'Sufficiently addresses all parts of the task',
+ ARRAY['sufficiently addresses the task', 'presents a well-developed response', 'ideas are mostly relevant']),
+('writing', 'Task Achievement', 7.0, 'Addresses all parts of the task',
+ ARRAY['addresses all parts', 'presents a clear position', 'main ideas are extended and supported']);
 
 -- ============================================
 -- COMMENTS
 -- ============================================
-COMMENT ON TABLE writing_submissions IS 'Bài viết Writing được nộp để AI chấm điểm';
-COMMENT ON TABLE writing_evaluations IS 'Kết quả đánh giá Writing từ AI';
-COMMENT ON TABLE speaking_submissions IS 'Bài nói Speaking được ghi âm để AI chấm điểm';
-COMMENT ON TABLE speaking_evaluations IS 'Kết quả đánh giá Speaking từ AI';
-COMMENT ON TABLE writing_prompts IS 'Ngân hàng đề bài Writing';
-COMMENT ON TABLE speaking_prompts IS 'Ngân hàng đề bài Speaking';
-COMMENT ON TABLE ai_processing_queue IS 'Hàng đợi xử lý AI';
+
+COMMENT ON TABLE writing_prompts IS 'Bảng lưu đề bài IELTS Writing (Task 1 & 2)';
+COMMENT ON TABLE speaking_prompts IS 'Bảng lưu câu hỏi IELTS Speaking (Part 1, 2, 3)';
+COMMENT ON TABLE grading_criteria IS 'Bảng lưu tiêu chí chấm điểm IELTS chính thức';
+COMMENT ON TABLE ai_model_versions IS 'Bảng quản lý phiên bản AI models';
+COMMENT ON TABLE ai_evaluation_cache IS 'Bảng cache kết quả đánh giá AI để tối ưu chi phí và tốc độ';
+COMMENT ON TABLE ai_processing_queue IS 'Hàng đợi xử lý đánh giá AI bất đồng bộ';
+COMMENT ON TABLE evaluation_feedback_ratings IS 'Bảng thu thập phản hồi từ người dùng về chất lượng đánh giá AI';
+
+-- Column comments for important fields
+COMMENT ON COLUMN ai_evaluation_cache.content_hash IS 'SHA-256 hash của nội dung submission, dùng làm cache key';
+COMMENT ON COLUMN ai_evaluation_cache.hit_count IS 'Số lần cache được sử dụng (cost savings metric)';
+COMMENT ON COLUMN ai_processing_queue.priority IS 'Độ ưu tiên: 1 (cao nhất) đến 10 (thấp nhất)';

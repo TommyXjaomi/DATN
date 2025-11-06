@@ -1,182 +1,170 @@
--- ============================================
--- Notification Service Database Schema
--- ============================================
+-- ============================================================================
+-- NOTIFICATION SERVICE DATABASE SCHEMA (CLEAN VERSION)
+-- ============================================================================
 -- Database: notification_db
--- Purpose: Manage notifications, push notifications, emails
+-- Purpose: Notification management, delivery tracking, and user preferences
+-- Version: 1.0
+-- Last Updated: 2025-11-06
+--
+-- IMPORTANT: This is a CLEAN schema file that creates the database from scratch.
+-- It is NOT a migration file. Use this to:
+--   1. Create a new notification_db database
+--   2. Understand the current schema structure
+--   3. Document the database design
+--
+-- DO NOT use this file to update an existing database.
+-- ============================================================================
 
--- CREATE DATABASE notification_db;
+-- ============================================================================
+-- EXTENSIONS
+-- ============================================================================
 
 CREATE EXTENSION IF NOT EXISTS "uuid-ossp";
+CREATE EXTENSION IF NOT EXISTS "pg_trgm"; -- Full-text search
+CREATE EXTENSION IF NOT EXISTS "dblink"; -- Cross-database queries
 
--- ============================================
--- NOTIFICATIONS TABLE
--- ============================================
--- All types of notifications
+-- ============================================================================
+-- CORE TABLES
+-- ============================================================================
+
+-- ----------------------------------------------------------------------------
+-- Notifications Table
+-- ----------------------------------------------------------------------------
 CREATE TABLE notifications (
     id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
     user_id UUID NOT NULL,
-    
-    -- Notification type
-    type VARCHAR(50) NOT NULL, -- achievement, reminder, course_update, exercise_graded, system
-    category VARCHAR(50) NOT NULL, -- info, success, warning, alert
-    
-    -- Content
+    type VARCHAR(50) NOT NULL, -- 'email', 'push', 'in_app', 'sms'
+    category VARCHAR(50) NOT NULL, -- 'achievement', 'reminder', 'course_update', 'exercise_graded', 'system'
     title VARCHAR(200) NOT NULL,
     message TEXT NOT NULL,
-    
-    -- Action data (deep link, etc.)
-    action_type VARCHAR(50), -- navigate_to_course, navigate_to_exercise, external_link
-    action_data JSONB, -- {course_id: "...", screen: "..."}
-    
-    -- Visual
+    action_type VARCHAR(50), -- 'open_course', 'open_exercise', 'open_profile', 'external_link'
+    action_data JSONB, -- Additional action data
     icon_url TEXT,
     image_url TEXT,
-    
-    -- Status
     is_read BOOLEAN DEFAULT false,
     read_at TIMESTAMP,
-    
-    -- Delivery
     is_sent BOOLEAN DEFAULT false,
     sent_at TIMESTAMP,
-    
-    -- Scheduling
     scheduled_for TIMESTAMP,
-    
-    -- Expiry
     expires_at TIMESTAMP,
-    
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );
 
--- Indexes
 CREATE INDEX idx_notifications_user_id ON notifications(user_id);
 CREATE INDEX idx_notifications_is_read ON notifications(is_read);
 CREATE INDEX idx_notifications_created_at ON notifications(created_at DESC);
 CREATE INDEX idx_notifications_scheduled_for ON notifications(scheduled_for) WHERE is_sent = false;
 
--- ============================================
--- PUSH_NOTIFICATIONS TABLE
--- ============================================
--- Push notifications for mobile devices
-CREATE TABLE push_notifications (
-    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
-    notification_id UUID REFERENCES notifications(id) ON DELETE CASCADE,
-    user_id UUID NOT NULL,
-    
-    -- Device info
-    device_token VARCHAR(500) NOT NULL,
-    device_type VARCHAR(20) NOT NULL, -- android, ios
-    device_id VARCHAR(255),
-    
-    -- Notification payload
-    title VARCHAR(200) NOT NULL,
-    body TEXT NOT NULL,
-    data JSONB, -- Additional data
-    
-    -- Status
-    status VARCHAR(20) DEFAULT 'pending', -- pending, sent, delivered, failed
-    
-    -- Delivery tracking
-    sent_at TIMESTAMP,
-    delivered_at TIMESTAMP,
-    clicked_at TIMESTAMP,
-    
-    -- Error handling
-    error_message TEXT,
-    retry_count INT DEFAULT 0,
-    
-    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
-);
-
--- Indexes
-CREATE INDEX idx_push_notifications_user_id ON push_notifications(user_id);
-CREATE INDEX idx_push_notifications_device_token ON push_notifications(device_token);
-CREATE INDEX idx_push_notifications_status ON push_notifications(status);
-
--- ============================================
--- EMAIL_NOTIFICATIONS TABLE
--- ============================================
--- Email notifications
+-- ----------------------------------------------------------------------------
+-- Email Notifications Table
+-- ----------------------------------------------------------------------------
 CREATE TABLE email_notifications (
     id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
     notification_id UUID REFERENCES notifications(id) ON DELETE CASCADE,
     user_id UUID NOT NULL,
-    
-    -- Email details
     to_email VARCHAR(255) NOT NULL,
     subject VARCHAR(500) NOT NULL,
     body_html TEXT NOT NULL,
     body_text TEXT,
-    
-    -- Template
-    template_name VARCHAR(100),
-    template_data JSONB,
-    
-    -- Status
-    status VARCHAR(20) DEFAULT 'pending', -- pending, sent, delivered, bounced, failed
-    
-    -- Delivery tracking
+    template_name VARCHAR(100), -- Reference to notification_templates
+    template_data JSONB, -- Variables for template
+    status VARCHAR(20) DEFAULT 'pending', -- 'pending', 'sent', 'delivered', 'failed', 'bounced'
     sent_at TIMESTAMP,
     delivered_at TIMESTAMP,
-    opened_at TIMESTAMP,
-    clicked_at TIMESTAMP,
-    
-    -- External email service
-    external_id VARCHAR(255), -- ID from SendGrid, AWS SES, etc.
-    
-    -- Error handling
+    opened_at TIMESTAMP, -- Email opened tracking
+    clicked_at TIMESTAMP, -- Link clicked tracking
+    external_id VARCHAR(255), -- ID from email service provider
     error_message TEXT,
-    retry_count INT DEFAULT 0,
-    
+    retry_count INTEGER DEFAULT 0,
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );
 
--- Indexes
 CREATE INDEX idx_email_notifications_user_id ON email_notifications(user_id);
 CREATE INDEX idx_email_notifications_to_email ON email_notifications(to_email);
 CREATE INDEX idx_email_notifications_status ON email_notifications(status);
 
--- ============================================
--- DEVICE_TOKENS TABLE
--- ============================================
--- Store device tokens for push notifications
+-- ----------------------------------------------------------------------------
+-- Push Notifications Table
+-- ----------------------------------------------------------------------------
+CREATE TABLE push_notifications (
+    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    notification_id UUID REFERENCES notifications(id) ON DELETE CASCADE,
+    user_id UUID NOT NULL,
+    device_token VARCHAR(500) NOT NULL,
+    device_type VARCHAR(20) NOT NULL, -- 'ios', 'android', 'web'
+    device_id VARCHAR(255),
+    title VARCHAR(200) NOT NULL,
+    body TEXT NOT NULL,
+    data JSONB, -- Additional payload data
+    status VARCHAR(20) DEFAULT 'pending', -- 'pending', 'sent', 'delivered', 'failed'
+    sent_at TIMESTAMP,
+    delivered_at TIMESTAMP,
+    clicked_at TIMESTAMP,
+    error_message TEXT,
+    retry_count INTEGER DEFAULT 0,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
+
+CREATE INDEX idx_push_notifications_user_id ON push_notifications(user_id);
+CREATE INDEX idx_push_notifications_device_token ON push_notifications(device_token);
+CREATE INDEX idx_push_notifications_status ON push_notifications(status);
+
+-- ============================================================================
+-- DEVICE MANAGEMENT
+-- ============================================================================
+
+-- ----------------------------------------------------------------------------
+-- Device Tokens Table
+-- ----------------------------------------------------------------------------
 CREATE TABLE device_tokens (
     id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
     user_id UUID NOT NULL,
-    
-    -- Device information
     device_token VARCHAR(500) UNIQUE NOT NULL,
-    device_type VARCHAR(20) NOT NULL, -- android, ios
+    device_type VARCHAR(20) NOT NULL, -- 'ios', 'android', 'web'
     device_id VARCHAR(255),
     device_name VARCHAR(100),
-    
-    -- App version
     app_version VARCHAR(50),
-    
-    -- OS information
     os_version VARCHAR(50),
-    
-    -- Status
     is_active BOOLEAN DEFAULT true,
-    
-    -- Last used
     last_used_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-    
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );
 
--- Indexes
 CREATE INDEX idx_device_tokens_user_id ON device_tokens(user_id);
 CREATE INDEX idx_device_tokens_device_token ON device_tokens(device_token);
 CREATE INDEX idx_device_tokens_is_active ON device_tokens(is_active);
+CREATE INDEX idx_device_tokens_user_active ON device_tokens(user_id, is_active);
+CREATE UNIQUE INDEX idx_device_tokens_device_token_active ON device_tokens(device_token) WHERE is_active = true;
 
--- ============================================
--- NOTIFICATION_PREFERENCES TABLE
--- ============================================
--- User preferences for notifications
+-- ============================================================================
+-- TEMPLATES AND PREFERENCES
+-- ============================================================================
+
+-- ----------------------------------------------------------------------------
+-- Notification Templates Table
+-- ----------------------------------------------------------------------------
+CREATE TABLE notification_templates (
+    id SERIAL PRIMARY KEY,
+    template_code VARCHAR(100) UNIQUE NOT NULL,
+    name VARCHAR(200) NOT NULL,
+    description TEXT,
+    notification_type VARCHAR(50) NOT NULL, -- 'email', 'push', 'both'
+    category VARCHAR(50) NOT NULL,
+    title_template VARCHAR(500), -- For push notifications
+    body_template TEXT NOT NULL,
+    subject_template VARCHAR(500), -- For emails
+    html_template TEXT, -- For HTML emails
+    required_variables TEXT[], -- List of required template variables
+    is_active BOOLEAN DEFAULT true,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
+
+-- ----------------------------------------------------------------------------
+-- Notification Preferences Table
+-- ----------------------------------------------------------------------------
 CREATE TABLE notification_preferences (
     user_id UUID PRIMARY KEY,
     
@@ -187,178 +175,100 @@ CREATE TABLE notification_preferences (
     push_course_updates BOOLEAN DEFAULT true,
     push_exercise_graded BOOLEAN DEFAULT true,
     
-    -- Email preferences
+    -- Email notification preferences
     email_enabled BOOLEAN DEFAULT true,
     email_weekly_report BOOLEAN DEFAULT true,
     email_course_updates BOOLEAN DEFAULT true,
     email_marketing BOOLEAN DEFAULT false,
     
-    -- In-app preferences
+    -- In-app notifications
     in_app_enabled BOOLEAN DEFAULT true,
     
     -- Quiet hours
     quiet_hours_enabled BOOLEAN DEFAULT false,
-    quiet_hours_start TIME, -- e.g., 22:00
-    quiet_hours_end TIME, -- e.g., 08:00
+    quiet_hours_start TIME,
+    quiet_hours_end TIME,
     
-    -- Frequency limits
-    max_notifications_per_day INT DEFAULT 20,
+    -- Rate limiting
+    max_notifications_per_day INTEGER DEFAULT 20,
     
+    timezone VARCHAR(50) DEFAULT 'Asia/Ho_Chi_Minh',
     updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );
 
--- ============================================
--- NOTIFICATION_TEMPLATES TABLE
--- ============================================
--- Templates for different types of notifications
-CREATE TABLE notification_templates (
-    id SERIAL PRIMARY KEY,
-    
-    -- Template identification
-    template_code VARCHAR(100) UNIQUE NOT NULL,
-    name VARCHAR(200) NOT NULL,
-    description TEXT,
-    
-    -- Template type
-    notification_type VARCHAR(50) NOT NULL, -- push, email, in_app
-    category VARCHAR(50) NOT NULL,
-    
-    -- Content (supports variables like {{user_name}}, {{course_title}})
-    title_template VARCHAR(500),
-    body_template TEXT NOT NULL,
-    
-    -- For emails
-    subject_template VARCHAR(500),
-    html_template TEXT,
-    
-    -- Variables expected
-    required_variables TEXT[], -- ['user_name', 'course_title']
-    
-    -- Status
+-- ============================================================================
+-- SCHEDULED NOTIFICATIONS
+-- ============================================================================
+
+-- ----------------------------------------------------------------------------
+-- Scheduled Notifications Table
+-- ----------------------------------------------------------------------------
+CREATE TABLE scheduled_notifications (
+    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    user_id UUID NOT NULL,
+    title VARCHAR(200) NOT NULL,
+    message TEXT NOT NULL,
+    schedule_type VARCHAR(20) NOT NULL, -- 'once', 'daily', 'weekly', 'custom'
+    scheduled_time TIME NOT NULL,
+    days_of_week INTEGER[], -- [0-6] where 0=Monday, 6=Sunday (for weekly)
+    timezone VARCHAR(50) DEFAULT 'Asia/Ho_Chi_Minh',
     is_active BOOLEAN DEFAULT true,
-    
+    last_sent_at TIMESTAMP,
+    next_send_at TIMESTAMP,
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );
 
--- Insert default templates
-INSERT INTO notification_templates (template_code, name, notification_type, category, title_template, body_template, required_variables) VALUES
-('achievement_unlocked', 'Achievement Unlocked', 'push', 'success', 
- 'Chúc mừng! 🎉', 'Bạn đã đạt được thành tựu "{{achievement_name}}"', 
- ARRAY['achievement_name']),
- 
-('daily_reminder', 'Daily Study Reminder', 'push', 'info',
- 'Đã đến giờ học rồi! 📚', 'Hãy dành {{minutes}} phút để tiếp tục hành trình chinh phục IELTS của bạn!',
- ARRAY['minutes']),
- 
-('exercise_graded', 'Exercise Graded', 'push', 'success',
- 'Bài tập đã được chấm điểm', 'Bạn đạt {{score}} điểm trong bài "{{exercise_title}}". Xem chi tiết ngay!',
- ARRAY['score', 'exercise_title']),
- 
-('writing_evaluated', 'Writing Evaluated', 'push', 'success',
- 'Bài viết đã được đánh giá', 'Bạn đạt band {{band_score}} cho bài Writing. Xem phản hồi chi tiết!',
- ARRAY['band_score']),
- 
-('course_enrolled', 'Course Enrolled', 'email', 'info',
- 'Chào mừng đến với khóa học', 'Xin chào {{user_name}},\n\nBạn đã đăng ký thành công khóa học "{{course_title}}". Bắt đầu học ngay!',
- ARRAY['user_name', 'course_title']);
+CREATE INDEX idx_scheduled_notifications_user_id ON scheduled_notifications(user_id);
+CREATE INDEX idx_scheduled_notifications_next_send_at ON scheduled_notifications(next_send_at) WHERE is_active = true;
+CREATE UNIQUE INDEX idx_scheduled_notifications_unique ON scheduled_notifications(user_id, schedule_type, scheduled_time, title) WHERE is_active = true;
 
--- ============================================
--- NOTIFICATION_LOGS TABLE
--- ============================================
--- Comprehensive logging of all notification events
+-- ============================================================================
+-- LOGGING AND ANALYTICS
+-- ============================================================================
+
+-- ----------------------------------------------------------------------------
+-- Notification Logs Table
+-- ----------------------------------------------------------------------------
 CREATE TABLE notification_logs (
     id BIGSERIAL PRIMARY KEY,
     notification_id UUID REFERENCES notifications(id) ON DELETE SET NULL,
     user_id UUID NOT NULL,
-    
-    -- Event details
-    event_type VARCHAR(50) NOT NULL, -- created, sent, delivered, read, clicked, failed
-    event_status VARCHAR(20) NOT NULL, -- success, failed
-    
-    -- Notification details
-    notification_type VARCHAR(50), -- push, email, in_app
-    
-    -- Error info
+    event_type VARCHAR(50) NOT NULL, -- 'sent', 'delivered', 'opened', 'clicked', 'failed', 'bounced'
+    event_status VARCHAR(20) NOT NULL, -- 'success', 'failure'
+    notification_type VARCHAR(50), -- 'email', 'push', 'in_app'
     error_message TEXT,
-    
-    -- Metadata
     metadata JSONB,
-    
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );
 
--- Indexes
-CREATE INDEX idx_notification_logs_notification_id ON notification_logs(notification_id);
 CREATE INDEX idx_notification_logs_user_id ON notification_logs(user_id);
+CREATE INDEX idx_notification_logs_notification_id ON notification_logs(notification_id);
 CREATE INDEX idx_notification_logs_event_type ON notification_logs(event_type);
 CREATE INDEX idx_notification_logs_created_at ON notification_logs(created_at);
 
--- ============================================
--- SCHEDULED_NOTIFICATIONS TABLE
--- ============================================
--- Recurring scheduled notifications (like study reminders)
-CREATE TABLE scheduled_notifications (
-    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
-    user_id UUID NOT NULL,
-    
-    -- Schedule details
-    title VARCHAR(200) NOT NULL,
-    message TEXT NOT NULL,
-    
-    -- Schedule type
-    schedule_type VARCHAR(20) NOT NULL, -- daily, weekly, monthly, custom
-    
-    -- Timing
-    scheduled_time TIME NOT NULL,
-    days_of_week INT[], -- [1,2,3,4,5] for Mon-Fri
-    timezone VARCHAR(50) DEFAULT 'Asia/Ho_Chi_Minh',
-    
-    -- Status
-    is_active BOOLEAN DEFAULT true,
-    
-    -- Last execution
-    last_sent_at TIMESTAMP,
-    next_send_at TIMESTAMP,
-    
-    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
-);
+-- ============================================================================
+-- FUNCTIONS AND TRIGGERS
+-- ============================================================================
 
--- Indexes
-CREATE INDEX idx_scheduled_notifications_user_id ON scheduled_notifications(user_id);
-CREATE INDEX idx_scheduled_notifications_next_send_at ON scheduled_notifications(next_send_at) WHERE is_active = true;
-
--- ============================================
--- FUNCTIONS & TRIGGERS
--- ============================================
-
--- Update updated_at timestamp
+-- ----------------------------------------------------------------------------
+-- Auto-update updated_at timestamp
+-- ----------------------------------------------------------------------------
 CREATE OR REPLACE FUNCTION update_updated_at_column()
 RETURNS TRIGGER AS $$
 BEGIN
     NEW.updated_at = CURRENT_TIMESTAMP;
     RETURN NEW;
 END;
-$$ language 'plpgsql';
+$$ LANGUAGE plpgsql;
 
--- Apply triggers
-CREATE TRIGGER update_notifications_updated_at BEFORE UPDATE ON notifications
-    FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
-    
-CREATE TRIGGER update_device_tokens_updated_at BEFORE UPDATE ON device_tokens
-    FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
-    
-CREATE TRIGGER update_notification_preferences_updated_at BEFORE UPDATE ON notification_preferences
-    FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
-
--- Function to check if user can receive notification based on preferences
-CREATE OR REPLACE FUNCTION can_send_notification(
-    p_user_id UUID,
-    p_notification_type VARCHAR,
-    p_category VARCHAR
-)
-RETURNS BOOLEAN AS $$
+-- ----------------------------------------------------------------------------
+-- Check if notification can be sent based on user preferences
+-- ----------------------------------------------------------------------------
+CREATE OR REPLACE FUNCTION can_send_notification(p_user_id UUID, p_notification_type VARCHAR, p_category VARCHAR)
+RETURNS BOOLEAN
+LANGUAGE plpgsql
+AS $$
 DECLARE
     v_preferences RECORD;
     v_current_time TIME;
@@ -384,7 +294,7 @@ BEGIN
     -- Check quiet hours
     IF v_preferences.quiet_hours_enabled THEN
         v_current_time := CURRENT_TIME;
-        IF v_current_time >= v_preferences.quiet_hours_start 
+        IF v_current_time >= v_preferences.quiet_hours_start
            OR v_current_time <= v_preferences.quiet_hours_end THEN
             RETURN false;
         END IF;
@@ -403,11 +313,15 @@ BEGIN
     
     RETURN true;
 END;
-$$ LANGUAGE plpgsql;
+$$;
 
--- Function to cleanup old notifications
+-- ----------------------------------------------------------------------------
+-- Cleanup old notifications
+-- ----------------------------------------------------------------------------
 CREATE OR REPLACE FUNCTION cleanup_old_notifications()
-RETURNS void AS $$
+RETURNS VOID
+LANGUAGE plpgsql
+AS $$
 BEGIN
     -- Delete read notifications older than 30 days
     DELETE FROM notifications
@@ -423,15 +337,69 @@ BEGIN
     DELETE FROM notification_logs
     WHERE created_at < CURRENT_TIMESTAMP - INTERVAL '90 days';
 END;
-$$ LANGUAGE plpgsql;
+$$;
 
--- ============================================
--- COMMENTS
--- ============================================
-COMMENT ON TABLE notifications IS 'Tất cả các thông báo trong hệ thống';
-COMMENT ON TABLE push_notifications IS 'Push notifications cho mobile app';
-COMMENT ON TABLE email_notifications IS 'Email notifications';
-COMMENT ON TABLE device_tokens IS 'Device tokens cho push notifications';
-COMMENT ON TABLE notification_preferences IS 'Tùy chỉnh thông báo của người dùng';
-COMMENT ON TABLE notification_templates IS 'Mẫu thông báo có thể tái sử dụng';
-COMMENT ON TABLE scheduled_notifications IS 'Thông báo được lên lịch định kỳ';
+-- Apply triggers
+CREATE TRIGGER update_notifications_updated_at
+    BEFORE UPDATE ON notifications
+    FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
+
+CREATE TRIGGER update_device_tokens_updated_at
+    BEFORE UPDATE ON device_tokens
+    FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
+
+CREATE TRIGGER update_notification_preferences_updated_at
+    BEFORE UPDATE ON notification_preferences
+    FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
+
+-- ============================================================================
+-- SEED DATA
+-- ============================================================================
+
+-- Default notification templates
+INSERT INTO notification_templates (template_code, name, notification_type, category, title_template, body_template, subject_template, required_variables) VALUES
+    ('achievement_unlocked', 'Achievement Unlocked', 'push', 'success',
+     'Chúc mừng! 🎉',
+     'Bạn đã đạt được thành tựu "{{achievement_name}}". Tiếp tục phấn đấu!',
+     NULL,
+     ARRAY['achievement_name']),
+    
+    ('daily_reminder', 'Daily Study Reminder', 'push', 'info',
+     'Đã đến giờ học rồi! 📚',
+     'Hãy dành thời gian học IELTS hôm nay. Streak hiện tại: {{streak_days}} ngày!',
+     NULL,
+     ARRAY['streak_days']),
+    
+    ('exercise_graded', 'Exercise Graded', 'push', 'success',
+     'Bài tập đã được chấm điểm',
+     'Bài tập "{{exercise_title}}" của bạn đã được chấm điểm.',
+     NULL,
+     ARRAY['exercise_title']),
+    
+    ('writing_evaluated', 'Writing Evaluated', 'push', 'success',
+     'Bài viết đã được đánh giá',
+     'Bài viết của bạn đã được AI đánh giá với band score {{band_score}}.',
+     NULL,
+     ARRAY['band_score']),
+    
+    ('course_enrolled', 'Course Enrolled', 'email', 'info',
+     'Chào mừng đến với khóa học',
+     'Chào mừng bạn đến với khóa học "{{course_title}}". Chúc bạn học tập hiệu quả!',
+     NULL,
+     ARRAY['course_title']);
+
+-- ============================================================================
+-- SCHEMA MIGRATIONS TRACKING
+-- ============================================================================
+
+CREATE TABLE schema_migrations (
+    id SERIAL PRIMARY KEY,
+    version VARCHAR(255) NOT NULL UNIQUE,
+    applied_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
+
+INSERT INTO schema_migrations (version) VALUES ('001_initial_schema');
+
+-- ============================================================================
+-- END OF NOTIFICATION SERVICE SCHEMA
+-- ============================================================================

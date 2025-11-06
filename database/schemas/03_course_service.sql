@@ -2,56 +2,101 @@
 -- Course Service Database Schema
 -- ============================================
 -- Database: course_db
--- Purpose: Courses, modules, lessons, videos, learning materials
+-- Purpose: Course management, lessons, videos, and student progress tracking
+-- Author: IELTS Platform Backend Team
+-- Created: 2025-11-06
+-- Last Modified: 2025-11-06
 
+-- Create database (run separately)
 -- CREATE DATABASE course_db;
 
+-- ============================================
+-- EXTENSIONS
+-- ============================================
+
+-- Enable UUID extension for UUID generation
 CREATE EXTENSION IF NOT EXISTS "uuid-ossp";
+
+-- Enable dblink for cross-database queries
+CREATE EXTENSION IF NOT EXISTS dblink;
+
+-- Enable pg_trgm for full-text search on course titles and descriptions
+CREATE EXTENSION IF NOT EXISTS pg_trgm;
+
+-- ============================================
+-- CATEGORY MANAGEMENT TABLES
+-- ============================================
+
+-- ============================================
+-- COURSE_CATEGORIES TABLE
+-- ============================================
+-- Hierarchical category system for organizing courses
+-- Supports nested categories (parent-child relationship)
+CREATE TABLE course_categories (
+    id SERIAL PRIMARY KEY,
+    
+    name VARCHAR(100) UNIQUE NOT NULL,
+    slug VARCHAR(100) UNIQUE NOT NULL, -- URL-friendly name
+    description TEXT,
+    
+    -- Hierarchy support
+    parent_id INT REFERENCES course_categories(id), -- NULL for top-level categories
+    
+    -- Display
+    display_order INT DEFAULT 0,
+    
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
+
+-- ============================================
+-- CORE COURSE TABLES
+-- ============================================
 
 -- ============================================
 -- COURSES TABLE
 -- ============================================
--- Main course structure
+-- Main course information
+-- Supports different IELTS skills (Listening, Reading, Writing, Speaking)
 CREATE TABLE courses (
     id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
     
-    -- Basic information
+    -- Basic info
     title VARCHAR(200) NOT NULL,
-    slug VARCHAR(250) UNIQUE NOT NULL,
+    slug VARCHAR(250) UNIQUE NOT NULL, -- URL-friendly identifier
     description TEXT,
     short_description VARCHAR(500),
     
-    -- Course details
-    skill_type VARCHAR(20) NOT NULL, -- listening, reading, writing, speaking, general
-    level VARCHAR(20) NOT NULL, -- beginner, elementary, pre-intermediate, intermediate, upper-intermediate, advanced
-    target_band_score DECIMAL(2,1), -- 5.0, 6.0, 6.5, 7.0, etc.
+    -- Course classification
+    skill_type VARCHAR(20) NOT NULL, -- 'listening', 'reading', 'writing', 'speaking', 'general'
+    level VARCHAR(20) NOT NULL, -- 'beginner', 'intermediate', 'advanced'
+    target_band_score NUMERIC(2,1), -- Target IELTS band score (e.g., 6.5, 7.0)
     
-    -- Content
+    -- Media
     thumbnail_url TEXT,
     preview_video_url TEXT,
     
     -- Instructor
-    instructor_id UUID NOT NULL, -- References user_id from auth_db
-    instructor_name VARCHAR(200),
+    instructor_id UUID NOT NULL, -- Reference to user in auth_db
+    instructor_name VARCHAR(200), -- Denormalized for performance
     
-    -- Metadata
-    duration_hours DECIMAL(5,2), -- Total course duration
-    total_lessons INT DEFAULT 0,
-    total_videos INT DEFAULT 0,
+    -- Course structure
+    duration_hours NUMERIC(5,2), -- Total course duration
+    total_lessons INT DEFAULT 0, -- Calculated from modules
+    total_videos INT DEFAULT 0, -- Calculated from lessons
     
-    -- Enrollment
-    enrollment_type VARCHAR(20) DEFAULT 'free', -- free, premium, subscription
-    price DECIMAL(10,2) DEFAULT 0,
+    -- Pricing
+    enrollment_type VARCHAR(20) DEFAULT 'free', -- 'free', 'paid', 'subscription'
+    price NUMERIC(10,2) DEFAULT 0,
     currency VARCHAR(10) DEFAULT 'VND',
     
-    -- Status and visibility
-    status VARCHAR(20) DEFAULT 'draft', -- draft, published, archived
-    is_featured BOOLEAN DEFAULT false,
-    is_recommended BOOLEAN DEFAULT false,
+    -- Status
+    status VARCHAR(20) DEFAULT 'draft', -- 'draft', 'published', 'archived'
+    is_featured BOOLEAN DEFAULT false, -- Show on homepage
+    is_recommended BOOLEAN DEFAULT false, -- Recommended for students
     
-    -- Stats
+    -- Statistics (updated by triggers)
     total_enrollments INT DEFAULT 0,
-    average_rating DECIMAL(3,2) DEFAULT 0,
+    average_rating NUMERIC(3,2) DEFAULT 0, -- 0.00 to 5.00
     total_reviews INT DEFAULT 0,
     
     -- SEO
@@ -59,43 +104,69 @@ CREATE TABLE courses (
     meta_description TEXT,
     meta_keywords VARCHAR(500),
     
-    -- Ordering
+    -- Display
     display_order INT DEFAULT 0,
     
-    -- Timestamps
+    -- Publishing
     published_at TIMESTAMP,
+    
+    -- Timestamps
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-    deleted_at TIMESTAMP
+    deleted_at TIMESTAMP -- Soft delete
+);
+
+-- Indexes for courses
+CREATE INDEX idx_courses_instructor_id ON courses(instructor_id);
+CREATE INDEX idx_courses_skill_type ON courses(skill_type);
+CREATE INDEX idx_courses_level ON courses(level);
+CREATE INDEX idx_courses_skill_level ON courses(skill_type, level);
+CREATE INDEX idx_courses_status ON courses(status);
+CREATE INDEX idx_courses_enrollment_type ON courses(enrollment_type);
+CREATE INDEX idx_courses_featured ON courses(is_featured) WHERE is_featured = true;
+CREATE INDEX idx_courses_slug ON courses(slug) WHERE deleted_at IS NULL;
+CREATE INDEX idx_courses_status_display ON courses(status, display_order, created_at);
+
+-- Full-text search indexes
+CREATE INDEX idx_courses_title_search ON courses USING gin (title gin_trgm_ops);
+CREATE INDEX idx_courses_desc_search ON courses USING gin (description gin_trgm_ops);
+
+-- ============================================
+-- COURSE_CATEGORY_MAPPING TABLE
+-- ============================================
+-- Many-to-many relationship between courses and categories
+-- A course can belong to multiple categories
+-- Note: Created here after courses table exists
+CREATE TABLE course_category_mapping (
+    course_id UUID NOT NULL REFERENCES courses(id) ON DELETE CASCADE,
+    category_id INT NOT NULL REFERENCES course_categories(id) ON DELETE CASCADE,
+    
+    PRIMARY KEY (course_id, category_id)
 );
 
 -- Indexes
-CREATE INDEX idx_courses_skill_type ON courses(skill_type);
-CREATE INDEX idx_courses_level ON courses(level);
-CREATE INDEX idx_courses_status ON courses(status);
-CREATE INDEX idx_courses_instructor_id ON courses(instructor_id);
-CREATE INDEX idx_courses_slug ON courses(slug) WHERE deleted_at IS NULL;
+CREATE INDEX idx_course_category_mapping_course_id ON course_category_mapping(course_id);
+CREATE INDEX idx_course_category_mapping_category_id ON course_category_mapping(category_id);
 
 -- ============================================
 -- MODULES TABLE
 -- ============================================
--- Course modules/sections
+-- Course modules (sections/chapters)
+-- Each course has multiple modules
 CREATE TABLE modules (
     id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
     course_id UUID NOT NULL REFERENCES courses(id) ON DELETE CASCADE,
     
-    -- Module information
     title VARCHAR(200) NOT NULL,
     description TEXT,
     
-    -- Content
-    duration_hours DECIMAL(5,2),
-    total_lessons INT DEFAULT 0,
+    -- Statistics
+    duration_hours NUMERIC(5,2),
+    total_lessons INT DEFAULT 0, -- Count of lessons in this module
+    total_exercises INT DEFAULT 0 NOT NULL, -- Count of exercises linked to this module
     
-    -- Ordering
+    -- Display
     display_order INT NOT NULL DEFAULT 0,
-    
-    -- Status
     is_published BOOLEAN DEFAULT true,
     
     -- Timestamps
@@ -105,40 +176,36 @@ CREATE TABLE modules (
 
 -- Indexes
 CREATE INDEX idx_modules_course_id ON modules(course_id);
+CREATE INDEX idx_modules_course_id_perf ON modules(course_id);
 CREATE INDEX idx_modules_display_order ON modules(course_id, display_order);
 
 -- ============================================
 -- LESSONS TABLE
 -- ============================================
 -- Individual lessons within modules
+-- Can be video, text, quiz, or exercise
 CREATE TABLE lessons (
     id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
     module_id UUID NOT NULL REFERENCES modules(id) ON DELETE CASCADE,
-    course_id UUID NOT NULL REFERENCES courses(id) ON DELETE CASCADE,
+    course_id UUID NOT NULL REFERENCES courses(id) ON DELETE CASCADE, -- Denormalized for performance
     
-    -- Lesson information
     title VARCHAR(200) NOT NULL,
     description TEXT,
     
     -- Content type
-    content_type VARCHAR(50) NOT NULL, -- video, article, quiz, exercise, mixed
+    content_type VARCHAR(50) NOT NULL, -- 'video', 'text', 'quiz', 'exercise', 'interactive'
     
     -- Duration
-    duration_minutes INT,
+    duration_minutes INT, -- Estimated time to complete
     
-    -- Ordering
+    -- Display
     display_order INT NOT NULL DEFAULT 0,
-    
-    -- Access control
-    is_free BOOLEAN DEFAULT false, -- Free preview lesson
+    is_free BOOLEAN DEFAULT false, -- Can be accessed without enrollment
     is_published BOOLEAN DEFAULT true,
     
-    -- Completion criteria
-    completion_criteria JSONB, -- {video_watch_percentage: 80, quiz_pass_score: 70}
-    
-    -- Stats
+    -- Statistics
     total_completions INT DEFAULT 0,
-    average_time_spent INT, -- in minutes
+    average_time_spent INT, -- Average minutes spent by students
     
     -- Timestamps
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
@@ -147,44 +214,50 @@ CREATE TABLE lessons (
 
 -- Indexes
 CREATE INDEX idx_lessons_module_id ON lessons(module_id);
+CREATE INDEX idx_lessons_module_id_perf ON lessons(module_id);
 CREATE INDEX idx_lessons_course_id ON lessons(course_id);
+CREATE INDEX idx_lessons_course_id_perf ON lessons(course_id);
 CREATE INDEX idx_lessons_display_order ON lessons(module_id, display_order);
+
+-- ============================================
+-- VIDEO & MATERIAL TABLES
+-- ============================================
 
 -- ============================================
 -- LESSON_VIDEOS TABLE
 -- ============================================
 -- Video content for lessons
+-- Supports multiple video providers (YouTube, Vimeo, self-hosted)
 CREATE TABLE lesson_videos (
     id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
     lesson_id UUID NOT NULL REFERENCES lessons(id) ON DELETE CASCADE,
     
-    -- Video information
     title VARCHAR(200),
     description TEXT,
     
-    -- Video source
-    video_url TEXT NOT NULL,
-    video_provider VARCHAR(50) DEFAULT 'self-hosted', -- self-hosted, youtube, vimeo
-    video_id VARCHAR(200), -- External video ID
+    -- Video info
+    video_url TEXT NOT NULL, -- URL to video file or embed URL
+    video_provider VARCHAR(50) DEFAULT 'self-hosted', -- 'youtube', 'vimeo', 'self-hosted'
+    video_id VARCHAR(200), -- Provider-specific video ID
     
-    -- Video metadata
     duration_seconds INT,
     thumbnail_url TEXT,
     
-    -- Quality options
-    resolutions JSONB, -- [{quality: "720p", url: "..."}, {quality: "1080p", url: "..."}]
+    -- Quality/formats
+    resolutions JSONB, -- Available resolutions: {"1080p": "url", "720p": "url"}
     
     -- Subtitles
     has_subtitles BOOLEAN DEFAULT false,
-    subtitle_languages VARCHAR(100)[], -- ['vi', 'en']
+    subtitle_languages VARCHAR(100)[], -- Array of language codes: ['vi', 'en']
     
-    -- Ordering (if lesson has multiple videos)
+    -- Display
     display_order INT DEFAULT 0,
     
-    -- Stats
+    -- Statistics
     total_views INT DEFAULT 0,
-    average_watch_percentage DECIMAL(5,2),
+    average_watch_percentage NUMERIC(5,2), -- Average % of video watched
     
+    -- Timestamps
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );
@@ -200,11 +273,11 @@ CREATE TABLE video_subtitles (
     id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
     video_id UUID NOT NULL REFERENCES lesson_videos(id) ON DELETE CASCADE,
     
-    language VARCHAR(10) NOT NULL, -- vi, en
-    subtitle_url TEXT NOT NULL,
-    format VARCHAR(20) DEFAULT 'vtt', -- vtt, srt
+    language VARCHAR(10) NOT NULL, -- 'vi', 'en', etc.
+    subtitle_url TEXT NOT NULL, -- URL to subtitle file (.vtt, .srt)
+    format VARCHAR(20) DEFAULT 'vtt', -- 'vtt', 'srt'
     
-    is_default BOOLEAN DEFAULT false,
+    is_default BOOLEAN DEFAULT false, -- Default subtitle track
     
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );
@@ -215,26 +288,27 @@ CREATE INDEX idx_video_subtitles_video_id ON video_subtitles(video_id);
 -- ============================================
 -- LESSON_MATERIALS TABLE
 -- ============================================
--- Additional learning materials (PDFs, documents, etc.)
+-- Downloadable materials for lessons
+-- PDFs, slides, worksheets, etc.
 CREATE TABLE lesson_materials (
     id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
     lesson_id UUID NOT NULL REFERENCES lessons(id) ON DELETE CASCADE,
     
-    -- Material information
     title VARCHAR(200) NOT NULL,
     description TEXT,
     
-    -- File details
-    file_type VARCHAR(50) NOT NULL, -- pdf, doc, ppt, zip, etc.
+    -- File info
+    file_type VARCHAR(50) NOT NULL, -- 'pdf', 'docx', 'pptx', 'zip', etc.
     file_url TEXT NOT NULL,
     file_size_bytes BIGINT,
     
-    -- Ordering
+    -- Display
     display_order INT DEFAULT 0,
     
-    -- Stats
+    -- Statistics
     total_downloads INT DEFAULT 0,
     
+    -- Timestamps
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );
@@ -243,43 +317,51 @@ CREATE TABLE lesson_materials (
 CREATE INDEX idx_lesson_materials_lesson_id ON lesson_materials(lesson_id);
 
 -- ============================================
+-- ENROLLMENT & PROGRESS TABLES
+-- ============================================
+
+-- ============================================
 -- COURSE_ENROLLMENTS TABLE
 -- ============================================
--- Track user course enrollments
+-- Student enrollments in courses
 CREATE TABLE course_enrollments (
     id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
-    user_id UUID NOT NULL, -- References user_id from auth_db
+    user_id UUID NOT NULL, -- Reference to user in auth_db
     course_id UUID NOT NULL REFERENCES courses(id) ON DELETE CASCADE,
     
-    -- Enrollment details
+    -- Enrollment info
     enrollment_date TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-    enrollment_type VARCHAR(20) NOT NULL, -- free, purchased, gifted
+    enrollment_type VARCHAR(20) NOT NULL, -- 'free', 'paid', 'trial'
     
-    -- Payment info (if applicable)
-    payment_id UUID,
-    amount_paid DECIMAL(10,2),
+    -- Payment (if paid)
+    payment_id UUID, -- Reference to payment transaction
+    amount_paid NUMERIC(10,2),
     currency VARCHAR(10),
     
     -- Progress tracking
-    progress_percentage DECIMAL(5,2) DEFAULT 0,
+    progress_percentage NUMERIC(5,2) DEFAULT 0, -- 0.00 to 100.00
     lessons_completed INT DEFAULT 0,
     total_time_spent_minutes INT DEFAULT 0,
     
     -- Status
-    status VARCHAR(20) DEFAULT 'active', -- active, completed, dropped, expired
+    status VARCHAR(20) DEFAULT 'active', -- 'active', 'completed', 'expired', 'cancelled'
     completed_at TIMESTAMP,
+    
+    -- Certificate
     certificate_issued BOOLEAN DEFAULT false,
     certificate_url TEXT,
     
-    -- Access
-    expires_at TIMESTAMP, -- For time-limited courses
+    -- Expiry (for time-limited access)
+    expires_at TIMESTAMP,
+    
+    -- Activity
     last_accessed_at TIMESTAMP,
     
     -- Timestamps
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     
-    UNIQUE(user_id, course_id)
+    UNIQUE(user_id, course_id) -- One enrollment per user per course
 );
 
 -- Indexes
@@ -290,26 +372,26 @@ CREATE INDEX idx_course_enrollments_status ON course_enrollments(status);
 -- ============================================
 -- LESSON_PROGRESS TABLE
 -- ============================================
--- Track user progress for individual lessons
+-- Track student progress for each lesson
 CREATE TABLE lesson_progress (
     id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
-    user_id UUID NOT NULL,
+    user_id UUID NOT NULL, -- Reference to user in auth_db
     lesson_id UUID NOT NULL REFERENCES lessons(id) ON DELETE CASCADE,
-    course_id UUID NOT NULL REFERENCES courses(id) ON DELETE CASCADE,
+    course_id UUID NOT NULL REFERENCES courses(id) ON DELETE CASCADE, -- Denormalized
     
-    -- Progress
-    status VARCHAR(20) DEFAULT 'not_started', -- not_started, in_progress, completed
-    progress_percentage DECIMAL(5,2) DEFAULT 0,
+    -- Status
+    status VARCHAR(20) DEFAULT 'not_started', -- 'not_started', 'in_progress', 'completed'
+    progress_percentage NUMERIC(5,2) DEFAULT 0,
     
     -- Video progress
-    video_watched_seconds INT DEFAULT 0,
+    video_watched_seconds INT NOT NULL DEFAULT 0,
     video_total_seconds INT,
-    -- time_spent_minutes REMOVED by Migration 013; video_watch_percentage REMOVED by Migration 011
+    last_position_seconds INT NOT NULL DEFAULT 0, -- Resume position
     
     -- Completion
     completed_at TIMESTAMP,
     
-    -- Timestamps
+    -- Activity
     first_accessed_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     last_accessed_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     
@@ -320,27 +402,27 @@ CREATE TABLE lesson_progress (
 CREATE INDEX idx_lesson_progress_user_id ON lesson_progress(user_id);
 CREATE INDEX idx_lesson_progress_lesson_id ON lesson_progress(lesson_id);
 CREATE INDEX idx_lesson_progress_status ON lesson_progress(status);
+CREATE INDEX idx_lesson_progress_last_position ON lesson_progress(user_id, last_position_seconds) WHERE last_position_seconds > 0;
 
 -- ============================================
 -- VIDEO_WATCH_HISTORY TABLE
 -- ============================================
--- Detailed video watching history
+-- Detailed video watch history for analytics
 CREATE TABLE video_watch_history (
     id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
     user_id UUID NOT NULL,
     video_id UUID NOT NULL REFERENCES lesson_videos(id) ON DELETE CASCADE,
     lesson_id UUID NOT NULL REFERENCES lessons(id) ON DELETE CASCADE,
     
-    -- Watch details
+    -- Watch data
     watched_seconds INT NOT NULL,
     total_seconds INT NOT NULL,
-    watch_percentage DECIMAL(5,2),
+    watch_percentage NUMERIC(5,2), -- Calculated: watched/total * 100
     
     -- Session info
-    session_id UUID,
-    device_type VARCHAR(20), -- web, android, ios
+    session_id UUID, -- Group related watch events
+    device_type VARCHAR(20), -- 'desktop', 'mobile', 'tablet'
     
-    -- Timestamp
     watched_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );
 
@@ -350,32 +432,36 @@ CREATE INDEX idx_video_watch_history_video_id ON video_watch_history(video_id);
 CREATE INDEX idx_video_watch_history_watched_at ON video_watch_history(watched_at);
 
 -- ============================================
+-- REVIEW & RATING TABLES
+-- ============================================
+
+-- ============================================
 -- COURSE_REVIEWS TABLE
 -- ============================================
--- User reviews for courses
+-- Student reviews and ratings for courses
 CREATE TABLE course_reviews (
     id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
-    user_id UUID NOT NULL,
+    user_id UUID NOT NULL, -- Reference to user in auth_db
     course_id UUID NOT NULL REFERENCES courses(id) ON DELETE CASCADE,
     
-    -- Review content
-    rating INT NOT NULL CHECK (rating >= 1 AND rating <= 5),
+    -- Review
+    rating INT NOT NULL CHECK (rating >= 1 AND rating <= 5), -- 1-5 stars
     title VARCHAR(200),
     comment TEXT,
     
-    -- Helpful votes
-    helpful_count INT DEFAULT 0,
+    -- Engagement
+    helpful_count INT DEFAULT 0, -- Number of "helpful" votes
     
-    -- Status
+    -- Moderation
     is_approved BOOLEAN DEFAULT false,
-    approved_by UUID,
+    approved_by UUID, -- Admin who approved
     approved_at TIMESTAMP,
     
     -- Timestamps
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     
-    UNIQUE(user_id, course_id)
+    UNIQUE(user_id, course_id) -- One review per user per course
 );
 
 -- Indexes
@@ -384,82 +470,59 @@ CREATE INDEX idx_course_reviews_rating ON course_reviews(rating);
 CREATE INDEX idx_course_reviews_is_approved ON course_reviews(is_approved);
 
 -- ============================================
--- COURSE_CATEGORIES TABLE
+-- SYSTEM TABLES
 -- ============================================
--- Categories/tags for courses
-CREATE TABLE course_categories (
+
+-- ============================================
+-- SCHEMA_MIGRATIONS TABLE
+-- ============================================
+-- Tracks database migrations
+CREATE TABLE schema_migrations (
     id SERIAL PRIMARY KEY,
-    name VARCHAR(100) UNIQUE NOT NULL,
-    slug VARCHAR(100) UNIQUE NOT NULL,
-    description TEXT,
-    
-    parent_id INT REFERENCES course_categories(id),
-    
-    display_order INT DEFAULT 0,
-    
-    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+    migration_file VARCHAR(255) UNIQUE NOT NULL,
+    applied_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    checksum VARCHAR(64)
 );
-
--- Insert default categories
-INSERT INTO course_categories (name, slug, description) VALUES
-('Listening', 'listening', 'Các khóa học kỹ năng Listening'),
-('Reading', 'reading', 'Các khóa học kỹ năng Reading'),
-('Writing', 'writing', 'Các khóa học kỹ năng Writing'),
-('Speaking', 'speaking', 'Các khóa học kỹ năng Speaking'),
-('Grammar', 'grammar', 'Các khóa học ngữ pháp'),
-('Vocabulary', 'vocabulary', 'Các khóa học từ vựng'),
-('Test Preparation', 'test-preparation', 'Luyện đề thi IELTS'),
-('Academic IELTS', 'academic-ielts', 'IELTS Academic'),
-('General IELTS', 'general-ielts', 'IELTS General Training');
-
--- ============================================
--- COURSE_CATEGORY_MAPPING TABLE
--- ============================================
--- Many-to-many relationship between courses and categories
-CREATE TABLE course_category_mapping (
-    course_id UUID NOT NULL REFERENCES courses(id) ON DELETE CASCADE,
-    category_id INT NOT NULL REFERENCES course_categories(id) ON DELETE CASCADE,
-    
-    PRIMARY KEY (course_id, category_id)
-);
-
--- Indexes
-CREATE INDEX idx_course_category_mapping_course_id ON course_category_mapping(course_id);
-CREATE INDEX idx_course_category_mapping_category_id ON course_category_mapping(category_id);
 
 -- ============================================
 -- FUNCTIONS & TRIGGERS
 -- ============================================
 
--- Update updated_at timestamp
+-- Function to update updated_at timestamp
 CREATE OR REPLACE FUNCTION update_updated_at_column()
 RETURNS TRIGGER AS $$
 BEGIN
     NEW.updated_at = CURRENT_TIMESTAMP;
     RETURN NEW;
 END;
-$$ language 'plpgsql';
+$$ LANGUAGE plpgsql;
 
--- Apply triggers
-CREATE TRIGGER update_courses_updated_at BEFORE UPDATE ON courses
-    FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
-    
-CREATE TRIGGER update_modules_updated_at BEFORE UPDATE ON modules
-    FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
-    
-CREATE TRIGGER update_lessons_updated_at BEFORE UPDATE ON lessons
-    FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
+-- Triggers for updated_at
+CREATE TRIGGER update_courses_updated_at
+    BEFORE UPDATE ON courses
+    FOR EACH ROW
+    EXECUTE FUNCTION update_updated_at_column();
 
--- Function to update course stats when enrollment changes
+CREATE TRIGGER update_modules_updated_at
+    BEFORE UPDATE ON modules
+    FOR EACH ROW
+    EXECUTE FUNCTION update_updated_at_column();
+
+CREATE TRIGGER update_lessons_updated_at
+    BEFORE UPDATE ON lessons
+    FOR EACH ROW
+    EXECUTE FUNCTION update_updated_at_column();
+
+-- Function to update course enrollment count
 CREATE OR REPLACE FUNCTION update_course_enrollment_count()
 RETURNS TRIGGER AS $$
 BEGIN
     IF TG_OP = 'INSERT' THEN
-        UPDATE courses 
+        UPDATE courses
         SET total_enrollments = total_enrollments + 1
         WHERE id = NEW.course_id;
     ELSIF TG_OP = 'DELETE' THEN
-        UPDATE courses 
+        UPDATE courses
         SET total_enrollments = GREATEST(0, total_enrollments - 1)
         WHERE id = OLD.course_id;
     END IF;
@@ -467,12 +530,13 @@ BEGIN
 END;
 $$ LANGUAGE plpgsql;
 
+-- Trigger to update enrollment count
 CREATE TRIGGER trigger_update_course_enrollment_count
     AFTER INSERT OR DELETE ON course_enrollments
     FOR EACH ROW
     EXECUTE FUNCTION update_course_enrollment_count();
 
--- Function to update course average rating
+-- Function to update course rating
 CREATE OR REPLACE FUNCTION update_course_rating()
 RETURNS TRIGGER AS $$
 BEGIN
@@ -493,18 +557,47 @@ BEGIN
 END;
 $$ LANGUAGE plpgsql;
 
+-- Trigger to update rating
 CREATE TRIGGER trigger_update_course_rating
     AFTER INSERT OR UPDATE ON course_reviews
     FOR EACH ROW
     EXECUTE FUNCTION update_course_rating();
 
 -- ============================================
+-- SEED DATA (Optional)
+-- ============================================
+
+-- Insert default course categories
+-- Default course categories
+INSERT INTO course_categories (name, slug, description, display_order) VALUES
+    ('Listening', 'listening', 'Các khóa học kỹ năng Listening', 1),
+    ('Reading', 'reading', 'Các khóa học kỹ năng Reading', 2),
+    ('Writing', 'writing', 'Các khóa học kỹ năng Writing', 3),
+    ('Speaking', 'speaking', 'Các khóa học kỹ năng Speaking', 4),
+    ('Grammar', 'grammar', 'Các khóa học ngữ pháp', 5),
+    ('Vocabulary', 'vocabulary', 'Các khóa học từ vựng', 6),
+    ('Test Preparation', 'test-preparation', 'Luyện đề thi IELTS', 7),
+    ('Academic IELTS', 'academic-ielts', 'IELTS Academic', 8),
+    ('General IELTS', 'general-ielts', 'IELTS General Training', 9);-- ============================================
 -- COMMENTS
 -- ============================================
-COMMENT ON TABLE courses IS 'Bảng khóa học chính';
-COMMENT ON TABLE modules IS 'Các module/phần trong khóa học';
-COMMENT ON TABLE lessons IS 'Các bài học cụ thể';
-COMMENT ON TABLE lesson_videos IS 'Video bài giảng';
-COMMENT ON TABLE course_enrollments IS 'Đăng ký khóa học của học viên';
-COMMENT ON TABLE lesson_progress IS 'Tiến trình học từng bài học';
-COMMENT ON TABLE course_reviews IS 'Đánh giá khóa học';
+
+COMMENT ON TABLE courses IS 'Bảng lưu thông tin khóa học IELTS';
+COMMENT ON TABLE modules IS 'Bảng lưu các module (chương) trong khóa học';
+COMMENT ON TABLE lessons IS 'Bảng lưu các bài học trong module';
+COMMENT ON TABLE lesson_videos IS 'Bảng lưu video bài học';
+COMMENT ON TABLE lesson_materials IS 'Bảng lưu tài liệu học tập (PDF, slides, etc.)';
+COMMENT ON TABLE video_subtitles IS 'Bảng lưu phụ đề cho video';
+COMMENT ON TABLE course_enrollments IS 'Bảng lưu thông tin đăng ký khóa học của học viên';
+COMMENT ON TABLE lesson_progress IS 'Bảng lưu tiến trình học của từng bài học';
+COMMENT ON TABLE video_watch_history IS 'Bảng lưu lịch sử xem video để phân tích';
+COMMENT ON TABLE course_reviews IS 'Bảng lưu đánh giá và nhận xét về khóa học';
+COMMENT ON TABLE course_categories IS 'Bảng danh mục khóa học (có hỗ trợ phân cấp)';
+COMMENT ON TABLE course_category_mapping IS 'Bảng mapping nhiều-nhiều giữa course và category';
+
+-- Column comments
+COMMENT ON COLUMN courses.skill_type IS 'Loại kỹ năng IELTS: listening, reading, writing, speaking, general';
+COMMENT ON COLUMN courses.total_enrollments IS 'Số lượng học viên đã đăng ký (cập nhật tự động bởi trigger)';
+COMMENT ON COLUMN courses.average_rating IS 'Điểm đánh giá trung bình (cập nhật tự động bởi trigger)';
+COMMENT ON COLUMN lesson_progress.last_position_seconds IS 'Vị trí dừng video để tiếp tục xem lần sau';
+COMMENT ON COLUMN course_reviews.is_approved IS 'Review cần được admin phê duyệt trước khi hiển thị';
