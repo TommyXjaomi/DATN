@@ -47,6 +47,163 @@ func NewUserRepository(db *database.Database, cfg *config.Config) *UserRepositor
 	return &UserRepository{db: db, config: cfg}
 }
 
+// Transaction support methods
+
+// BeginTx starts a new database transaction
+func (r *UserRepository) BeginTx() (*sql.Tx, error) {
+	return r.db.DB.Begin()
+}
+
+// CreateOfficialTestResultTx creates an official test result within a transaction
+func (r *UserRepository) CreateOfficialTestResultTx(tx *sql.Tx, result *models.OfficialTestResult) error {
+	query := `
+		INSERT INTO official_test_results (
+			user_id, test_type, skill_type, ielts_variant, band_score,
+			raw_score, total_questions,
+			source_service, source_table, source_id,
+			test_date, test_duration_minutes, completion_status,
+			test_source, notes
+		) VALUES (
+			$1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15
+		) RETURNING id, created_at, updated_at`
+
+	err := tx.QueryRow(
+		query,
+		result.UserID,
+		result.TestType,
+		result.SkillType,
+		result.IELTSVariant,
+		result.BandScore,
+		result.RawScore,
+		result.TotalQuestions,
+		result.SourceService,
+		result.SourceTable,
+		result.SourceID,
+		result.TestDate,
+		result.TestDurationMinutes,
+		result.CompletionStatus,
+		result.TestSource,
+		result.Notes,
+	).Scan(&result.ID, &result.CreatedAt, &result.UpdatedAt)
+
+	if err != nil {
+		log.Printf("❌ Error creating official test result for user %s: %v", result.UserID, err)
+		return fmt.Errorf("failed to create official test result: %w", err)
+	}
+
+	log.Printf("✅ Created official test result %s for user %s (%s: %.1f)",
+		result.ID, result.UserID, result.SkillType, result.BandScore)
+	return nil
+}
+
+// UpdateLearningProgressWithTestScoreTx updates learning progress within a transaction
+func (r *UserRepository) UpdateLearningProgressWithTestScoreTx(
+	tx *sql.Tx,
+	userID uuid.UUID,
+	skillType string,
+	bandScore float64,
+	incrementTestCount bool,
+) error {
+	// Build update query dynamically based on skill type
+	var scoreColumn string
+	switch skillType {
+	case "listening":
+		scoreColumn = "listening_score"
+	case "reading":
+		scoreColumn = "reading_score"
+	case "writing":
+		scoreColumn = "writing_score"
+	case "speaking":
+		scoreColumn = "speaking_score"
+	case "overall":
+		scoreColumn = "overall_score"
+	default:
+		return fmt.Errorf("invalid skill type: %s", skillType)
+	}
+
+	// Update score (and optionally increment total test count for individual skills)
+	// FIX #11: Use atomic increment to avoid race condition
+	// OLD: COALESCE(total_tests_taken, 0) + 1  ❌ (read-modify-write race)
+	// NEW: total_tests_taken + 1  ✅ (atomic at SQL level)
+	query := fmt.Sprintf(`
+		UPDATE learning_progress
+		SET %s = $1,
+			updated_at = CURRENT_TIMESTAMP
+	`, scoreColumn)
+
+	args := []interface{}{bandScore}
+	paramCount := 1
+
+	// For individual skills (not overall), increment total_tests_taken atomically
+	if incrementTestCount && skillType != "overall" {
+		// Atomic increment: PostgreSQL ensures this is thread-safe
+		// Even with concurrent transactions, each will increment correctly
+		query += ", total_tests_taken = total_tests_taken + 1"
+	}
+
+	paramCount++
+	query += fmt.Sprintf(" WHERE user_id = $%d", paramCount)
+	args = append(args, userID)
+
+	_, err := tx.Exec(query, args...)
+	if err != nil {
+		return fmt.Errorf("failed to update learning progress: %w", err)
+	}
+
+	log.Printf("✅ Updated learning progress for user %s: %s = %.1f", userID, skillType, bandScore)
+	return nil
+}
+
+// GetLearningProgressTx retrieves learning progress within a transaction
+func (r *UserRepository) GetLearningProgressTx(tx *sql.Tx, userID uuid.UUID) (*models.LearningProgress, error) {
+	query := `
+		SELECT 
+			lp.id, lp.user_id,
+			lp.total_lessons_completed, lp.total_exercises_completed,
+			lp.listening_progress, lp.reading_progress, lp.writing_progress, lp.speaking_progress,
+			lp.listening_score, lp.reading_score, lp.writing_score, lp.speaking_score,
+			lp.overall_score, lp.current_streak_days, lp.longest_streak_days, lp.last_study_date,
+			lp.created_at, lp.updated_at
+		FROM learning_progress lp
+		WHERE lp.user_id = $1
+	`
+
+	progress := &models.LearningProgress{}
+	err := tx.QueryRow(query, userID).Scan(
+		&progress.ID, &progress.UserID,
+		&progress.TotalLessonsCompleted, &progress.TotalExercisesCompleted,
+		&progress.ListeningProgress, &progress.ReadingProgress,
+		&progress.WritingProgress, &progress.SpeakingProgress, &progress.ListeningScore,
+		&progress.ReadingScore, &progress.WritingScore, &progress.SpeakingScore,
+		&progress.OverallScore, &progress.CurrentStreakDays, &progress.LongestStreakDays,
+		&progress.LastStudyDate, &progress.CreatedAt, &progress.UpdatedAt,
+	)
+
+	if err == sql.ErrNoRows {
+		return nil, nil
+	}
+	if err != nil {
+		log.Printf("❌ Error getting learning progress for user %s: %v", userID, err)
+		return nil, fmt.Errorf("failed to get learning progress: %w", err)
+	}
+
+	// Calculate total_study_hours from study_sessions (within same transaction)
+	var totalStudyHours float64
+	studyHoursQuery := `
+		SELECT COALESCE(ROUND((SUM(duration_minutes) / 60.0)::numeric, 2), 0)
+		FROM study_sessions 
+		WHERE user_id = $1
+	`
+	err = tx.QueryRow(studyHoursQuery, userID).Scan(&totalStudyHours)
+	if err != nil {
+		log.Printf("⚠️  Error calculating total_study_hours for user %s: %v", userID, err)
+		totalStudyHours = 0
+	}
+	progress.TotalStudyHours = totalStudyHours
+
+	return progress, nil
+}
+
 // getDBLinkConnectionString builds dblink connection string from config
 // Returns properly escaped string for use in SQL queries
 func (r *UserRepository) getDBLinkConnectionString(dbName string) string {
@@ -1755,30 +1912,32 @@ func (r *UserRepository) GetUserRank(userID uuid.UUID) (*models.LeaderboardEntry
 
 // ============= Official Test Results =============
 
-// CreateOfficialTestResult creates a new official test result (source of truth for band scores)
+// CreateOfficialTestResult creates a new official test result (per-skill model)
+// Each call creates ONE record for ONE skill test
 func (r *UserRepository) CreateOfficialTestResult(result *models.OfficialTestResult) error {
 	query := `
 		INSERT INTO official_test_results (
-			user_id, test_type, overall_band_score,
-			listening_score, reading_score, writing_score, speaking_score,
-			listening_raw_score, reading_raw_score,
+			user_id, test_type, skill_type, ielts_variant, band_score,
+			raw_score, total_questions,
+			source_service, source_table, source_id,
 			test_date, test_duration_minutes, completion_status,
 			test_source, notes
 		) VALUES (
-			$1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14
+			$1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15
 		) RETURNING id, created_at, updated_at`
 
 	err := r.db.DB.QueryRow(
 		query,
 		result.UserID,
 		result.TestType,
-		result.OverallBandScore,
-		result.ListeningScore,
-		result.ReadingScore,
-		result.WritingScore,
-		result.SpeakingScore,
-		result.ListeningRawScore,
-		result.ReadingRawScore,
+		result.SkillType,
+		result.IELTSVariant,
+		result.BandScore,
+		result.RawScore,
+		result.TotalQuestions,
+		result.SourceService,
+		result.SourceTable,
+		result.SourceID,
 		result.TestDate,
 		result.TestDurationMinutes,
 		result.CompletionStatus,
@@ -1791,11 +1950,12 @@ func (r *UserRepository) CreateOfficialTestResult(result *models.OfficialTestRes
 		return fmt.Errorf("failed to create official test result: %w", err)
 	}
 
-	log.Printf("✅ Created official test result %s for user %s (overall: %.1f)", result.ID, result.UserID, result.OverallBandScore)
+	log.Printf("✅ Created official test result %s for user %s (%s: %.1f)",
+		result.ID, result.UserID, result.SkillType, result.BandScore)
 	return nil
 }
 
-// GetUserTestHistory retrieves user's test history with pagination
+// GetUserTestHistory retrieves user's test history with pagination (per-skill model)
 func (r *UserRepository) GetUserTestHistory(userID uuid.UUID, skillType *string, page, limit int) ([]models.OfficialTestResult, int, error) {
 	offset := (page - 1) * limit
 
@@ -1806,8 +1966,9 @@ func (r *UserRepository) GetUserTestHistory(userID uuid.UUID, skillType *string,
 
 	// Add skill filter if provided
 	if skillType != nil && *skillType != "" {
-		// This would require additional logic if we want to filter by specific skills
-		// For now, we'll just return all tests
+		paramCount++
+		whereClause += fmt.Sprintf(" AND skill_type = $%d", paramCount)
+		args = append(args, *skillType)
 	}
 
 	// Count total records
@@ -1820,9 +1981,9 @@ func (r *UserRepository) GetUserTestHistory(userID uuid.UUID, skillType *string,
 
 	// Get paginated results
 	query := fmt.Sprintf(`
-		SELECT id, user_id, test_type, overall_band_score,
-			   listening_score, reading_score, writing_score, speaking_score,
-			   listening_raw_score, reading_raw_score,
+		SELECT id, user_id, test_type, skill_type, band_score,
+			   raw_score, total_questions,
+			   source_service, source_table, source_id,
 			   test_date, test_duration_minutes, completion_status,
 			   test_source, notes, created_at, updated_at
 		FROM official_test_results
@@ -1845,13 +2006,13 @@ func (r *UserRepository) GetUserTestHistory(userID uuid.UUID, skillType *string,
 			&result.ID,
 			&result.UserID,
 			&result.TestType,
-			&result.OverallBandScore,
-			&result.ListeningScore,
-			&result.ReadingScore,
-			&result.WritingScore,
-			&result.SpeakingScore,
-			&result.ListeningRawScore,
-			&result.ReadingRawScore,
+			&result.SkillType,
+			&result.BandScore,
+			&result.RawScore,
+			&result.TotalQuestions,
+			&result.SourceService,
+			&result.SourceTable,
+			&result.SourceID,
 			&result.TestDate,
 			&result.TestDurationMinutes,
 			&result.CompletionStatus,
@@ -1869,55 +2030,59 @@ func (r *UserRepository) GetUserTestHistory(userID uuid.UUID, skillType *string,
 	return results, totalCount, nil
 }
 
-// GetUserTestStatistics retrieves aggregated statistics from official tests
+// GetUserTestStatistics retrieves aggregated statistics from official tests (per-skill model)
 func (r *UserRepository) GetUserTestStatistics(userID uuid.UUID) (map[string]interface{}, error) {
+	// Query per-skill statistics
 	query := `
 		SELECT 
-			COUNT(*) as total_tests,
-			MAX(overall_band_score) as highest_overall_score,
-			AVG(overall_band_score) as average_overall_score,
-			MAX(listening_score) as highest_listening,
-			MAX(reading_score) as highest_reading,
-			MAX(writing_score) as highest_writing,
-			MAX(speaking_score) as highest_speaking,
-			AVG(listening_score) as average_listening,
-			AVG(reading_score) as average_reading,
-			AVG(writing_score) as average_writing,
-			AVG(speaking_score) as average_speaking,
-			MAX(test_date) as most_recent_test_date
+			skill_type,
+			COUNT(*) as test_count,
+			MAX(band_score) as highest_score,
+			AVG(band_score) as average_score,
+			MAX(test_date) as most_recent_date
 		FROM official_test_results
 		WHERE user_id = $1 AND completion_status = 'completed'
+		GROUP BY skill_type
 	`
 
-	stats := make(map[string]interface{})
-	var totalTests int
-	var highestOverall, avgOverall sql.NullFloat64
-	var highestL, highestR, highestW, highestS sql.NullFloat64
-	var avgL, avgR, avgW, avgS sql.NullFloat64
-	var mostRecentTestDate sql.NullTime
-
-	err := r.db.DB.QueryRow(query, userID).Scan(
-		&totalTests,
-		&highestOverall, &avgOverall,
-		&highestL, &highestR, &highestW, &highestS,
-		&avgL, &avgR, &avgW, &avgS,
-		&mostRecentTestDate,
-	)
+	rows, err := r.db.DB.Query(query, userID)
 	if err != nil {
 		return nil, fmt.Errorf("failed to get test statistics: %w", err)
 	}
+	defer rows.Close()
+
+	stats := make(map[string]interface{})
+	totalTests := 0
+
+	// Build per-skill statistics
+	for rows.Next() {
+		var skillType string
+		var testCount int
+		var highestScore, avgScore sql.NullFloat64
+		var mostRecent sql.NullTime
+
+		err := rows.Scan(&skillType, &testCount, &highestScore, &avgScore, &mostRecent)
+		if err != nil {
+			return nil, fmt.Errorf("failed to scan test statistics: %w", err)
+		}
+
+		totalTests += testCount
+		stats[fmt.Sprintf("highest_%s", skillType)] = highestScore.Float64
+		stats[fmt.Sprintf("average_%s", skillType)] = avgScore.Float64
+		stats[fmt.Sprintf("total_%s_tests", skillType)] = testCount
+	}
 
 	stats["total_tests"] = totalTests
-	stats["highest_overall_score"] = highestOverall.Float64
-	stats["average_overall_score"] = avgOverall.Float64
-	stats["highest_listening"] = highestL.Float64
-	stats["highest_reading"] = highestR.Float64
-	stats["highest_writing"] = highestW.Float64
-	stats["highest_speaking"] = highestS.Float64
-	stats["average_listening"] = avgL.Float64
-	stats["average_reading"] = avgR.Float64
-	stats["average_writing"] = avgW.Float64
-	stats["average_speaking"] = avgS.Float64
+
+	// Get overall most recent test date
+	var mostRecentTestDate sql.NullTime
+	err = r.db.DB.QueryRow(`
+		SELECT MAX(test_date) FROM official_test_results 
+		WHERE user_id = $1 AND completion_status = 'completed'
+	`, userID).Scan(&mostRecentTestDate)
+	if err != nil {
+		return nil, fmt.Errorf("failed to get most recent test date: %w", err)
+	}
 	if mostRecentTestDate.Valid {
 		stats["most_recent_test_date"] = mostRecentTestDate.Time
 	}
@@ -2137,28 +2302,24 @@ func (r *UserRepository) UpdateLearningProgressWithTestScore(
 	}()
 
 	// Build update query dynamically based on skill type
-	var scoreColumn, testCountColumn string
+	var scoreColumn string
 	switch skillType {
 	case "listening":
 		scoreColumn = "listening_score"
-		testCountColumn = "listening_tests_taken"
 	case "reading":
 		scoreColumn = "reading_score"
-		testCountColumn = "reading_tests_taken"
 	case "writing":
 		scoreColumn = "writing_score"
-		testCountColumn = "writing_tests_taken"
 	case "speaking":
 		scoreColumn = "speaking_score"
-		testCountColumn = "speaking_tests_taken"
 	case "overall":
 		scoreColumn = "overall_score"
-		// No test count for overall
 	default:
 		return fmt.Errorf("invalid skill type: %s", skillType)
 	}
 
-	// Update score and increment test count if needed
+	// Update score (and optionally increment total test count for individual skills)
+	// FIX #11: Use atomic increment to avoid race condition
 	query := fmt.Sprintf(`
 		UPDATE learning_progress
 		SET %s = $1,
@@ -2168,9 +2329,9 @@ func (r *UserRepository) UpdateLearningProgressWithTestScore(
 	args := []interface{}{bandScore}
 	paramCount := 1
 
-	if incrementTestCount && testCountColumn != "" {
-		paramCount++
-		query += fmt.Sprintf(", %s = COALESCE(%s, 0) + 1", testCountColumn, testCountColumn)
+	// For individual skills (not overall), increment total_tests_taken atomically
+	if incrementTestCount && skillType != "overall" {
+		query += ", total_tests_taken = total_tests_taken + 1"
 	}
 
 	paramCount++

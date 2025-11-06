@@ -38,16 +38,34 @@ type WritingEvaluationRequest struct {
 type WritingEvaluationResponse struct {
 	Success bool `json:"success"`
 	Data    struct {
-		SubmissionID      string   `json:"submission_id"`
-		OverallBand       float64  `json:"overall_band"`
-		TaskAchievement   float64  `json:"task_achievement"`
-		CoherenceCohesion float64  `json:"coherence_cohesion"`
-		LexicalResource   float64  `json:"lexical_resource"`
-		GrammarAccuracy   float64  `json:"grammar_accuracy"`
-		Feedback          string   `json:"feedback"`
-		Strengths         []string `json:"strengths"`
-		Weaknesses        []string `json:"weaknesses"`
-		Suggestions       []string `json:"suggestions"`
+		OverallBand    float64 `json:"overall_band"`
+		CriteriaScores struct {
+			TaskAchievement   float64 `json:"task_achievement"`
+			CoherenceCohesion float64 `json:"coherence_cohesion"`
+			LexicalResource   float64 `json:"lexical_resource"`
+			GrammaticalRange  float64 `json:"grammatical_range"`
+		} `json:"criteria_scores"`
+		DetailedFeedback struct {
+			TaskAchievement struct {
+				Score    float64 `json:"score"`
+				Feedback string  `json:"feedback"`
+			} `json:"task_achievement"`
+			CoherenceCohesion struct {
+				Score    float64 `json:"score"`
+				Feedback string  `json:"feedback"`
+			} `json:"coherence_cohesion"`
+			LexicalResource struct {
+				Score    float64 `json:"score"`
+				Feedback string  `json:"feedback"`
+			} `json:"lexical_resource"`
+			GrammaticalRange struct {
+				Score    float64 `json:"score"`
+				Feedback string  `json:"feedback"`
+			} `json:"grammatical_range"`
+		} `json:"detailed_feedback"`
+		ExaminerFeedback    string   `json:"examiner_feedback"`
+		Strengths           []string `json:"strengths"`
+		AreasForImprovement []string `json:"areas_for_improvement"`
 	} `json:"data"`
 	Message string `json:"message,omitempty"`
 }
@@ -78,23 +96,41 @@ type SpeakingEvaluationRequest struct {
 type SpeakingEvaluationResponse struct {
 	Success bool `json:"success"`
 	Data    struct {
-		SubmissionID    string   `json:"submission_id"`
-		OverallBand     float64  `json:"overall_band"`
-		Fluency         float64  `json:"fluency"`
-		LexicalResource float64  `json:"lexical_resource"`
-		Grammar         float64  `json:"grammar"`
-		Pronunciation   float64  `json:"pronunciation"`
-		Feedback        string   `json:"feedback"`
-		Strengths       []string `json:"strengths"`
-		Weaknesses      []string `json:"weaknesses"`
-		Suggestions     []string `json:"suggestions"`
+		OverallBand    float64 `json:"overall_band"`
+		CriteriaScores struct {
+			FluencyCoherence float64 `json:"fluency_coherence"`
+			LexicalResource  float64 `json:"lexical_resource"`
+			GrammaticalRange float64 `json:"grammatical_range"`
+			Pronunciation    float64 `json:"pronunciation"`
+		} `json:"criteria_scores"`
+		DetailedFeedback struct {
+			FluencyCoherence struct {
+				Score    float64 `json:"score"`
+				Analysis string  `json:"analysis"`
+			} `json:"fluency_coherence"`
+			LexicalResource struct {
+				Score    float64 `json:"score"`
+				Analysis string  `json:"analysis"`
+			} `json:"lexical_resource"`
+			GrammaticalRange struct {
+				Score    float64 `json:"score"`
+				Analysis string  `json:"analysis"`
+			} `json:"grammatical_range"`
+			Pronunciation struct {
+				Score    float64 `json:"score"`
+				Analysis string  `json:"analysis"`
+			} `json:"pronunciation"`
+		} `json:"detailed_feedback"`
+		ExaminerFeedback    string   `json:"examiner_feedback"`
+		Strengths           []string `json:"strengths"`
+		AreasForImprovement []string `json:"areas_for_improvement"`
 	} `json:"data"`
 	Message string `json:"message,omitempty"`
 }
 
 // EvaluateWriting sends writing essay to AI service for evaluation
 func (c *AIServiceClient) EvaluateWriting(req WritingEvaluationRequest) (*WritingEvaluationResponse, error) {
-	endpoint := fmt.Sprintf("%s/api/v1/ai/writing/evaluate", c.baseURL)
+	endpoint := fmt.Sprintf("%s/api/v1/ai/internal/writing/evaluate", c.baseURL)
 
 	jsonData, err := json.Marshal(req)
 	if err != nil {
@@ -134,7 +170,7 @@ func (c *AIServiceClient) EvaluateWriting(req WritingEvaluationRequest) (*Writin
 
 // TranscribeSpeaking sends audio URL to AI service for transcription
 func (c *AIServiceClient) TranscribeSpeaking(req SpeakingTranscriptionRequest) (*SpeakingTranscriptionResponse, error) {
-	endpoint := fmt.Sprintf("%s/api/v1/ai/speaking/transcribe", c.baseURL)
+	endpoint := fmt.Sprintf("%s/api/v1/ai/internal/speaking/transcribe", c.baseURL)
 
 	jsonData, err := json.Marshal(req)
 	if err != nil {
@@ -174,7 +210,7 @@ func (c *AIServiceClient) TranscribeSpeaking(req SpeakingTranscriptionRequest) (
 
 // EvaluateSpeaking sends transcript to AI service for evaluation
 func (c *AIServiceClient) EvaluateSpeaking(req SpeakingEvaluationRequest) (*SpeakingEvaluationResponse, error) {
-	endpoint := fmt.Sprintf("%s/api/v1/ai/speaking/evaluate", c.baseURL)
+	endpoint := fmt.Sprintf("%s/api/v1/ai/internal/speaking/evaluate", c.baseURL)
 
 	jsonData, err := json.Marshal(req)
 	if err != nil {

@@ -7,7 +7,6 @@
 ---
 
 ## 📖 HOW TO USE THIS CHECKLIST
-
 1. ✅ Check off items as you complete them
 2. 📝 Add notes in the "Notes" column for important findings
 3. ⚠️ Mark "BLOCKED" if you encounter issues

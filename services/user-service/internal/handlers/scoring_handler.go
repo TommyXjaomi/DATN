@@ -8,6 +8,7 @@ import (
 
 	"github.com/bisosad1501/DATN/services/user-service/internal/models"
 	"github.com/bisosad1501/DATN/services/user-service/internal/service"
+	"github.com/bisosad1501/DATN/shared/pkg/ielts"
 	"github.com/gin-gonic/gin"
 	"github.com/google/uuid"
 )
@@ -22,18 +23,23 @@ func NewScoringHandler(service *service.UserService) *ScoringHandler {
 
 // ============= Request/Response DTOs =============
 
+// RecordTestResultRequest for per-skill model (ONE skill per request)
+// FIX #10: BandScore validation updated
+// - Accept 0 to allow calculation from raw_score
+// - Logic validates: must have EITHER (band_score >= 1) OR (raw_score + total_questions)
 type RecordTestResultRequest struct {
-	TestType          string    `json:"test_type" validate:"required,oneof=full_test academic general"`
-	OverallBandScore  float64   `json:"overall_band_score" validate:"required,min=0,max=9"`
-	ListeningScore    float64   `json:"listening_score" validate:"required,min=0,max=9"`
-	ReadingScore      float64   `json:"reading_score" validate:"required,min=0,max=9"`
-	WritingScore      float64   `json:"writing_score" validate:"required,min=0,max=9"`
-	SpeakingScore     float64   `json:"speaking_score" validate:"required,min=0,max=9"`
-	ListeningRawScore *int      `json:"listening_raw_score,omitempty"`
-	ReadingRawScore   *int      `json:"reading_raw_score,omitempty"`
-	TestDate          time.Time `json:"test_date"`
-	TestSource        string    `json:"test_source,omitempty"`
-	Notes             *string   `json:"notes,omitempty"`
+	TestType       string     `json:"test_type" validate:"required,oneof=full_test mock_test sectional_test practice"`
+	SkillType      string     `json:"skill_type" validate:"required,oneof=listening reading writing speaking"`
+	IELTSVariant   *string    `json:"ielts_variant,omitempty" validate:"omitempty,oneof=academic general_training"`
+	BandScore      float64    `json:"band_score" validate:"min=0,max=9"` // Allow 0 for calculation from raw_score
+	RawScore       *int       `json:"raw_score,omitempty"`
+	TotalQuestions *int       `json:"total_questions,omitempty"`
+	SourceService  string     `json:"source_service,omitempty"`
+	SourceTable    string     `json:"source_table,omitempty"`
+	SourceID       *uuid.UUID `json:"source_id,omitempty"`
+	TestDate       time.Time  `json:"test_date"`
+	TestSource     string     `json:"test_source,omitempty"`
+	Notes          *string    `json:"notes,omitempty"`
 }
 
 type RecordPracticeActivityRequest struct {
@@ -76,21 +82,77 @@ func (h *ScoringHandler) RecordTestResultInternal(c *gin.Context) {
 		return
 	}
 
-	// Create OfficialTestResult model
+	// Create OfficialTestResult model (per-skill)
+	sourceService := req.SourceService
+	if sourceService == "" {
+		sourceService = "exercise_service" // default
+	}
+	sourceTable := req.SourceTable
+	if sourceTable == "" {
+		sourceTable = "user_exercise_attempts"
+	}
+
+	// Validate business rules
+	if req.SkillType == "reading" && req.IELTSVariant == nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "ielts_variant is required for reading tests"})
+		return
+	}
+	if req.SkillType != "reading" && req.IELTSVariant != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "ielts_variant should only be set for reading tests"})
+		return
+	}
+
+	// FIX #10: Validate that EITHER band_score OR raw_score is provided
+	// Valid IELTS bands: 1.0, 1.5, 2.0, ..., 8.5, 9.0 (0 is NOT valid)
+	bandScore := req.BandScore
+	hasValidBandScore := bandScore >= 1.0 && bandScore <= 9.0
+	hasRawScore := req.RawScore != nil && req.TotalQuestions != nil
+
+	if !hasValidBandScore && !hasRawScore {
+		c.JSON(http.StatusBadRequest, gin.H{
+			"error": "must provide EITHER band_score (1.0-9.0) OR (raw_score + total_questions)",
+		})
+		return
+	}
+
+	// Calculate band_score if not provided (but raw_score is)
+	if bandScore == 0 && req.RawScore != nil && req.TotalQuestions != nil {
+		// Calculate from raw score using IELTS conversion tables
+		switch req.SkillType {
+		case "listening":
+			bandScore = ielts.ConvertListeningScore(*req.RawScore, *req.TotalQuestions)
+		case "reading":
+			// Use ielts_variant to determine conversion table
+			testType := "academic" // default
+			if req.IELTSVariant != nil && *req.IELTSVariant == "general_training" {
+				testType = "general"
+			}
+			bandScore = ielts.ConvertReadingScore(*req.RawScore, *req.TotalQuestions, testType)
+		default:
+			// Writing/Speaking must provide band_score (calculated by AI)
+			if bandScore == 0 {
+				c.JSON(http.StatusBadRequest, gin.H{"error": "band_score is required for writing/speaking tests"})
+				return
+			}
+		}
+		log.Printf("✅ Calculated band score from raw score: %d/%d = %.1f", *req.RawScore, *req.TotalQuestions, bandScore)
+	}
+
 	result := &models.OfficialTestResult{
-		UserID:            userID,
-		TestType:          req.TestType,
-		OverallBandScore:  req.OverallBandScore,
-		ListeningScore:    req.ListeningScore,
-		ReadingScore:      req.ReadingScore,
-		WritingScore:      req.WritingScore,
-		SpeakingScore:     req.SpeakingScore,
-		ListeningRawScore: req.ListeningRawScore,
-		ReadingRawScore:   req.ReadingRawScore,
-		TestDate:          req.TestDate,
-		CompletionStatus:  "completed",
-		TestSource:        &req.TestSource,
-		Notes:             req.Notes,
+		UserID:           userID,
+		TestType:         req.TestType,
+		SkillType:        req.SkillType,
+		IELTSVariant:     req.IELTSVariant,
+		BandScore:        bandScore,
+		RawScore:         req.RawScore,
+		TotalQuestions:   req.TotalQuestions,
+		SourceService:    &sourceService,
+		SourceTable:      &sourceTable,
+		SourceID:         req.SourceID,
+		TestDate:         req.TestDate,
+		CompletionStatus: "completed",
+		TestSource:       &req.TestSource,
+		Notes:            req.Notes,
 	}
 
 	if req.TestDate.IsZero() {

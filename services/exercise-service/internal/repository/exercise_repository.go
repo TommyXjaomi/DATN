@@ -380,7 +380,7 @@ func (r *ExerciseRepository) GetQuestionsWithOptions(sectionID uuid.UUID) ([]mod
 }
 
 // CreateSubmission starts a new submission (uses user_exercise_attempts table)
-func (r *ExerciseRepository) CreateSubmission(userID, exerciseID uuid.UUID, deviceType *string) (*models.Submission, error) {
+func (r *ExerciseRepository) CreateSubmission(userID, exerciseID uuid.UUID, deviceType *string) (*models.UserExerciseAttempt, error) {
 	// Get exercise details
 	var totalQuestions int
 	var timeLimitMinutes *int
@@ -424,7 +424,7 @@ func (r *ExerciseRepository) CreateSubmission(userID, exerciseID uuid.UUID, devi
 		return nil, err
 	}
 
-	submission := &models.Submission{
+	submission := &models.UserExerciseAttempt{
 		ID:                submissionID,
 		UserID:            userID,
 		ExerciseID:        exerciseID,
@@ -771,12 +771,13 @@ func (r *ExerciseRepository) CompleteSubmission(submissionID uuid.UUID) error {
 // GetSubmissionResult returns detailed submission result (uses user_exercise_attempts)
 func (r *ExerciseRepository) GetSubmissionResult(submissionID uuid.UUID) (*models.SubmissionResultResponse, error) {
 	// Get attempt
-	var submission models.Submission
+	var submission models.UserExerciseAttempt
 	err := r.db.QueryRow(`
 		SELECT id, user_id, exercise_id, attempt_number, status, total_questions,
 			questions_answered, correct_answers, score, band_score, 
 			time_limit_minutes, time_spent_seconds, started_at, completed_at,
-			device_type, created_at, updated_at
+			device_type, created_at, updated_at,
+			essay_text, audio_url, transcript_text, evaluation_status, ai_feedback, detailed_scores
 		FROM user_exercise_attempts WHERE id = $1
 	`, submissionID).Scan(
 		&submission.ID, &submission.UserID, &submission.ExerciseID,
@@ -785,6 +786,8 @@ func (r *ExerciseRepository) GetSubmissionResult(submissionID uuid.UUID) (*model
 		&submission.BandScore, &submission.TimeLimitMinutes, &submission.TimeSpentSeconds,
 		&submission.StartedAt, &submission.CompletedAt, &submission.DeviceType,
 		&submission.CreatedAt, &submission.UpdatedAt,
+		&submission.EssayText, &submission.AudioURL, &submission.TranscriptText,
+		&submission.EvaluationStatus, &submission.AIFeedback, &submission.DetailedScores,
 	)
 	if err != nil {
 		return nil, err
@@ -1093,9 +1096,9 @@ func (r *ExerciseRepository) GetUserSubmissions(userID uuid.UUID, query *models.
 	}
 	defer rows.Close()
 
-	submissions := []models.SubmissionWithExercise{}
+	submissions := []models.UserExerciseAttemptWithExercise{}
 	for rows.Next() {
-		var submission models.Submission
+		var submission models.UserExerciseAttempt
 		var exercise models.Exercise
 		err := rows.Scan(
 			&submission.ID, &submission.UserID, &submission.ExerciseID, &submission.AttemptNumber,
@@ -1117,7 +1120,7 @@ func (r *ExerciseRepository) GetUserSubmissions(userID uuid.UUID, query *models.
 		if err != nil {
 			return nil, err
 		}
-		submissions = append(submissions, models.SubmissionWithExercise{
+		submissions = append(submissions, models.UserExerciseAttemptWithExercise{
 			Submission: &submission,
 			Exercise:   &exercise,
 		})
@@ -1723,7 +1726,7 @@ func (r *ExerciseRepository) GetExerciseAnalytics(exerciseID uuid.UUID) (*models
 }
 
 // GetSubmissionByID retrieves a submission by ID
-func (r *ExerciseRepository) GetSubmissionByID(submissionID uuid.UUID) (*models.Submission, error) {
+func (r *ExerciseRepository) GetSubmissionByID(submissionID uuid.UUID) (*models.UserExerciseAttempt, error) {
 	query := `
 		SELECT id, user_id, exercise_id, attempt_number, status, total_questions, questions_answered,
 			correct_answers, score, band_score, time_limit_minutes, time_spent_seconds,
@@ -1733,11 +1736,11 @@ func (r *ExerciseRepository) GetSubmissionByID(submissionID uuid.UUID) (*models.
 			evaluation_status, ai_evaluation_id, detailed_scores, ai_feedback,
 			official_test_result_id, practice_activity_id,
 			created_at, updated_at
-		FROM submissions
+		FROM user_exercise_attempts
 		WHERE id = $1
 	`
 
-	var s models.Submission
+	var s models.UserExerciseAttempt
 	err := r.db.QueryRow(query, submissionID).Scan(
 		&s.ID, &s.UserID, &s.ExerciseID, &s.AttemptNumber, &s.Status, &s.TotalQuestions, &s.QuestionsAnswered,
 		&s.CorrectAnswers, &s.Score, &s.BandScore, &s.TimeLimitMinutes, &s.TimeSpentSeconds,
@@ -1787,7 +1790,7 @@ func (r *ExerciseRepository) GetExerciseByIDSimple(exerciseID uuid.UUID) (*model
 // UpdateSubmissionBandScore updates the band score of a submission
 func (r *ExerciseRepository) UpdateSubmissionBandScore(submissionID uuid.UUID, bandScore float64) error {
 	query := `
-		UPDATE submissions
+		UPDATE user_exercise_attempts
 		SET band_score = $1, updated_at = NOW()
 		WHERE id = $2
 	`
@@ -1795,10 +1798,97 @@ func (r *ExerciseRepository) UpdateSubmissionBandScore(submissionID uuid.UUID, b
 	return err
 }
 
+// MarkUserServiceSyncSuccess marks submission as successfully synced to User Service
+// FIX #9: Track successful sync to prevent data loss
+func (r *ExerciseRepository) MarkUserServiceSyncSuccess(submissionID uuid.UUID) error {
+	query := `
+		UPDATE user_exercise_attempts
+		SET user_service_sync_status = 'synced',
+		    user_service_last_sync_attempt = NOW(),
+		    updated_at = NOW()
+		WHERE id = $1
+	`
+	_, err := r.db.Exec(query, submissionID)
+	if err != nil {
+		log.Printf("⚠️ Failed to mark sync success for submission %s: %v", submissionID, err)
+	}
+	return err
+}
+
+// MarkUserServiceSyncFailed marks submission as failed to sync after retries
+// FIX #9: Track failed syncs for background retry
+func (r *ExerciseRepository) MarkUserServiceSyncFailed(submissionID uuid.UUID, errorMsg string) error {
+	query := `
+		UPDATE user_exercise_attempts
+		SET user_service_sync_status = 'failed',
+		    user_service_sync_attempts = user_service_sync_attempts + 1,
+		    user_service_last_sync_attempt = NOW(),
+		    user_service_sync_error = $2,
+		    updated_at = NOW()
+		WHERE id = $1
+	`
+	_, err := r.db.Exec(query, submissionID, errorMsg)
+	if err != nil {
+		log.Printf("⚠️ Failed to mark sync failure for submission %s: %v", submissionID, err)
+	}
+	return err
+}
+
+// MarkUserServiceSyncNotRequired marks submission as not requiring sync (practice, incomplete, etc.)
+func (r *ExerciseRepository) MarkUserServiceSyncNotRequired(submissionID uuid.UUID) error {
+	query := `
+		UPDATE user_exercise_attempts
+		SET user_service_sync_status = 'not_required',
+		    updated_at = NOW()
+		WHERE id = $1
+	`
+	_, err := r.db.Exec(query, submissionID)
+	return err
+}
+
+// GetPendingSyncs retrieves submissions that need to be synced to User Service
+// FIX #8: Support background retry for failed/pending syncs
+func (r *ExerciseRepository) GetPendingSyncs(limit int) ([]*models.UserExerciseAttempt, error) {
+	query := `
+		SELECT id, user_id, exercise_id, status, correct_answers, total_questions,
+		       band_score, user_service_sync_status, user_service_sync_attempts,
+		       user_service_last_sync_attempt, user_service_sync_error
+		FROM user_exercise_attempts
+		WHERE user_service_sync_status IN ('pending', 'failed')
+		  AND status = 'completed'
+		  AND user_service_sync_attempts < 5  -- Max 5 retry attempts
+		ORDER BY user_service_last_sync_attempt ASC NULLS FIRST
+		LIMIT $1
+	`
+
+	rows, err := r.db.Query(query, limit)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+
+	var submissions []*models.UserExerciseAttempt
+	for rows.Next() {
+		sub := &models.UserExerciseAttempt{}
+		err := rows.Scan(
+			&sub.ID, &sub.UserID, &sub.ExerciseID, &sub.Status, &sub.CorrectAnswers, &sub.TotalQuestions,
+			&sub.BandScore, &sub.UserServiceSyncStatus, &sub.UserServiceSyncAttempts,
+			&sub.UserServiceLastSyncAttempt, &sub.UserServiceSyncError,
+		)
+		if err != nil {
+			log.Printf("⚠️ Error scanning pending sync: %v", err)
+			continue
+		}
+		submissions = append(submissions, sub)
+	}
+
+	return submissions, nil
+}
+
 // UpdateSubmissionWritingData updates writing-specific fields
 func (r *ExerciseRepository) UpdateSubmissionWritingData(submissionID uuid.UUID, essayText string, wordCount int, taskType, promptText string) error {
 	query := `
-		UPDATE submissions
+		UPDATE user_exercise_attempts
 		SET essay_text = $1, word_count = $2, task_type = $3, prompt_text = $4, updated_at = NOW()
 		WHERE id = $5
 	`
@@ -1809,7 +1899,7 @@ func (r *ExerciseRepository) UpdateSubmissionWritingData(submissionID uuid.UUID,
 // UpdateSubmissionSpeakingData updates speaking-specific fields
 func (r *ExerciseRepository) UpdateSubmissionSpeakingData(submissionID uuid.UUID, audioURL string, audioDuration, speakingPart int) error {
 	query := `
-		UPDATE submissions
+		UPDATE user_exercise_attempts
 		SET audio_url = $1, audio_duration_seconds = $2, speaking_part_number = $3, updated_at = NOW()
 		WHERE id = $4
 	`
@@ -1820,7 +1910,7 @@ func (r *ExerciseRepository) UpdateSubmissionSpeakingData(submissionID uuid.UUID
 // UpdateSubmissionEvaluationStatus updates the evaluation status
 func (r *ExerciseRepository) UpdateSubmissionEvaluationStatus(submissionID uuid.UUID, status string) error {
 	query := `
-		UPDATE submissions
+		UPDATE user_exercise_attempts
 		SET evaluation_status = $1, updated_at = NOW()
 		WHERE id = $2
 	`
@@ -1831,7 +1921,7 @@ func (r *ExerciseRepository) UpdateSubmissionEvaluationStatus(submissionID uuid.
 // UpdateSubmissionTranscript updates the transcript text
 func (r *ExerciseRepository) UpdateSubmissionTranscript(submissionID uuid.UUID, transcript string) error {
 	query := `
-		UPDATE submissions
+		UPDATE user_exercise_attempts
 		SET transcript_text = $1, updated_at = NOW()
 		WHERE id = $2
 	`
@@ -1848,7 +1938,7 @@ func (r *ExerciseRepository) UpdateSubmissionWithAIResult(submissionID uuid.UUID
 	detailedScoresStr := string(detailedScoresJSON)
 
 	query := `
-		UPDATE submissions
+		UPDATE user_exercise_attempts
 		SET band_score = $1,
 		    detailed_scores = $2,
 		    ai_feedback = $3,

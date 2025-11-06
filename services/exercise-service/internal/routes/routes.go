@@ -28,7 +28,8 @@ func SetupRoutes(router *gin.Engine, handler *handlers.ExerciseHandler, authMidd
 		submissions.Use(authMiddleware.AuthRequired())
 		{
 			submissions.POST("", handler.StartExercise)                 // Start new exercise
-			submissions.PUT("/:id/answers", handler.SubmitAnswers)      // Submit answers
+			submissions.POST("/:id/submit", handler.SubmitExercise)     // Unified submission (Phase 4)
+			submissions.PUT("/:id/answers", handler.SubmitAnswers)      // Submit answers (deprecated, use /submit)
 			submissions.GET("/:id/result", handler.GetSubmissionResult) // Get result
 			submissions.GET("/my", handler.GetMySubmissions)            // Get my submissions
 		}

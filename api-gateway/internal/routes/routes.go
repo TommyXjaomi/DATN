@@ -242,8 +242,9 @@ func SetupRoutes(r *gin.Engine, cfg *config.Config, authMiddleware *middleware.A
 	submissionGroup := v1.Group("/submissions")
 	submissionGroup.Use(authMiddleware.ValidateToken())
 	{
-		submissionGroup.POST("", proxy.ReverseProxy(cfg.Services.ExerciseService)) // Start new submission
-		submissionGroup.PUT("/:id/answers", proxy.ReverseProxy(cfg.Services.ExerciseService))
+		submissionGroup.POST("", proxy.ReverseProxy(cfg.Services.ExerciseService))            // Start new submission
+		submissionGroup.POST("/:id/submit", proxy.ReverseProxy(cfg.Services.ExerciseService)) // Unified submission (Phase 4)
+		submissionGroup.PUT("/:id/answers", proxy.ReverseProxy(cfg.Services.ExerciseService)) // Deprecated, use /submit
 		submissionGroup.GET("/:id/result", proxy.ReverseProxy(cfg.Services.ExerciseService))
 		submissionGroup.GET("/my", proxy.ReverseProxy(cfg.Services.ExerciseService))
 		submissionGroup.GET("", proxy.ReverseProxy(cfg.Services.ExerciseService)) // List my submissions (duplicate of /my)
@@ -257,7 +258,7 @@ func SetupRoutes(r *gin.Engine, cfg *config.Config, authMiddleware *middleware.A
 	{
 		// SSE stream (must be before /:id to avoid route conflict)
 		notificationGroup.GET("/stream", proxy.ReverseProxy(cfg.Services.NotificationService))
-		
+
 		notificationGroup.GET("", proxy.ReverseProxy(cfg.Services.NotificationService))
 		notificationGroup.GET("/unread-count", proxy.ReverseProxy(cfg.Services.NotificationService))
 		notificationGroup.GET("/:id", proxy.ReverseProxy(cfg.Services.NotificationService))
@@ -291,9 +292,9 @@ func SetupRoutes(r *gin.Engine, cfg *config.Config, authMiddleware *middleware.A
 	// ============================================
 	// ADMIN ROUTES - Require admin/instructor role
 	// ============================================
-    adminGroup := v1.Group("/admin")
-    adminGroup.Use(authMiddleware.ValidateToken())
-    adminGroup.Use(authMiddleware.RequireRole("instructor", "admin"))
+	adminGroup := v1.Group("/admin")
+	adminGroup.Use(authMiddleware.ValidateToken())
+	adminGroup.Use(authMiddleware.RequireRole("instructor", "admin"))
 	{
 		// Course management
 		adminGroup.POST("/courses", proxy.ReverseProxy(cfg.Services.CourseService))

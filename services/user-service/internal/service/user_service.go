@@ -1157,47 +1157,106 @@ func (s *UserService) RecordCompletedSession(session *models.StudySession) error
 
 // ============= Official Test Results =============
 
-// RecordOfficialTestResult records an official full test result and updates user progress
+// RecordOfficialTestResult records an official test result for ONE skill and updates user progress
+// Per-skill model: Each call handles one skill test
+// Uses transaction to ensure atomicity of all database operations
 func (s *UserService) RecordOfficialTestResult(result *models.OfficialTestResult) error {
-	// 1. Save test result to database
-	if err := s.repo.CreateOfficialTestResult(result); err != nil {
+	// Begin transaction for atomicity
+	tx, err := s.repo.BeginTx()
+	if err != nil {
+		return fmt.Errorf("failed to begin transaction: %w", err)
+	}
+	defer func() {
+		if r := recover(); r != nil {
+			tx.Rollback()
+			log.Printf("❌ Panic in RecordOfficialTestResult: %v", r)
+		}
+	}()
+
+	// 1. Save test result to database (per-skill record)
+	if err := s.repo.CreateOfficialTestResultTx(tx, result); err != nil {
+		tx.Rollback()
 		return fmt.Errorf("failed to create test result: %w", err)
 	}
 
-	// 2. Update learning_progress for each skill
-	skills := []struct {
-		name  string
-		score float64
-	}{
-		{"listening", result.ListeningScore},
-		{"reading", result.ReadingScore},
-		{"writing", result.WritingScore},
-		{"speaking", result.SpeakingScore},
-	}
-
-	for _, skill := range skills {
-		if err := s.repo.UpdateLearningProgressWithTestScore(
+	// 2. Update learning_progress for THIS skill only
+	if result.BandScore > 0 {
+		if err := s.repo.UpdateLearningProgressWithTestScoreTx(
+			tx,
 			result.UserID,
-			skill.name,
-			skill.score,
+			result.SkillType,
+			result.BandScore,
 			true, // increment test count
 		); err != nil {
-			log.Printf("⚠️  Failed to update learning progress for %s: %v", skill.name, err)
+			tx.Rollback()
+			return fmt.Errorf("failed to update learning progress for %s: %w", result.SkillType, err)
+		}
+		log.Printf("✅ Updated %s score: %.1f", result.SkillType, result.BandScore)
+	} else {
+		// Note: band_score=0 is not a valid IELTS score, but we allow it for edge cases
+		log.Printf("⚠️  Warning: Band score is 0 for skill %s", result.SkillType)
+	}
+
+	// 3. Always recalculate overall score from all available skills after any skill update
+	progress, err := s.repo.GetLearningProgressTx(tx, result.UserID)
+	if err != nil {
+		tx.Rollback()
+		return fmt.Errorf("failed to get learning progress: %w", err)
+	}
+
+	if progress != nil {
+		// Calculate average of all available skills
+		// BUSINESS RULE: Skip skills with band_score = 0
+		// Why? In IELTS scoring system:
+		// - Valid band scores: 1.0, 1.5, 2.0, ..., 8.5, 9.0 (half-band increments)
+		// - 0.0 is NOT a valid IELTS band score
+		// - 0.0 means: not tested, test not completed, or data error
+		// - Including 0 in average would incorrectly lower overall score
+		// Example: If user has Reading=7.0, Listening=0 (not tested), Writing=6.5
+		//   Correct: (7.0 + 6.5) / 2 = 6.75 (skip the 0)
+		//   Wrong:   (7.0 + 0 + 6.5) / 3 = 4.5 (includes 0, wrong!)
+		totalScore := 0.0
+		skillCount := 0
+		if progress.ListeningScore != nil && *progress.ListeningScore > 0 {
+			totalScore += *progress.ListeningScore
+			skillCount++
+		}
+		if progress.ReadingScore != nil && *progress.ReadingScore > 0 {
+			totalScore += *progress.ReadingScore
+			skillCount++
+		}
+		if progress.WritingScore != nil && *progress.WritingScore > 0 {
+			totalScore += *progress.WritingScore
+			skillCount++
+		}
+		if progress.SpeakingScore != nil && *progress.SpeakingScore > 0 {
+			totalScore += *progress.SpeakingScore
+			skillCount++
+		}
+
+		if skillCount > 0 {
+			newOverall := totalScore / float64(skillCount)
+			if err := s.repo.UpdateLearningProgressWithTestScoreTx(
+				tx,
+				result.UserID,
+				"overall",
+				newOverall,
+				false,
+			); err != nil {
+				tx.Rollback()
+				return fmt.Errorf("failed to update overall score: %w", err)
+			}
+			log.Printf("✅ Recalculated overall score from %d skills: %.1f", skillCount, newOverall)
 		}
 	}
 
-	// 3. Update overall score in learning_progress
-	if err := s.repo.UpdateLearningProgressWithTestScore(
-		result.UserID,
-		"overall",
-		result.OverallBandScore,
-		false, // don't increment test count for overall
-	); err != nil {
-		log.Printf("⚠️  Failed to update overall score: %v", err)
+	// Commit transaction
+	if err := tx.Commit(); err != nil {
+		return fmt.Errorf("failed to commit transaction: %w", err)
 	}
 
-	log.Printf("✅ Recorded official test result for user %s: overall=%.1f",
-		result.UserID, result.OverallBandScore)
+	log.Printf("✅ Recorded official test result for user %s (skill: %s, score: %.1f)",
+		result.UserID, result.SkillType, result.BandScore)
 	return nil
 }
 

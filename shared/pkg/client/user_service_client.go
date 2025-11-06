@@ -172,19 +172,21 @@ func (c *UserServiceClient) RecordCompletedSession(userID, sessionType, skillTyp
 
 // ============= Scoring System Methods =============
 
-// RecordTestResultRequest represents official test result recording request
+// RecordTestResultRequest represents official test result recording request (per-skill model)
+// Each request records ONE skill test
 type RecordTestResultRequest struct {
-	TestType          string     `json:"test_type"`
-	OverallBandScore  float64    `json:"overall_band_score"`
-	ListeningScore    float64    `json:"listening_score"`
-	ReadingScore      float64    `json:"reading_score"`
-	WritingScore      float64    `json:"writing_score"`
-	SpeakingScore     float64    `json:"speaking_score"`
-	ListeningRawScore *int       `json:"listening_raw_score,omitempty"`
-	ReadingRawScore   *int       `json:"reading_raw_score,omitempty"`
-	TestDate          *time.Time `json:"test_date,omitempty"`
-	TestSource        string     `json:"test_source,omitempty"`
-	Notes             *string    `json:"notes,omitempty"`
+	TestType       string     `json:"test_type"`                 // full_test, mock_test, sectional_test, practice
+	SkillType      string     `json:"skill_type"`                // listening, reading, writing, speaking
+	IELTSVariant   *string    `json:"ielts_variant,omitempty"`   // academic, general_training (ONLY for Reading)
+	BandScore      float64    `json:"band_score"`                // Final band score for THIS skill
+	RawScore       *int       `json:"raw_score,omitempty"`       // For L/R only
+	TotalQuestions *int       `json:"total_questions,omitempty"` // For L/R only
+	SourceService  string     `json:"source_service,omitempty"`  // exercise_service
+	SourceTable    string     `json:"source_table,omitempty"`    // user_exercise_attempts
+	SourceID       *string    `json:"source_id,omitempty"`       // submission_id
+	TestDate       *time.Time `json:"test_date,omitempty"`
+	TestSource     string     `json:"test_source,omitempty"` // platform, imported, manual_entry
+	Notes          *string    `json:"notes,omitempty"`
 }
 
 // RecordPracticeActivityRequest represents practice activity recording request
@@ -211,7 +213,7 @@ type RecordPracticeActivityRequest struct {
 
 // RecordTestResult records an official test result (source of truth for band scores)
 func (c *UserServiceClient) RecordTestResult(userID string, req RecordTestResultRequest) error {
-	endpoint := fmt.Sprintf("/api/v1/user/internal/scoring/%s/test-result", userID)
+	endpoint := fmt.Sprintf("/api/v1/user/internal/users/%s/test-results", userID)
 
 	err := c.PostWithRetry(endpoint, req, 3)
 	if err != nil {
@@ -223,7 +225,7 @@ func (c *UserServiceClient) RecordTestResult(userID string, req RecordTestResult
 
 // RecordPracticeActivity records a practice activity (separate from official test scores)
 func (c *UserServiceClient) RecordPracticeActivity(userID string, req RecordPracticeActivityRequest) error {
-	endpoint := fmt.Sprintf("/api/v1/user/internal/scoring/%s/practice-activity", userID)
+	endpoint := fmt.Sprintf("/api/v1/user/internal/users/%s/practice-activities", userID)
 
 	err := c.PostWithRetry(endpoint, req, 3)
 	if err != nil {

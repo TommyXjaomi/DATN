@@ -37,7 +37,7 @@ func (h *ExerciseHandler) GetExercises(c *gin.Context) {
 	// Parse query params
 	query.Page, _ = strconv.Atoi(c.DefaultQuery("page", "1"))
 	query.Limit, _ = strconv.Atoi(c.DefaultQuery("limit", "20"))
-	
+
 	// Support comma-separated values for OR logic (e.g., skill_type=listening,reading)
 	skillTypeParam := c.Query("skill_type")
 	if skillTypeParam != "" {
@@ -52,9 +52,9 @@ func (h *ExerciseHandler) GetExercises(c *gin.Context) {
 		query.ExerciseType = exerciseTypeParam // Will be parsed in repository
 	}
 	query.Search = c.Query("search")
-	
+
 	// Sort parameters
-	query.SortBy = c.DefaultQuery("sort_by", "newest") // newest, popular, difficulty, title
+	query.SortBy = c.DefaultQuery("sort_by", "newest")     // newest, popular, difficulty, title
 	query.SortOrder = c.DefaultQuery("sort_order", "desc") // asc, desc
 
 	if isFree := c.Query("is_free"); isFree != "" {
@@ -73,7 +73,7 @@ func (h *ExerciseHandler) GetExercises(c *gin.Context) {
 			query.ModuleID = &id
 		}
 	}
-	
+
 	// Parse course_level_only flag
 	if courseLevelOnly := c.Query("course_level_only"); courseLevelOnly == "true" {
 		query.CourseLevelOnly = true
@@ -99,8 +99,8 @@ func (h *ExerciseHandler) GetExercises(c *gin.Context) {
 			"exercises": exercises,
 			"pagination": gin.H{
 				"page":        query.Page,
-				"limit":      query.Limit,
-				"total":      total,
+				"limit":       query.Limit,
+				"total":       total,
 				"total_pages": totalPages,
 			},
 		},
@@ -1097,6 +1097,56 @@ func (h *ExerciseHandler) GetExerciseAnalytics(c *gin.Context) {
 	c.JSON(http.StatusOK, Response{
 		Success: true,
 		Data:    analytics,
+	})
+}
+
+// SubmitExercise handles POST /api/v1/submissions/:id/submit
+// Unified submission handler for all 4 skills (Phase 4)
+func (h *ExerciseHandler) SubmitExercise(c *gin.Context) {
+	submissionID, err := uuid.Parse(c.Param("id"))
+	if err != nil {
+		c.JSON(http.StatusBadRequest, Response{
+			Success: false,
+			Error: &ErrorInfo{
+				Code:    "INVALID_ID",
+				Message: "Invalid submission ID",
+			},
+		})
+		return
+	}
+
+	var req models.SubmitExerciseRequest
+	if err := c.ShouldBindJSON(&req); err != nil {
+		c.JSON(http.StatusBadRequest, Response{
+			Success: false,
+			Error: &ErrorInfo{
+				Code:    "INVALID_REQUEST",
+				Message: "Invalid request body",
+				Details: err.Error(),
+			},
+		})
+		return
+	}
+
+	err = h.service.SubmitExercise(submissionID, &req)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, Response{
+			Success: false,
+			Error: &ErrorInfo{
+				Code:    "SUBMIT_EXERCISE_ERROR",
+				Message: "Failed to submit exercise",
+				Details: err.Error(),
+			},
+		})
+		return
+	}
+
+	c.JSON(http.StatusOK, Response{
+		Success: true,
+		Data: gin.H{
+			"message":       "Exercise submitted successfully",
+			"submission_id": submissionID,
+		},
 	})
 }
 

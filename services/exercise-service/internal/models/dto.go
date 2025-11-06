@@ -14,8 +14,8 @@ type ExerciseListQuery struct {
 	ModuleID        *uuid.UUID `form:"module_id"`
 	CourseLevelOnly bool       `form:"course_level_only"` // If true, only return exercises with course_id but module_id = NULL
 	Search          string     `form:"search"`
-	SortBy          string     `form:"sort_by"`       // newest, popular, difficulty, title
-	SortOrder       string     `form:"sort_order"`    // asc, desc
+	SortBy          string     `form:"sort_by"`    // newest, popular, difficulty, title
+	SortOrder       string     `form:"sort_order"` // asc, desc
 }
 
 // ExerciseDetailResponse includes exercise with sections and questions
@@ -49,9 +49,9 @@ type SubmitAnswerItem struct {
 	TimeSpentSeconds *int       `json:"time_spent_seconds,omitempty"`
 }
 
-// SubmissionResultResponse includes detailed results
+// SubmissionResultResponse includes detailed results for a user's exercise attempt
 type SubmissionResultResponse struct {
-	Submission  *Submission                    `json:"submission"`
+	Submission  *UserExerciseAttempt           `json:"submission"` // User's attempt data
 	Exercise    *Exercise                      `json:"exercise"`
 	Answers     []SubmissionAnswerWithQuestion `json:"answers"`
 	Performance *PerformanceStats              `json:"performance"`
@@ -171,18 +171,17 @@ type MySubmissionsQuery struct {
 	SortBy    string `form:"sort_by"`    // date, score, band_score
 	SortOrder string `form:"sort_order"` // asc, desc
 	DateFrom  string `form:"date_from"`  // ISO 8601 date (YYYY-MM-DD)
-	DateTo    string `form:"date_to"`   // ISO 8601 date (YYYY-MM-DD)
-	Search    string `form:"search"`      // Search by exercise title
+	DateTo    string `form:"date_to"`    // ISO 8601 date (YYYY-MM-DD)
+	Search    string `form:"search"`     // Search by exercise title
 }
 
 // MySubmissionsResponse for user's submission history
 type MySubmissionsResponse struct {
-	Submissions []SubmissionWithExercise `json:"submissions"`
-	Total       int                      `json:"total"`
+	Submissions []UserExerciseAttemptWithExercise `json:"submissions"`
+	Total       int                               `json:"total"`
 }
 
-// SubmissionWithExercise includes submission with exercise details
-type SubmissionWithExercise struct {
-	Submission *Submission `json:"submission"`
-	Exercise   *Exercise   `json:"exercise"`
+type UserExerciseAttemptWithExercise struct {
+	Submission *UserExerciseAttempt `json:"submission"`
+	Exercise   *Exercise            `json:"exercise"`
 }

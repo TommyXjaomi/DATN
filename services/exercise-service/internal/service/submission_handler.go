@@ -39,7 +39,7 @@ func (s *ExerciseService) SubmitExercise(submissionID uuid.UUID, req *models.Sub
 
 // handleListeningReadingSubmission handles L/R with immediate grading
 func (s *ExerciseService) handleListeningReadingSubmission(
-	submission *models.Submission,
+	submission *models.UserExerciseAttempt,
 	exercise *models.Exercise,
 	req *models.SubmitExerciseRequest,
 ) error {
@@ -94,7 +94,7 @@ func (s *ExerciseService) handleListeningReadingSubmission(
 
 // handleWritingSubmission handles Writing with async AI evaluation
 func (s *ExerciseService) handleWritingSubmission(
-	submission *models.Submission,
+	submission *models.UserExerciseAttempt,
 	exercise *models.Exercise,
 	req *models.SubmitExerciseRequest,
 ) error {
@@ -135,7 +135,7 @@ func (s *ExerciseService) handleWritingSubmission(
 
 // handleSpeakingSubmission handles Speaking with async transcription + evaluation
 func (s *ExerciseService) handleSpeakingSubmission(
-	submission *models.Submission,
+	submission *models.UserExerciseAttempt,
 	exercise *models.Exercise,
 	req *models.SubmitExerciseRequest,
 ) error {
@@ -225,36 +225,31 @@ func (s *ExerciseService) evaluateWritingAsync(
 		return
 	}
 
-	// Calculate overall band using shared library
-	overallBand := ielts.CalculateWritingBand(
-		result.Data.TaskAchievement,
-		result.Data.CoherenceCohesion,
-		result.Data.LexicalResource,
-		result.Data.GrammarAccuracy,
-	)
+	// Use the overall band from AI service
+	overallBand := result.Data.OverallBand
 
 	// Prepare detailed scores
 	detailedScores := map[string]interface{}{
-		"task_achievement":   result.Data.TaskAchievement,
-		"coherence_cohesion": result.Data.CoherenceCohesion,
-		"lexical_resource":   result.Data.LexicalResource,
-		"grammar_accuracy":   result.Data.GrammarAccuracy,
+		"task_achievement":   result.Data.CriteriaScores.TaskAchievement,
+		"coherence_cohesion": result.Data.CriteriaScores.CoherenceCohesion,
+		"lexical_resource":   result.Data.CriteriaScores.LexicalResource,
+		"grammar_accuracy":   result.Data.CriteriaScores.GrammaticalRange,
 		"overall_band":       overallBand,
 		"strengths":          result.Data.Strengths,
-		"weaknesses":         result.Data.Weaknesses,
-		"suggestions":        result.Data.Suggestions,
+		"weaknesses":         result.Data.AreasForImprovement,
+		"suggestions":        nil,
 	}
 
 	// Update submission with results
 	err = s.repo.UpdateSubmissionWithAIResult(submissionID, &models.AIEvaluationResult{
 		OverallBandScore: overallBand,
 		DetailedScores:   detailedScores,
-		Feedback:         result.Data.Feedback,
+		Feedback:         result.Data.ExaminerFeedback,
 		CriteriaScores: map[string]float64{
-			"task_achievement":   result.Data.TaskAchievement,
-			"coherence_cohesion": result.Data.CoherenceCohesion,
-			"lexical_resource":   result.Data.LexicalResource,
-			"grammar_accuracy":   result.Data.GrammarAccuracy,
+			"task_achievement":   result.Data.CriteriaScores.TaskAchievement,
+			"coherence_cohesion": result.Data.CriteriaScores.CoherenceCohesion,
+			"lexical_resource":   result.Data.CriteriaScores.LexicalResource,
+			"grammar_accuracy":   result.Data.CriteriaScores.GrammaticalRange,
 		},
 	})
 	if err != nil {
@@ -349,36 +344,31 @@ func (s *ExerciseService) evaluateSpeakingAsync(
 		return
 	}
 
-	// Calculate overall band using shared library
-	overallBand := ielts.CalculateSpeakingBand(
-		evalResult.Data.Fluency,
-		evalResult.Data.LexicalResource,
-		evalResult.Data.Grammar,
-		evalResult.Data.Pronunciation,
-	)
+	// Use the overall band from AI service
+	overallBand := evalResult.Data.OverallBand
 
 	// Prepare detailed scores
 	detailedScores := map[string]interface{}{
-		"fluency":          evalResult.Data.Fluency,
-		"lexical_resource": evalResult.Data.LexicalResource,
-		"grammar":          evalResult.Data.Grammar,
-		"pronunciation":    evalResult.Data.Pronunciation,
+		"fluency":          evalResult.Data.CriteriaScores.FluencyCoherence,
+		"lexical_resource": evalResult.Data.CriteriaScores.LexicalResource,
+		"grammar":          evalResult.Data.CriteriaScores.GrammaticalRange,
+		"pronunciation":    evalResult.Data.CriteriaScores.Pronunciation,
 		"overall_band":     overallBand,
 		"strengths":        evalResult.Data.Strengths,
-		"weaknesses":       evalResult.Data.Weaknesses,
-		"suggestions":      evalResult.Data.Suggestions,
+		"weaknesses":       evalResult.Data.AreasForImprovement,
+		"suggestions":      nil,
 	}
 
 	// Update submission with results
 	err = s.repo.UpdateSubmissionWithAIResult(submissionID, &models.AIEvaluationResult{
 		OverallBandScore: overallBand,
 		DetailedScores:   detailedScores,
-		Feedback:         evalResult.Data.Feedback,
+		Feedback:         evalResult.Data.ExaminerFeedback,
 		CriteriaScores: map[string]float64{
-			"fluency":          evalResult.Data.Fluency,
-			"lexical_resource": evalResult.Data.LexicalResource,
-			"grammar":          evalResult.Data.Grammar,
-			"pronunciation":    evalResult.Data.Pronunciation,
+			"fluency":          evalResult.Data.CriteriaScores.FluencyCoherence,
+			"lexical_resource": evalResult.Data.CriteriaScores.LexicalResource,
+			"grammar":          evalResult.Data.CriteriaScores.GrammaticalRange,
+			"pronunciation":    evalResult.Data.CriteriaScores.Pronunciation,
 		},
 	})
 	if err != nil {
@@ -415,30 +405,55 @@ func (s *ExerciseService) recordToUserService(
 	isOfficialTest := exercise.IsOfficialTest()
 
 	if isOfficialTest {
-		// Record as official test result
-		log.Printf("📊 Recording official test result for user %s", submission.UserID)
+		// Record as official test result (per-skill model)
+		log.Printf("📊 Recording official test result for user %s (skill: %s)", submission.UserID, exercise.SkillType)
 
-		// For now, we'll use a simple approach - need all 4 skills for full test
-		// This would need to be enhanced based on your business logic
+		// Prepare source tracking
+		submissionIDStr := submission.ID.String()
+
+		// Build per-skill request
+		// Note: We send EITHER band_score OR (raw_score + total_questions)
+		// For L/R: Send raw data, let User Service calculate band_score (single source of truth)
+		// For W/S: Send band_score from AI evaluation (no conversion table exists)
 		req := sharedClient.RecordTestResultRequest{
-			TestType:         "full_test",
-			OverallBandScore: bandScore,
-			ListeningScore:   bandScore,
-			ReadingScore:     bandScore,
-			WritingScore:     bandScore,
-			SpeakingScore:    bandScore,
-			TestSource:       "platform",
+			TestType:      exercise.ExerciseType, // full_test, mock_test, etc.
+			SkillType:     exercise.SkillType,    // listening, reading, writing, speaking
+			SourceService: "exercise_service",
+			SourceTable:   "user_exercise_attempts",
+			SourceID:      &submissionIDStr,
+			TestSource:    "platform",
 		}
 
+		// For Reading, set IELTS variant (academic/general_training)
+		if exercise.SkillType == "reading" && exercise.IELTSTestType != nil {
+			req.IELTSVariant = exercise.IELTSTestType
+		}
+
+		// For Listening/Reading, send raw score (User Service calculates band_score)
+		if exercise.SkillType == "listening" || exercise.SkillType == "reading" {
+			correctAnswers := submission.CorrectAnswers
+			totalQuestions := submission.TotalQuestions
+			req.RawScore = &correctAnswers
+			req.TotalQuestions = &totalQuestions
+			// Do NOT send BandScore - let User Service be single source of truth
+		} else {
+			// For Writing/Speaking, send AI-evaluated band_score directly
+			req.BandScore = bandScore
+		}
+
+		// FIX #9: Track sync attempts and failures
 		err := RetryWithBackoff(DefaultRetryConfig(), func() error {
 			return s.userServiceClient.RecordTestResult(submission.UserID.String(), req)
 		})
 
 		if err != nil {
+			// FIX #9: Mark as failed and store error for retry
 			log.Printf("❌ Failed to record test result after retries: %v", err)
-			// Don't fail the whole operation - user service recording is not critical
+			s.repo.MarkUserServiceSyncFailed(submissionID, err.Error())
 		} else {
-			log.Printf("✅ Recorded official test result")
+			// Mark as successfully synced
+			log.Printf("✅ Recorded official test result for %s: %.1f band", exercise.SkillType, bandScore)
+			s.repo.MarkUserServiceSyncSuccess(submissionID)
 		}
 	} else {
 		// Record as practice activity
@@ -460,15 +475,17 @@ func (s *ExerciseService) recordToUserService(
 			CompletionStatus: "completed",
 		}
 
+		// FIX #9: Track sync attempts for practice activities too
 		err := RetryWithBackoff(DefaultRetryConfig(), func() error {
 			return s.userServiceClient.RecordPracticeActivity(submission.UserID.String(), req)
 		})
 
 		if err != nil {
 			log.Printf("❌ Failed to record practice activity after retries: %v", err)
-			// Don't fail the whole operation - user service recording is not critical
+			s.repo.MarkUserServiceSyncFailed(submissionID, err.Error())
 		} else {
 			log.Printf("✅ Recorded practice activity")
+			s.repo.MarkUserServiceSyncSuccess(submissionID)
 		}
 	}
 }

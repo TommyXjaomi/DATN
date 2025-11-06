@@ -50,6 +50,9 @@ func main() {
 	// Setup routes
 	routes.SetupRoutes(router, exerciseHandler, authMiddleware)
 
+	// FIX #8, #9: Start background sync retry worker
+	go exerciseService.StartSyncRetryWorker()
+
 	// Start server
 	log.Printf("Exercise Service running on port %s", cfg.ServerPort)
 	if err := router.Run(":" + cfg.ServerPort); err != nil {

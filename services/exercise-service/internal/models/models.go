@@ -117,7 +117,10 @@ type QuestionAnswer struct {
 }
 
 // Submission represents a student's submission (maps to user_exercise_attempts table)
-type Submission struct {
+// UserExerciseAttempt represents a user's attempt at completing an exercise.
+// Maps to table: user_exercise_attempts
+// Used for all 4 skills (Listening, Reading, Writing, Speaking) with skill-specific fields.
+type UserExerciseAttempt struct {
 	ID                uuid.UUID  `json:"id"`
 	UserID            uuid.UUID  `json:"user_id"`
 	ExerciseID        uuid.UUID  `json:"exercise_id"`
@@ -155,6 +158,12 @@ type Submission struct {
 	// Test/Practice linking (Phase 4)
 	OfficialTestResultID *uuid.UUID `json:"official_test_result_id,omitempty"` // FK to user_db.official_test_results
 	PracticeActivityID   *uuid.UUID `json:"practice_activity_id,omitempty"`    // FK to user_db.practice_activities
+
+	// User Service Sync Tracking (FIX #9, #8)
+	UserServiceSyncStatus      string     `json:"user_service_sync_status"`       // pending, synced, failed, not_required
+	UserServiceSyncAttempts    int        `json:"user_service_sync_attempts"`     // Number of sync attempts
+	UserServiceLastSyncAttempt *time.Time `json:"user_service_last_sync_attempt"` // Last sync attempt timestamp
+	UserServiceSyncError       *string    `json:"user_service_sync_error"`        // Last sync error message
 
 	CreatedAt time.Time `json:"created_at"`
 	UpdatedAt time.Time `json:"updated_at"`
