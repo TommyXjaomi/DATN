@@ -39,6 +39,22 @@ type Exercise struct {
 	PublishedAt           *time.Time `json:"published_at,omitempty"`
 	CreatedAt             time.Time  `json:"created_at"`
 	UpdatedAt             time.Time  `json:"updated_at"`
+
+	// Writing exercise fields (Phase 4)
+	WritingTaskType        *string `json:"writing_task_type,omitempty"`        // task1, task2
+	WritingPromptText      *string `json:"writing_prompt_text,omitempty"`      // Prompt text directly embedded
+	WritingVisualType      *string `json:"writing_visual_type,omitempty"`      // bar_chart, line_graph, pie_chart, etc.
+	WritingVisualURL       *string `json:"writing_visual_url,omitempty"`       // URL to visual for Task 1
+	WritingWordRequirement *int    `json:"writing_word_requirement,omitempty"` // 150 for Task 1, 250 for Task 2
+
+	// Speaking exercise fields (Phase 4)
+	SpeakingPartNumber        *int     `json:"speaking_part_number,omitempty"`         // 1, 2, 3
+	SpeakingPromptText        *string  `json:"speaking_prompt_text,omitempty"`         // Main prompt
+	SpeakingCueCardTopic      *string  `json:"speaking_cue_card_topic,omitempty"`      // For Part 2
+	SpeakingCueCardPoints     []string `json:"speaking_cue_card_points,omitempty"`     // Bullet points for Part 2
+	SpeakingPreparationTime   *int     `json:"speaking_preparation_time,omitempty"`    // Seconds (60 for Part 2)
+	SpeakingResponseTime      *int     `json:"speaking_response_time,omitempty"`       // Seconds (120 for Part 2)
+	SpeakingFollowUpQuestions []string `json:"speaking_follow_up_questions,omitempty"` // For Part 3
 }
 
 // IsOfficialTest returns true if this is an official full test
@@ -304,6 +320,56 @@ type SpeakingSubmissionData struct {
 	AudioURL             string `json:"audio_url" binding:"required"`
 	AudioDurationSeconds int    `json:"audio_duration_seconds"`
 	SpeakingPartNumber   int    `json:"speaking_part_number"` // 1, 2, 3
+}
+
+// ============================================================================
+// PROMPT MODELS (for future prompt management if needed)
+// ============================================================================
+// Note: Prompts are currently embedded directly in exercises table
+// These models can be used later if we want separate prompt management
+
+// WritingPrompt represents a writing prompt (for future use)
+type WritingPrompt struct {
+	ID                    uuid.UUID  `json:"id"`
+	TaskType              string     `json:"task_type"` // task1, task2
+	PromptText            string     `json:"prompt_text"`
+	VisualType            *string    `json:"visual_type,omitempty"`
+	VisualURL             *string    `json:"visual_url,omitempty"`
+	Topic                 *string    `json:"topic,omitempty"`
+	Difficulty            *string    `json:"difficulty,omitempty"`
+	HasSampleAnswer       bool       `json:"has_sample_answer"`
+	SampleAnswerText      *string    `json:"sample_answer_text,omitempty"`
+	SampleAnswerBandScore *float64   `json:"sample_answer_band_score,omitempty"`
+	TimesUsed             int        `json:"times_used"`
+	AverageScore          *float64   `json:"average_score,omitempty"`
+	IsPublished           bool       `json:"is_published"`
+	CreatedBy             *uuid.UUID `json:"created_by,omitempty"`
+	CreatedAt             time.Time  `json:"created_at"`
+	UpdatedAt             time.Time  `json:"updated_at"`
+}
+
+// SpeakingPrompt represents a speaking prompt (for future use)
+type SpeakingPrompt struct {
+	ID                     uuid.UUID  `json:"id"`
+	PartNumber             int        `json:"part_number"` // 1, 2, 3
+	PromptText             string     `json:"prompt_text"`
+	CueCardTopic           *string    `json:"cue_card_topic,omitempty"`
+	CueCardPoints          []string   `json:"cue_card_points,omitempty"`
+	PreparationTimeSeconds *int       `json:"preparation_time_seconds,omitempty"`
+	SpeakingTimeSeconds    *int       `json:"speaking_time_seconds,omitempty"`
+	FollowUpQuestions      []string   `json:"follow_up_questions,omitempty"`
+	TopicCategory          *string    `json:"topic_category,omitempty"`
+	Difficulty             *string    `json:"difficulty,omitempty"`
+	HasSampleAnswer        bool       `json:"has_sample_answer"`
+	SampleAnswerText       *string    `json:"sample_answer_text,omitempty"`
+	SampleAnswerAudioURL   *string    `json:"sample_answer_audio_url,omitempty"`
+	SampleAnswerBandScore  *float64   `json:"sample_answer_band_score,omitempty"`
+	TimesUsed              int        `json:"times_used"`
+	AverageScore           *float64   `json:"average_score,omitempty"`
+	IsPublished            bool       `json:"is_published"`
+	CreatedBy              *uuid.UUID `json:"created_by,omitempty"`
+	CreatedAt              time.Time  `json:"created_at"`
+	UpdatedAt              time.Time  `json:"updated_at"`
 }
 
 // AIEvaluationResult represents AI evaluation response structure

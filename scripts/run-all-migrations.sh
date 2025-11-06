@@ -1,4 +1,4 @@
-curl http://localhost:8080/healthcurl http://localhost:8080/health#!/bin/bash
+#!/bin/bash
 
 # ============================================
 # RUN ALL DATABASE MIGRATIONS
