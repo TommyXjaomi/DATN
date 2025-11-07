@@ -124,9 +124,13 @@ func (s *ExerciseService) handleWritingSubmission(
 		return fmt.Errorf("save writing data: %w", err)
 	}
 
-	// FIX: Set completed_at when user submits (not when AI evaluation completes)
-	// This ensures timestamp consistency for sync constraints
-	if err := s.repo.MarkSubmissionAsSubmitted(submission.ID); err != nil {
+	// FIX: Set completed_at and time_spent_seconds when user submits
+	// This ensures timestamp and time tracking are set immediately, not when AI evaluation completes
+	var timePtr *int
+	if req.TimeSpentSeconds > 0 {
+		timePtr = &req.TimeSpentSeconds
+	}
+	if err := s.repo.MarkSubmissionAsSubmittedWithTime(submission.ID, timePtr); err != nil {
 		return fmt.Errorf("mark submission as submitted: %w", err)
 	}
 
@@ -173,9 +177,13 @@ func (s *ExerciseService) handleSpeakingSubmission(
 		return fmt.Errorf("save speaking data: %w", err)
 	}
 
-	// FIX: Set completed_at when user submits (not when AI evaluation completes)
-	// This ensures timestamp consistency for sync constraints
-	if err := s.repo.MarkSubmissionAsSubmitted(submission.ID); err != nil {
+	// FIX: Set completed_at and time_spent_seconds when user submits
+	// This ensures timestamp and time tracking are set immediately, not when AI evaluation completes
+	var timePtr *int
+	if req.TimeSpentSeconds > 0 {
+		timePtr = &req.TimeSpentSeconds
+	}
+	if err := s.repo.MarkSubmissionAsSubmittedWithTime(submission.ID, timePtr); err != nil {
 		return fmt.Errorf("mark submission as submitted: %w", err)
 	}
 

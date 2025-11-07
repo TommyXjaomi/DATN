@@ -229,7 +229,8 @@ func (h *ExerciseHandler) SubmitAnswers(c *gin.Context) {
 		return
 	}
 
-	err = h.service.SubmitAnswers(submissionID, req.Answers)
+	// Pass time_spent_seconds from frontend to service
+	err = h.service.SubmitAnswers(submissionID, req.Answers, req.TimeSpentSeconds)
 	if err != nil {
 		log.Printf("[Exercise-Handler] Error submitting answers for submission %s: %v", submissionID, err)
 		c.JSON(http.StatusInternalServerError, Response{

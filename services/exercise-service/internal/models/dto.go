@@ -38,7 +38,8 @@ type QuestionWithOptions struct {
 
 // SubmitAnswersRequest for submitting exercise answers
 type SubmitAnswersRequest struct {
-	Answers []SubmitAnswerItem `json:"answers" binding:"required"`
+	Answers          []SubmitAnswerItem `json:"answers" binding:"required"`
+	TimeSpentSeconds *int               `json:"time_spent_seconds,omitempty"` // Total time spent on entire exercise (frontend tracked)
 }
 
 // SubmitAnswerItem represents a single answer
@@ -46,7 +47,7 @@ type SubmitAnswerItem struct {
 	QuestionID       uuid.UUID  `json:"question_id" binding:"required"`
 	SelectedOptionID *uuid.UUID `json:"selected_option_id,omitempty"`
 	TextAnswer       *string    `json:"text_answer,omitempty"`
-	TimeSpentSeconds *int       `json:"time_spent_seconds,omitempty"`
+	TimeSpentSeconds *int       `json:"time_spent_seconds,omitempty"` // Time spent on this specific question (optional)
 }
 
 // SubmissionResultResponse includes detailed results for a user's exercise attempt

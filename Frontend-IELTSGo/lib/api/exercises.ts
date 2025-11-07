@@ -111,8 +111,11 @@ export const exercisesApi = {
     selected_option_id?: string
     text_answer?: string
     time_spent_seconds?: number
-  }>): Promise<void> => {
-    await apiClient.put(`/submissions/${submissionId}/answers`, { answers })
+  }>, totalTimeSpentSeconds?: number): Promise<void> => {
+    await apiClient.put(`/submissions/${submissionId}/answers`, { 
+      answers,
+      time_spent_seconds: totalTimeSpentSeconds 
+    })
   },
 
   // Submit exercise (unified for all skills - Writing/Speaking use this)

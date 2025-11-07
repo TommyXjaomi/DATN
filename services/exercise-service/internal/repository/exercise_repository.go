@@ -585,8 +585,13 @@ func (r *ExerciseRepository) SaveSubmissionAnswers(submissionID uuid.UUID, answe
 	return tx.Commit()
 }
 
-// CompleteSubmission finalizes submission and calculates final score (uses user_exercise_attempts)
+// CompleteSubmission finalizes submission (backward compatibility)
 func (r *ExerciseRepository) CompleteSubmission(submissionID uuid.UUID) error {
+	return r.CompleteSubmissionWithTime(submissionID, nil)
+}
+
+// CompleteSubmissionWithTime finalizes submission and calculates final score with optional frontend time
+func (r *ExerciseRepository) CompleteSubmissionWithTime(submissionID uuid.UUID, frontendTimeSpent *int) error {
 	tx, err := r.db.Begin()
 	if err != nil {
 		return err
@@ -738,26 +743,46 @@ func (r *ExerciseRepository) CompleteSubmission(submissionID uuid.UUID) error {
 		bandScore = utils.ConvertRawScoreToBandScore(skillType, correctCount, totalQuestions)
 	}
 
-	// Calculate time spent (seconds since started)
-	// Use time difference between started_at and completed_at, not SUM from user_answers
-	// because user_answers.time_spent_seconds might not be accurate
-	timeSpent := int(time.Since(startedAt).Seconds())
-	// Fallback: if totalTimeSpent from answers is significantly larger, use it (but prefer time difference)
-	if totalTimeSpent > timeSpent {
-		timeSpent = totalTimeSpent
+	// Calculate time spent - prioritize frontend tracked time for accuracy
+	// This ensures time represents ACTIVE study time, not just elapsed wall-clock time
+	completedAt := time.Now()
+	var timeSpent int
+	
+	if frontendTimeSpent != nil && *frontendTimeSpent > 0 {
+		// PRIMARY: Use frontend-tracked time (most accurate - only counts active time)
+		// Frontend timer runs only when user is actively working on exercise
+		timeSpent = *frontendTimeSpent
+		log.Printf("[Exercise-Repo] ✅ Using frontend-tracked time: %d seconds (~%.1f minutes)", 
+			timeSpent, float64(timeSpent)/60)
+	} else {
+		// FALLBACK: Calculate elapsed time from started_at to now
+		// This is less accurate as it includes time when user might be inactive
+		elapsedSeconds := int(completedAt.Sub(startedAt).Seconds())
+		log.Printf("[Exercise-Repo] ⚠️  No frontend time, calculating elapsed: %d seconds", elapsedSeconds)
+		
+		// Use totalTimeSpent from answers if available and reasonable
+		if totalTimeSpent > 0 && totalTimeSpent <= elapsedSeconds {
+			timeSpent = totalTimeSpent
+			log.Printf("[Exercise-Repo] Using sum of answer times: %d seconds", timeSpent)
+		} else {
+			timeSpent = elapsedSeconds
+			log.Printf("[Exercise-Repo] Using elapsed time: %d seconds", timeSpent)
+		}
 	}
 
-	// Soft validation: Cap time_spent_seconds at time_limit_minutes if exceeded
+	// VALIDATION: Cap at time limit if exceeded (soft limit, with warning)
 	// This ensures data integrity without rejecting legitimate submissions
 	if timeLimitMinutes != nil && *timeLimitMinutes > 0 {
 		maxSeconds := *timeLimitMinutes * 60
 		if timeSpent > maxSeconds {
 			exceededBy := timeSpent - maxSeconds
-			log.Printf("[Exercise-Repo] WARNING: Submission %s exceeded time limit by %d seconds (spent: %d, limit: %d). Capping at limit.",
+			log.Printf("[Exercise-Repo] ⚠️  WARNING: Submission %s exceeded time limit by %d seconds (spent: %d, limit: %d). Capping at limit.",
 				submissionID, exceededBy, timeSpent, maxSeconds)
 			timeSpent = maxSeconds
 		}
 	}
+	
+	log.Printf("[Exercise-Repo] 📊 Final time_spent_seconds: %d (~%.1f minutes)", timeSpent, float64(timeSpent)/60)
 
 	// Update attempt
 	_, err = tx.Exec(`
@@ -771,8 +796,8 @@ func (r *ExerciseRepository) CompleteSubmission(submissionID uuid.UUID) error {
 			status = 'completed',
 			updated_at = $7
 		WHERE id = $8
-	`, time.Now(), timeSpent, questionsAnswered, correctCount,
-		score, bandScore, time.Now(), submissionID)
+	`, completedAt, timeSpent, questionsAnswered, correctCount,
+		score, bandScore, completedAt, submissionID)
 	if err != nil {
 		return err
 	}
@@ -1965,18 +1990,64 @@ func (r *ExerciseRepository) UpdateSubmissionEvaluationStatus(submissionID uuid.
 	return err
 }
 
-// MarkSubmissionAsSubmitted marks submission as submitted with completed_at timestamp
-// This ensures completed_at is set when user submits (for Writing/Speaking), not when AI evaluation completes
+// MarkSubmissionAsSubmitted marks submission as submitted with completed_at timestamp (backward compatibility)
 func (r *ExerciseRepository) MarkSubmissionAsSubmitted(submissionID uuid.UUID) error {
+	return r.MarkSubmissionAsSubmittedWithTime(submissionID, nil)
+}
+
+// MarkSubmissionAsSubmittedWithTime marks submission as submitted with time tracking
+// This ensures completed_at and time_spent_seconds are set when user submits (for Writing/Speaking)
+func (r *ExerciseRepository) MarkSubmissionAsSubmittedWithTime(submissionID uuid.UUID, frontendTimeSpent *int) error {
+	// Get started_at for time calculation
+	var startedAt time.Time
+	var timeLimitMinutes *int
+	err := r.db.QueryRow(`
+		SELECT started_at, time_limit_minutes
+		FROM user_exercise_attempts
+		WHERE id = $1
+	`, submissionID).Scan(&startedAt, &timeLimitMinutes)
+	if err != nil {
+		return fmt.Errorf("failed to get submission info: %w", err)
+	}
+
+	// Calculate time spent using same logic as CompleteSubmissionWithTime
+	completedAt := time.Now()
+	var timeSpent int
+	
+	if frontendTimeSpent != nil && *frontendTimeSpent > 0 {
+		// PRIMARY: Use frontend-tracked time
+		timeSpent = *frontendTimeSpent
+		log.Printf("[Exercise-Repo] ✅ W/S submission - using frontend time: %d seconds", timeSpent)
+	} else {
+		// FALLBACK: Calculate elapsed time
+		timeSpent = int(completedAt.Sub(startedAt).Seconds())
+		log.Printf("[Exercise-Repo] ⚠️  W/S submission - using elapsed time: %d seconds", timeSpent)
+	}
+
+	// VALIDATION: Cap at time limit
+	if timeLimitMinutes != nil && *timeLimitMinutes > 0 {
+		maxSeconds := *timeLimitMinutes * 60
+		if timeSpent > maxSeconds {
+			log.Printf("[Exercise-Repo] ⚠️  Capping W/S time from %d to %d seconds", timeSpent, maxSeconds)
+			timeSpent = maxSeconds
+		}
+	}
+
 	query := `
 		UPDATE user_exercise_attempts
-		SET completed_at = COALESCE(completed_at, NOW()),
+		SET completed_at = COALESCE(completed_at, $1),
+		    time_spent_seconds = $2,
 		    status = CASE WHEN status = 'in_progress' THEN 'submitted' ELSE status END,
-		    updated_at = NOW()
-		WHERE id = $1
+		    updated_at = $3
+		WHERE id = $4
 	`
-	_, err := r.db.Exec(query, submissionID)
-	return err
+	_, err = r.db.Exec(query, completedAt, timeSpent, completedAt, submissionID)
+	if err != nil {
+		return fmt.Errorf("failed to mark submission as submitted: %w", err)
+	}
+	
+	log.Printf("[Exercise-Repo] 📊 W/S submission marked as submitted - time_spent: %d seconds", timeSpent)
+	return nil
 }
 
 // UpdateSubmissionTranscript updates the transcript text

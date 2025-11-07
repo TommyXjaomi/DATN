@@ -95,6 +95,7 @@ export default function TakeExercisePage() {
   const autoSubmitRef = useRef(false)
   const answersRef = useRef(answers)
   const submittingRef = useRef(submitting)
+  const timeSpentRef = useRef(timeSpent) // Track timeSpent for auto-submit
   const timerInitializedRef = useRef(false) // Track if timer has been initialized
   const exerciseDataRef = useRef<ExerciseData | null>(null) // Store exerciseData for auto-submit
   const routerRef = useRef(router)
@@ -105,6 +106,10 @@ export default function TakeExercisePage() {
   useEffect(() => {
     answersRef.current = answers
   }, [answers])
+
+  useEffect(() => {
+    timeSpentRef.current = timeSpent
+  }, [timeSpent])
 
   useEffect(() => {
     submittingRef.current = submitting
@@ -216,7 +221,8 @@ export default function TakeExercisePage() {
 
                 // Only submit if we have at least one answer
                 if (answersArray.length > 0) {
-                  exercisesApi.submitAnswers(submissionId, answersArray)
+                  // IMPORTANT: Send timeSpent for accurate time tracking
+                  exercisesApi.submitAnswers(submissionId, answersArray, timeSpentRef.current)
                   .then(() => {
                     routerRef.current.push(`/exercises/${exerciseId}/result/${submissionId}`)
                   })
@@ -715,10 +721,10 @@ export default function TakeExercisePage() {
         .filter((answer) => answer !== null && answer !== undefined)
 
       // Log submission (even if empty, backend will handle it)
-      console.log(`[Submit] Submitting ${formattedAnswers.length} answers for submission ${submissionId}`)
+      console.log(`[Submit] Submitting ${formattedAnswers.length} answers for submission ${submissionId}, time spent: ${timeSpent}s`)
 
-      // Submit answers
-      await exercisesApi.submitAnswers(submissionId, formattedAnswers)
+      // Submit answers with total time spent
+      await exercisesApi.submitAnswers(submissionId, formattedAnswers, timeSpent)
 
       // Navigate to result page
       router.push(`/exercises/${exerciseId}/result/${submissionId}`)

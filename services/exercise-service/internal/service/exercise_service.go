@@ -55,15 +55,15 @@ func (s *ExerciseService) StartExercise(userID, exerciseID uuid.UUID, deviceType
 }
 
 // SubmitAnswers saves answers and grades the submission
-func (s *ExerciseService) SubmitAnswers(submissionID uuid.UUID, answers []models.SubmitAnswerItem) error {
+func (s *ExerciseService) SubmitAnswers(submissionID uuid.UUID, answers []models.SubmitAnswerItem, frontendTimeSpent *int) error {
 	// Save and grade answers
 	err := s.repo.SaveSubmissionAnswers(submissionID, answers)
 	if err != nil {
 		return err
 	}
 
-	// Complete submission and calculate final score
-	err = s.repo.CompleteSubmission(submissionID)
+	// Complete submission and calculate final score (pass frontend time_spent)
+	err = s.repo.CompleteSubmissionWithTime(submissionID, frontendTimeSpent)
 	if err != nil {
 		return err
 	}
@@ -315,11 +315,19 @@ func (s *ExerciseService) handleExerciseCompletion(submissionID uuid.UUID) {
 		bandScore = *submission.BandScore
 	}
 
-	// Calculate time spent (in minutes)
+	// Use time_spent_seconds from submission (already calculated and stored)
+	// This represents ACTIVE study time, not just elapsed time
+	// TimeSpentSeconds is set by CompleteSubmissionWithTime or MarkSubmissionAsSubmittedWithTime
 	timeMinutes := 0
-	if submission.CompletedAt != nil {
+	if submission.TimeSpentSeconds > 0 {
+		timeMinutes = submission.TimeSpentSeconds / 60
+		log.Printf("[Exercise-Service] Using stored time_spent: %d seconds (%d minutes)", 
+			submission.TimeSpentSeconds, timeMinutes)
+	} else if submission.CompletedAt != nil {
+		// FALLBACK: Calculate elapsed time if time_spent not available
 		duration := submission.CompletedAt.Sub(submission.StartedAt)
 		timeMinutes = int(duration.Minutes())
+		log.Printf("[Exercise-Service] ⚠️  No time_spent, using elapsed: %d minutes", timeMinutes)
 	}
 
 	// FIX #15: Add retry mechanism for service integration
