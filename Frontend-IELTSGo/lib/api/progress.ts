@@ -446,8 +446,10 @@ export const progressApi = {
       weaknesses: string[]
     }>>(`/user/statistics/${skill}`)
     const statsData = statsResp.data.data
-    const averageScore = normalizeScore(statsData.average_score)
-    const bestScore = normalizeScore(statsData.best_score)
+    
+    // Handle null statsData safely
+    const averageScore = statsData ? normalizeScore(statsData.average_score) : undefined
+    const bestScore = statsData ? normalizeScore(statsData.best_score) : undefined
 
     // 2) Fetch recent activities (Exercise Service)
     const recent = await progressApi.getPracticeActivities(skillType, 1, 5)

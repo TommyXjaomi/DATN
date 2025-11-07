@@ -153,7 +153,7 @@ export default function ExerciseDetailPage() {
             <Badge className="capitalize">
               {getSkillLabel(exercise.skill_type)}
             </Badge>
-            <Badge variant="outline" className="capitalize">{exercise.difficulty_level}</Badge>
+            <Badge variant="outline" className="capitalize">{exercise.difficulty || exercise.difficulty_level}</Badge>
             {/* Show test type badge for Reading exercises */}
             {exercise.skill_type?.toLowerCase() === 'reading' && exercise.ielts_test_type && (
               <Badge variant="outline" className="bg-indigo-50 text-indigo-700 border-indigo-200 dark:bg-indigo-950 dark:text-indigo-300">
@@ -263,7 +263,8 @@ export default function ExerciseDetailPage() {
               </CardContent>
             </Card>
 
-            {(exercise.total_attempts || exercise.average_score) && (
+            {((exercise.total_attempts !== null && exercise.total_attempts !== undefined) || 
+              (exercise.average_score !== null && exercise.average_score !== undefined)) && (
               <Card>
                 <CardHeader>
                   <CardTitle>{t('statistics')}</CardTitle>
@@ -295,11 +296,24 @@ export default function ExerciseDetailPage() {
               <CardContent className="text-sm space-y-2">
                 <div className="flex justify-between">
                   <span className="text-muted-foreground">{t('skill_type_label')}</span>
-                  <span className="font-medium">{exercise.skill_type}</span>
+                  <span className="font-medium capitalize">{exercise.skill_type}</span>
                 </div>
                 <div className="flex justify-between">
                   <span className="text-muted-foreground">{t('difficulty_level_label')}</span>
-                  <span className="font-medium">{exercise.difficulty_level}</span>
+                  <Badge 
+                    variant="outline" 
+                    className={`capitalize ${
+                      (exercise.difficulty || exercise.difficulty_level)?.toLowerCase() === 'easy' 
+                        ? 'bg-green-50 text-green-700 border-green-200 dark:bg-green-950 dark:text-green-300'
+                        : (exercise.difficulty || exercise.difficulty_level)?.toLowerCase() === 'medium'
+                        ? 'bg-yellow-50 text-yellow-700 border-yellow-200 dark:bg-yellow-950 dark:text-yellow-300'
+                        : (exercise.difficulty || exercise.difficulty_level)?.toLowerCase() === 'hard'
+                        ? 'bg-red-50 text-red-700 border-red-200 dark:bg-red-950 dark:text-red-300'
+                        : ''
+                    }`}
+                  >
+                    {exercise.difficulty || exercise.difficulty_level || 'N/A'}
+                  </Badge>
                 </div>
                 {exercise.target_band_score && (
                   <div className="flex justify-between">
