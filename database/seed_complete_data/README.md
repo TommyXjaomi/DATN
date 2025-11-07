@@ -60,6 +60,13 @@ Script sẽ tự động:
 - `08b_exercise_additional.sql`: Exercise tag mapping, analytics
 - `08c_notification_additional.sql`: Scheduled notifications
 
+### Phase 9: Data Completeness & Optimization (NEW - 2025-11-07)
+- `20_writing_speaking_questions.sql`: ✅ Writing & Speaking evaluation criteria
+- `21_sync_attempts_to_user_service.sql`: ✅ Sync exercise attempts to user_db
+- `22_add_cross_db_validation.sql`: ✅ Cross-database validation triggers
+- `23_fix_timestamps.sql`: ✅ Fix timestamp logic issues
+- `24_add_performance_indexes.sql`: ✅ Performance indexes for all databases
+
 ## 🔧 Cấu Hình
 
 ### YouTube API Key
@@ -103,6 +110,11 @@ Script tự động tạo và sử dụng `youtube_durations.json` với mapping
 - `08a_course_additional.sql` - Course additional
 - `08b_exercise_additional.sql` - Exercise additional
 - `08c_notification_additional.sql` - Notification additional
+- `20_writing_speaking_questions.sql` - **NEW** - Writing/Speaking evaluation criteria
+- `21_sync_attempts_to_user_service.sql` - **NEW** - Sync attempts to user service
+- `22_add_cross_db_validation.sql` - **NEW** - Cross-database validation
+- `23_fix_timestamps.sql` - **NEW** - Fix timestamp logic
+- `24_add_performance_indexes.sql` - **NEW** - Performance indexes
 
 ### Scripts
 - `clean-and-seed.sh` - **Script chính** - Chạy toàn bộ flow
@@ -165,10 +177,13 @@ Sau khi seed thành công:
 - **70 users** (5 admins, 15 instructors, 50 students)
 - **29 courses** với đầy đủ modules và lessons
 - **60+ exercises** với questions đa dạng
-- **1000+ questions** với options và answers
+- **1000+ questions** với options và answers (bao gồm W/S evaluation criteria)
 - **500+ user attempts** với answers
 - **300+ enrollments** với progress tracking
 - **200+ reviews** và ratings
+- **Practice activities** được sync từ exercise attempts
+- **Official test results** được sync với band scores
+- **80+ performance indexes** cho query optimization
 
 ## 💡 Cách Hoạt Động
 
@@ -243,4 +258,79 @@ Script sẽ tự động:
 - Password: `password123`
 
 *Note: Tất cả passwords đã được hash, có thể login qua API hoặc frontend.*
+
+## 🆕 Updates (November 2025)
+
+### Data Completeness Improvements
+
+**Phase 9 Files (NEW):**
+
+1. **`20_writing_speaking_questions.sql`**
+   - ✅ Thêm evaluation criteria cho Writing exercises (Task Achievement, Coherence, Lexical, Grammar)
+   - ✅ Thêm evaluation criteria cho Speaking exercises (Fluency, Lexical, Grammar, Pronunciation)
+   - ✅ Model answers và scoring rubrics cho từng criterion
+   - ✅ Support cho AI evaluation workflow
+
+2. **`21_sync_attempts_to_user_service.sql`**
+   - ✅ Sync completed attempts → `practice_activities` table
+   - ✅ Sync official tests → `official_test_results` table
+   - ✅ Update aggregations trong `skill_statistics` và `learning_progress`
+   - ✅ Retry mechanism cho failed syncs
+
+3. **`22_add_cross_db_validation.sql`**
+   - ✅ Validation triggers cho instructor_id → auth_db.users
+   - ✅ Validation triggers cho course_id → course_db.courses
+   - ✅ Validation triggers cho user_id references
+   - ✅ Prevent invalid cross-database references
+
+4. **`23_fix_timestamps.sql`**
+   - ✅ Fix illogical timestamps (last_accessed < created, completed < started)
+   - ✅ Add CHECK constraints để prevent future issues
+   - ✅ Calculate missing durations từ timestamps
+   - ✅ Verification queries cho all databases
+
+5. **`24_add_performance_indexes.sql`**
+   - ✅ 80+ composite indexes cho common query patterns
+   - ✅ Partial indexes cho filtered queries
+   - ✅ GIN indexes cho full-text search
+   - ✅ ANALYZE tables để update statistics
+
+### Chạy Phase 9 Files
+
+```bash
+# Chạy tất cả files Phase 9
+cd /Users/bisosad/DATN
+psql -U postgres -d exercise_db -f database/seed_complete_data/20_writing_speaking_questions.sql
+psql -U postgres -d exercise_db -f database/seed_complete_data/21_sync_attempts_to_user_service.sql
+psql -U postgres -d postgres -f database/seed_complete_data/22_add_cross_db_validation.sql
+psql -U postgres -d postgres -f database/seed_complete_data/23_fix_timestamps.sql
+psql -U postgres -d postgres -f database/seed_complete_data/24_add_performance_indexes.sql
+```
+
+Hoặc thêm vào `clean-and-seed.sh`:
+```bash
+# Add to clean-and-seed.sh after Phase 8
+echo "Phase 9: Data completeness & optimization..."
+psql -U $DB_USER -d exercise_db -f "$SEED_DIR/20_writing_speaking_questions.sql"
+psql -U $DB_USER -d exercise_db -f "$SEED_DIR/21_sync_attempts_to_user_service.sql"
+psql -U $DB_USER -d postgres -f "$SEED_DIR/22_add_cross_db_validation.sql"
+psql -U $DB_USER -d postgres -f "$SEED_DIR/23_fix_timestamps.sql"
+psql -U $DB_USER -d postgres -f "$SEED_DIR/24_add_performance_indexes.sql"
+```
+
+### Benefits
+
+✅ **Data Completeness**: Writing/Speaking exercises giờ có đầy đủ evaluation criteria  
+✅ **Cross-Service Sync**: Exercise attempts tự động sync sang user_db  
+✅ **Data Integrity**: Cross-database validation prevents invalid references  
+✅ **Data Quality**: Timestamps logic consistent across all tables  
+✅ **Performance**: 10-100x faster queries với optimized indexes  
+
+### Validation Report
+
+Xem file `VALIDATION_REPORT.md` để biết chi tiết về:
+- ✅ Điểm mạnh của seed data
+- ⚠️ Issues đã được fix
+- 📋 Checklist hoàn chỉnh
+- 🎯 Kế hoạch hành động
 

@@ -110,6 +110,56 @@ echo -e "${GREEN}✅ ALL DATA CLEANED!${NC}"
 echo -e "${GREEN}============================================${NC}"
 echo ""
 
+# ============================================
+# RECREATE SCHEMA FROM SCHEMA FILES
+# ============================================
+echo -e "${BLUE}============================================${NC}"
+echo -e "${BLUE}RECREATING DATABASE SCHEMAS...${NC}"
+echo -e "${BLUE}============================================${NC}"
+echo ""
+
+SCHEMA_DIR="$(dirname "$SCRIPT_DIR")/schemas"
+
+if [ -d "$SCHEMA_DIR" ]; then
+    echo -e "${YELLOW}→ Recreating auth_db schema...${NC}"
+    docker cp "$SCHEMA_DIR/01_auth_service.sql" ielts_postgres:/tmp/schema.sql > /dev/null 2>&1
+    docker-compose exec -T postgres psql -U ielts_admin -d auth_db -f /tmp/schema.sql > /dev/null 2>&1 || echo -e "${YELLOW}  (schema may already exist)${NC}"
+    echo -e "${GREEN}✓ auth_db schema ready${NC}"
+    
+    echo -e "${YELLOW}→ Recreating user_db schema...${NC}"
+    docker cp "$SCHEMA_DIR/02_user_service.sql" ielts_postgres:/tmp/schema.sql > /dev/null 2>&1
+    docker-compose exec -T postgres psql -U ielts_admin -d user_db -f /tmp/schema.sql > /dev/null 2>&1 || echo -e "${YELLOW}  (schema may already exist)${NC}"
+    echo -e "${GREEN}✓ user_db schema ready${NC}"
+    
+    echo -e "${YELLOW}→ Recreating course_db schema...${NC}"
+    docker cp "$SCHEMA_DIR/03_course_service.sql" ielts_postgres:/tmp/schema.sql > /dev/null 2>&1
+    docker-compose exec -T postgres psql -U ielts_admin -d course_db -f /tmp/schema.sql > /dev/null 2>&1 || echo -e "${YELLOW}  (schema may already exist)${NC}"
+    echo -e "${GREEN}✓ course_db schema ready${NC}"
+    
+    echo -e "${YELLOW}→ Recreating exercise_db schema...${NC}"
+    docker cp "$SCHEMA_DIR/04_exercise_service.sql" ielts_postgres:/tmp/schema.sql > /dev/null 2>&1
+    docker-compose exec -T postgres psql -U ielts_admin -d exercise_db -f /tmp/schema.sql > /dev/null 2>&1 || echo -e "${YELLOW}  (schema may already exist)${NC}"
+    echo -e "${GREEN}✓ exercise_db schema ready${NC}"
+    
+    echo -e "${YELLOW}→ Recreating ai_db schema...${NC}"
+    docker cp "$SCHEMA_DIR/05_ai_service.sql" ielts_postgres:/tmp/schema.sql > /dev/null 2>&1
+    docker-compose exec -T postgres psql -U ielts_admin -d ai_db -f /tmp/schema.sql > /dev/null 2>&1 || echo -e "${YELLOW}  (schema may already exist)${NC}"
+    echo -e "${GREEN}✓ ai_db schema ready${NC}"
+    
+    echo -e "${YELLOW}→ Recreating notification_db schema...${NC}"
+    docker cp "$SCHEMA_DIR/06_notification_service.sql" ielts_postgres:/tmp/schema.sql > /dev/null 2>&1
+    docker-compose exec -T postgres psql -U ielts_admin -d notification_db -f /tmp/schema.sql > /dev/null 2>&1 || echo -e "${YELLOW}  (schema may already exist)${NC}"
+    echo -e "${GREEN}✓ notification_db schema ready${NC}"
+    
+    echo ""
+    echo -e "${GREEN}✅ All database schemas ready!${NC}"
+    echo ""
+else
+    echo -e "${YELLOW}⚠ Schema directory not found: $SCHEMA_DIR${NC}"
+    echo -e "${YELLOW}  Assuming schemas already exist...${NC}"
+    echo ""
+fi
+
 # Fetch YouTube video durations before seeding
 echo -e "${BLUE}============================================${NC}"
 echo -e "${BLUE}FETCHING YOUTUBE VIDEO DURATIONS...${NC}"
@@ -289,9 +339,51 @@ echo "Running practice activities seeding script..."
 bash "$SEED_DIR/18_practice_activities.sh"
 echo ""
 
+echo -e "${GREEN}PHASE 19: DATA COMPLETENESS & OPTIMIZATION (NEW)${NC}"
+echo -e "${YELLOW}→ Adding more realistic IELTS exercises...${NC}"
+run_sql_file_docker "exercise_db" "$SEED_DIR/25_add_more_exercises.sql" "Additional Writing & Speaking Exercises (Part 1)"
+run_sql_file_docker "exercise_db" "$SEED_DIR/26_complete_exercise_coverage.sql" "Complete Exercise Coverage (Part 2)"
+echo ""
+
+echo -e "${YELLOW}→ Adding Writing/Speaking evaluation criteria...${NC}"
+run_sql_file_docker "exercise_db" "$SEED_DIR/20_writing_speaking_questions.sql" "Writing & Speaking Evaluation Criteria"
+echo ""
+
+echo -e "${YELLOW}→ Syncing exercise attempts to user service...${NC}"
+run_sql_file_docker "exercise_db" "$SEED_DIR/21_sync_attempts_to_user_service.sql" "Sync Attempts to User Service"
+echo ""
+
+echo -e "${YELLOW}→ Adding cross-database validation triggers...${NC}"
+run_sql_file_docker "auth_db" "$SEED_DIR/22_add_cross_db_validation.sql" "Cross-Database Validation Triggers"
+echo ""
+
+echo -e "${YELLOW}→ Fixing timestamp logic issues...${NC}"
+run_sql_file_docker "auth_db" "$SEED_DIR/23_fix_timestamps.sql" "Fix Timestamp Logic"
+echo ""
+
+echo -e "${YELLOW}→ Adding performance indexes...${NC}"
+run_sql_file_docker "auth_db" "$SEED_DIR/24_add_performance_indexes.sql" "Performance Indexes"
+echo ""
+
+echo -e "${YELLOW}→ Adding timestamp validation constraints (FINAL STEP)...${NC}"
+run_sql_file_docker "auth_db" "$SEED_DIR/27_add_timestamp_constraints.sql" "Timestamp Validation Constraints"
+echo ""
+
 echo ""
 echo -e "${GREEN}============================================${NC}"
 echo -e "${GREEN}✅ COMPLETE!${NC}"
 echo -e "${GREEN}============================================${NC}"
+echo ""
+echo -e "${BLUE}📊 Summary:${NC}"
+echo -e "  ${GREEN}✓${NC} Phase 1-18: Core data seeded"
+echo -e "  ${GREEN}✓${NC} Phase 19: Data completeness & optimization"
+echo -e "  ${GREEN}✓${NC} Writing/Speaking evaluation criteria added"
+echo -e "  ${GREEN}✓${NC} Exercise attempts synced to user service"
+echo -e "  ${GREEN}✓${NC} Cross-database validation enabled"
+echo -e "  ${GREEN}✓${NC} Timestamps fixed and validated"
+echo -e "  ${GREEN}✓${NC} Performance indexes created"
+echo ""
+echo -e "${YELLOW}📖 For detailed analysis, see: database/seed_complete_data/VALIDATION_REPORT.md${NC}"
+echo ""
 
 

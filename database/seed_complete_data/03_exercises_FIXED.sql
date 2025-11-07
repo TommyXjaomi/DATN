@@ -14,11 +14,11 @@
 -- ============================================
 -- DELETE INVALID EXERCISES (if any exist)
 -- ============================================
--- Remove any exercises that don't meet schema constraints
+-- Remove ONLY Writing/Speaking exercises that don't meet schema constraints
+-- NOTE: Do NOT delete reading/listening exercises - they are valid
 DELETE FROM exercises 
 WHERE (skill_type = 'writing' AND (writing_task_type IS NULL OR writing_prompt_text IS NULL))
-   OR (skill_type = 'speaking' AND (speaking_part_number IS NULL OR speaking_prompt_text IS NULL))
-   OR (skill_type = 'reading' AND ielts_test_type IS NULL);
+   OR (skill_type = 'speaking' AND (speaking_part_number IS NULL OR speaking_prompt_text IS NULL));
 
 -- ============================================
 -- WRITING EXERCISES (Task 1 & Task 2)
