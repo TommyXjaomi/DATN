@@ -1,0 +1,58 @@
+@startuml
+title Biểu đồ Hoạt Động - Đăng Nhập
+
+start
+note right : Frontend
+:User nhập email và mật khẩu;
+:User bấm Đăng nhập;
+
+note right : Auth Service
+:Tìm kiếm user theo email;
+if (User tồn tại?) then (no)
+  :Trả về lỗi;
+  stop
+else (yes)
+endif
+
+:Kiểm tra account locked;
+if (Account bị khóa?) then (yes)
+  :Trả về lỗi;
+  stop
+else (no)
+endif
+
+:So sánh mật khẩu bằng bcrypt;
+if (Mật khẩu đúng?) then (no)
+  :Tăng failed_login_attempts;
+  :Khóa account (nếu cần);
+  :Trả về lỗi;
+  stop
+else (yes)
+endif
+
+:Kiểm tra email đã xác thực;
+if (Email đã verified?) then (no)
+  :Gửi lại email xác thực;
+  :Trả về lỗi;
+  stop
+else (yes)
+endif
+
+:Reset failed_login_attempts;
+:Tạo JWT Access Token (1 hour);
+:Tạo JWT Refresh Token (7 days);
+:Lưu Refresh Token hash;
+:Cập nhật last_login_at;
+:Cập nhật last_login_ip;
+
+note right : User Service
+:Lấy user profile;
+:Lấy permissions;
+
+note right : Frontend
+:Trả về access_token;
+:Trả về refresh_token;
+:Lưu token vào client;
+:Chuyển đến dashboard;
+stop
+@enduml

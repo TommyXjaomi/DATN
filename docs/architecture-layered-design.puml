@@ -1,0 +1,204 @@
+@startuml
+!theme plain
+title Sơ Đồ Kiến Trúc Lớp Hệ Thống - Phân Lớp Chi Tiết
+
+skinparam rectangle {
+    BackgroundColor #E1F5FF
+    BorderColor #01579B
+    FontColor #000000
+}
+
+' Define colors for layers
+!define LAYER_CLIENT_COLOR #B3E5FC
+!define LAYER_API_COLOR #FFE0B2
+!define LAYER_SERVICE_COLOR #C8E6C9
+!define LAYER_DATA_COLOR #F8BBD0
+
+package "📱 Client Layer (Presentation)" <<rectangle>> #LAYER_CLIENT_COLOR {
+    rectangle "Android Mobile App" as ClientAndroid {
+        rectangle "Activities\n(UI Screens)" as Activities
+        rectangle "ViewModels\n(Business Logic)" as ViewModels
+        rectangle "Fragment Management" as Fragments
+    }
+    
+    rectangle "Web Browser" as ClientWeb {
+        rectangle "React Components" as Components
+        rectangle "Redux Store" as Redux
+        rectangle "API Client" as WebClient
+    }
+}
+
+package "🚪 API Gateway Layer (Entry Point)" <<rectangle>> #LAYER_API_COLOR {
+    rectangle "API Gateway (Port 8080)" as Gateway {
+        rectangle "Request Routing" as Routing
+        rectangle "Authentication Filter" as AuthFilter
+        rectangle "Rate Limiting" as RateLimiting
+        rectangle "Load Balancing" as LoadBalancing
+    }
+}
+
+package "🔵 Service Layer (Business Logic)" <<rectangle>> #LAYER_SERVICE_COLOR {
+    rectangle "User Service\n(Port 8081)" as UserSvc {
+        rectangle "User Controller" as UC
+        rectangle "User Service" as US
+        rectangle "User Repository" as UR
+    }
+    
+    rectangle "Auth Service\n(Port 8082)" as AuthSvc {
+        rectangle "Auth Controller" as AC
+        rectangle "JWT Manager" as JWT
+        rectangle "Token Service" as TS
+    }
+    
+    rectangle "Course Service\n(Port 8083)" as CourseSvc {
+        rectangle "Course Controller" as CC
+        rectangle "Enrollment Service" as ES
+        rectangle "Course Repository" as CR
+    }
+    
+    rectangle "Exercise Service\n(Port 8084)" as ExerciseSvc {
+        rectangle "Exercise Controller" as EC
+        rectangle "Submission Manager" as SM
+        rectangle "Result Cache Handler" as RCH
+    }
+    
+    rectangle "AI Service\n(Port 8085)" as AISvc {
+        rectangle "AI Controller" as AIC
+        rectangle "Transcription Engine" as TE
+        rectangle "Evaluation Engine" as EE
+    }
+    
+    rectangle "Storage Service\n(Port 8087)" as StorageSvc {
+        rectangle "Storage Controller" as STC
+        rectangle "MinIO Manager" as MM
+        rectangle "URL Generator" as UG
+    }
+    
+    rectangle "Notification Service\n(Port 8086)" as NotifSvc {
+        rectangle "Notification Controller" as NC
+        rectangle "Email/Push Service" as EPS
+    }
+}
+
+package "💾 Data Access Layer (Persistence)" <<rectangle>> #LAYER_DATA_COLOR {
+    rectangle "Repositories & DAOs" as DAOs {
+        rectangle "User Repository" as UserRepo
+        rectangle "Course Repository" as CourseRepo
+        rectangle "Submission Repository" as SubmitRepo
+    }
+    
+    rectangle "Cache Layer" as CacheLayer {
+        rectangle "Redis Cache\n(Session & Results)" as RedisCache
+    }
+    
+    rectangle "File Storage Layer" as FileLayer {
+        rectangle "MinIO\n(Audio Files)" as MinIOStorage
+    }
+}
+
+package "🗄️ Data Source Layer (Storage)" <<rectangle>> #LAYER_DATA_COLOR {
+    rectangle "PostgreSQL Database\n(Primary)" as PostgreSQL
+    rectangle "Redis Server\n(Cache & Session)" as Redis
+    rectangle "MinIO Server\n(S3-Compatible)" as MinIO
+}
+
+package "🌍 External Services" <<rectangle>> #FFE0B2 {
+    rectangle "OpenAI API\n(GPT, Whisper)" as OpenAI
+    rectangle "Email Service\n(SMTP)" as EmailSvc
+    rectangle "Push Notification\nProvider" as PushProvider
+}
+
+' Data Flow Connections
+
+Activities --> ViewModels
+Fragments --> ViewModels
+ViewModels --> WebClient
+WebClient --> Routing
+
+Components --> Redux
+Redux --> WebClient
+
+Routing --> AuthFilter
+AuthFilter --> RateLimiting
+RateLimiting --> LoadBalancing
+
+LoadBalancing --> UC
+LoadBalancing --> AC
+LoadBalancing --> CC
+LoadBalancing --> EC
+LoadBalancing --> NC
+
+UC --> US
+US --> UR
+UR --> UserRepo
+UR --> RedisCache
+
+AC --> JWT
+JWT --> TS
+TS --> UserRepo
+
+CC --> ES
+ES --> CourseRepo
+
+EC --> SM
+SM --> SubmitRepo
+SM --> RCH
+RCH --> RedisCache
+
+AIC --> TE
+TE --> EE
+EE --> SubmitRepo
+
+STC --> MM
+MM --> UG
+MM --> MinIOStorage
+
+NC --> EPS
+EPS --> EmailSvc
+
+UserRepo --> PostgreSQL
+CourseRepo --> PostgreSQL
+SubmitRepo --> PostgreSQL
+RedisCache --> Redis
+MinIOStorage --> MinIO
+
+TE --> OpenAI
+EE --> OpenAI
+EPS --> EmailSvc
+EPS --> PushProvider
+
+note bottom of ClientAndroid
+  Clients initiate requests
+  Send JSON/Multipart data
+  Handle async responses
+  Display UI
+end note
+
+note bottom of Gateway
+  Single entry point
+  Validates all requests
+  Routes to services
+  Applies cross-cutting concerns
+end note
+
+note bottom of UserSvc
+  Services contain
+  core business logic
+  multiple repositories
+  validation rules
+end note
+
+note bottom of DAOs
+  Abstraction between
+  services and databases
+  ORM mapping
+  Query optimization
+end note
+
+note bottom of PostgreSQL
+  Primary persistence
+  ACID transactions
+  Complex queries
+end note
+
+@enduml

@@ -1,0 +1,147 @@
+@startuml
+title User Domain - Sơ đồ Lớp Entities (Private Attributes)
+skinparam classAttributeIconSize 0
+
+class UserProfile {
+  -user_id: UUID
+  -full_name: string
+  -avatar_url: string
+  -email: string
+  -phone: string
+  -city: string
+  -country: string
+  -timezone: string
+  -bio: string
+  -current_level: string
+  -target_band_score: float
+  -language_preference: string
+  -created_at: time.Time
+  -updated_at: time.Time
+}
+
+class LearningProgress {
+  -id: UUID
+  -user_id: UUID
+  -total_study_hours: float
+  -total_lessons_completed: int
+  -total_exercises_completed: int
+  -listening_progress: float
+  -reading_progress: float
+  -writing_progress: float
+  -speaking_progress: float
+  -overall_score: float
+  -current_streak_days: int
+  -longest_streak_days: int
+  -last_study_date: time.Time
+  -created_at: time.Time
+  -updated_at: time.Time
+}
+
+class StudySession {
+  -id: UUID
+  -user_id: UUID
+  -session_type: string
+  -skill_type: string
+  -resource_id: UUID
+  -resource_type: string
+  -started_at: time.Time
+  -ended_at: time.Time
+  -duration_minutes: int
+  -is_completed: bool
+  -created_at: time.Time
+}
+
+class Achievement {
+  -id: UUID
+  -code: string
+  -name: string
+  -description: string
+  -criteria_type: string
+  -criteria_value: int
+  -icon_url: string
+  -badge_points: int
+  -is_active: bool
+  -created_at: time.Time
+}
+
+class UserAchievement {
+  -id: UUID
+  -user_id: UUID
+  -achievement_id: UUID
+  -progress_value: int
+  -is_unlocked: bool
+  -earned_at: time.Time
+  -created_at: time.Time
+}
+
+class StudyGoal {
+  -id: UUID
+  -user_id: UUID
+  -goal_type: string
+  -title: string
+  -description: string
+  -target_value: int
+  -target_unit: string
+  -current_value: int
+  -skill_type: string
+  -start_date: time.Time
+  -end_date: time.Time
+  -status: string
+  -reminder_enabled: bool
+  -reminder_time: string
+  -created_at: time.Time
+  -updated_at: time.Time
+}
+
+class UserPreferences {
+  -user_id: UUID
+  -email_notifications: bool
+  -push_notifications: bool
+  -sms_notifications: bool
+  -study_reminders: bool
+  -theme: string
+  -font_size: string
+  -locale: string
+  -auto_play_next_lesson: bool
+  -playback_speed: float
+  -profile_visibility: string
+  -show_study_stats: bool
+  -updated_at: time.Time
+}
+
+class StudyReminder {
+  -id: UUID
+  -user_id: UUID
+  -title: string
+  -message: string
+  -reminder_type: string
+  -reminder_time: string
+  -days_of_week: string
+  -is_active: bool
+  -last_sent_at: time.Time
+  -next_send_at: time.Time
+  -created_at: time.Time
+  -updated_at: time.Time
+}
+
+class StudyStreak {
+  -id: UUID
+  -user_id: UUID
+  -streak_count: int
+  -streak_start_date: time.Time
+  -last_active_date: time.Time
+  -longest_streak: int
+  -created_at: time.Time
+  -updated_at: time.Time
+}
+
+' ===== Relationships =====
+UserProfile "1" -- "1" LearningProgress  
+UserProfile "1" -- "0..*" StudySession 
+UserProfile "1" -- "0..*" UserAchievement  
+UserProfile "1" -- "0..*" StudyGoal 
+UserProfile "1" -- "1" UserPreferences  
+UserProfile "1" -- "0..*" StudyReminder  
+UserProfile "1" -- "1" StudyStreak  
+Achievement "1" -- "0..*" UserAchievement  
+@enduml

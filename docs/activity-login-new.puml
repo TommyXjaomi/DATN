@@ -1,0 +1,66 @@
+@startuml
+title Biểu đồ Hoạt Động - Đăng Nhập
+
+start
+:User nhập email và mật khẩu;
+
+:Tìm kiếm user theo email;
+if (User tồn tại?) then (no)
+  :Kiểm tra status account;
+  :Hiển thị lỗi: Email không tồn tại;
+  :Ghi log login failed;
+  stop
+else (yes)
+  :User tồn tại, tiếp tục xác thực;
+endif
+
+:Kiểm tra account locked;
+if (Account bị khóa?) then (yes)
+  :Kiểm tra thời gian khóa;
+  :Hiển thị lỗi: Account bị khóa tạm thời;
+  stop
+else (no)
+  :Account có thể sử dụng, tiếp tục;
+endif
+
+:Lấy password_hash từ DB;
+:So sánh mật khẩu bằng bcrypt;
+if (Mật khẩu đúng?) then (no)
+  :Tăng failed_login_attempts;
+  :Kiểm tra nếu >= max attempts;
+  :Khóa account (nếu cần);
+  :Hiển thị lỗi: Mật khẩu sai;
+  :Ghi log login failed;
+  stop
+else (yes)
+  :Mật khẩu đúng, tiếp tục tạo token;
+endif
+
+:Kiểm tra email đã xác thực;
+if (Email đã verified?) then (no)
+  :Kiểm tra expiry date;
+  :Gửi lại email xác thực;
+  :Hiển thị lỗi: Cần xác thực email;
+  :Ghi log unverified login;
+  stop
+else (yes)
+  :Email đã xác thực, tạo token;
+endif
+
+:Reset failed_login_attempts;
+:Tạo JWT Access Token (1 hour);
+:Tạo JWT Refresh Token (7 days);
+:Lưu Refresh Token hash vào DB;
+:Cập nhật last_login_at;
+:Cập nhật last_login_ip;
+:Lấy user profile và permissions;
+:Ghi log successful login;
+
+:Trả về access_token;
+:Trả về refresh_token;
+:Trả về user info;
+:Lưu token vào client (memory/secure cookie);
+
+:Chuyển đến dashboard;
+stop
+@enduml

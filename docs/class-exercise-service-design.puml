@@ -1,0 +1,607 @@
+@startuml
+skinparam classAttributeIconSize 0
+
+' ===== Handler Layer =====
+class ExerciseHandler {
+  - service: ExerciseService
+  + HealthCheck(c: *gin.Context): void
+  + GetExercises(c: *gin.Context): void
+  + GetExerciseByID(c: *gin.Context): void
+  + StartExercise(c: *gin.Context): void
+  + SubmitAnswers(c: *gin.Context): void
+  + SubmitExercise(c: *gin.Context): void
+  + GetSubmissionResult(c: *gin.Context): void
+  + GetMySubmissions(c: *gin.Context): void
+  + CreateExercise(c: *gin.Context): void
+  + UpdateExercise(c: *gin.Context): void
+  + DeleteExercise(c: *gin.Context): void
+  + CreateSection(c: *gin.Context): void
+  + CreateQuestion(c: *gin.Context): void
+  + CreateQuestionOption(c: *gin.Context): void
+  + CreateQuestionAnswer(c: *gin.Context): void
+  + PublishExercise(c: *gin.Context): void
+  + UnpublishExercise(c: *gin.Context): void
+  + GetAllTags(c: *gin.Context): void
+  + GetExerciseTags(c: *gin.Context): void
+  + AddTagToExercise(c: *gin.Context): void
+  + RemoveTagFromExercise(c: *gin.Context): void
+  + CreateTag(c: *gin.Context): void
+  + GetBankQuestions(c: *gin.Context): void
+  + CreateBankQuestion(c: *gin.Context): void
+  + UpdateBankQuestion(c: *gin.Context): void
+  + DeleteBankQuestion(c: *gin.Context): void
+  + GetExerciseAnalytics(c: *gin.Context): void
+}
+
+' ===== Service Layer =====
+class ExerciseService {
+  - repo: ExerciseRepository
+  - userServiceClient: UserServiceClient
+  - notificationClient: NotificationServiceClient
+  - aiServiceClient: AIServiceClient
+  + GetExercises(query: *ExerciseListQuery): ([]Exercise, int, error)
+  + GetExerciseByID(id: UUID): (*ExerciseDetailResponse, error)
+  + StartExercise(userID, exerciseID: UUID, deviceType: *string): (*UserExerciseAttempt, error)
+  + SubmitAnswers(submissionID: UUID, answers: []SubmitAnswerItem): error
+  + SubmitExercise(submissionID: UUID, req: *SubmitExerciseRequest): error
+  + GetSubmissionResult(submissionID: UUID): (*SubmissionResultResponse, error)
+  + GetMySubmissions(userID: UUID, query: *MySubmissionsQuery): (*MySubmissionsResponse, error)
+  + CreateExercise(req: *CreateExerciseRequest, createdBy: UUID): (*Exercise, error)
+  + UpdateExercise(id: UUID, req: *UpdateExerciseRequest): error
+  + DeleteExercise(id: UUID): error
+  + CheckOwnership(exerciseID, userID: UUID): error
+  + CreateSection(exerciseID: UUID, req: *CreateSectionRequest, userID: UUID): (*ExerciseSection, error)
+  + CreateQuestion(req: *CreateQuestionRequest, userID: UUID): (*Question, error)
+  + CreateQuestionOption(questionID: UUID, req: *CreateQuestionOptionRequest, userID: UUID): (*QuestionOption, error)
+  + CreateQuestionAnswer(questionID: UUID, req: *CreateQuestionAnswerRequest, userID: UUID): (*QuestionAnswer, error)
+  + PublishExercise(exerciseID, userID: UUID): error
+  + UnpublishExercise(exerciseID, userID: UUID): error
+  + GetAllTags(): ([]ExerciseTag, error)
+  + GetExerciseTags(exerciseID: UUID): ([]ExerciseTag, error)
+  + AddTagToExercise(exerciseID: UUID, tagID: int, userID: UUID): error
+  + RemoveTagFromExercise(exerciseID: UUID, tagID: int, userID: UUID): error
+  + CreateTag(name, slug: string): (*ExerciseTag, error)
+  + GetBankQuestions(skillType, questionType: string, page, limit: int): ([]QuestionBank, int, error)
+  + CreateBankQuestion(req: *CreateBankQuestionRequest, userID: UUID): (*QuestionBank, error)
+  + UpdateBankQuestion(questionID: UUID, req: *UpdateBankQuestionRequest, userID: UUID): error
+  + DeleteBankQuestion(questionID, userID: UUID): error
+  + GetExerciseAnalytics(exerciseID: UUID): (*ExerciseAnalytics, error)
+  + StartSyncRetryWorker(): void
+  - handleExerciseCompletion(submissionID: UUID): void
+  - retryFailedSyncs(): void
+  - retrySingleSync(submission: *UserExerciseAttempt, exercise: *Exercise, bandScore: float64): error
+  - handleListeningReadingSubmission(submission: *UserExerciseAttempt, exercise: *Exercise, req: *SubmitExerciseRequest): error
+  - handleWritingSubmission(submission: *UserExerciseAttempt, exercise: *Exercise, req: *SubmitExerciseRequest): error
+  - handleSpeakingSubmission(submission: *UserExerciseAttempt, exercise: *Exercise, req: *SubmitExerciseRequest): error
+  - evaluateWritingAsync(submissionID: UUID, exercise: *Exercise, essayText: string, taskType, promptText: *string): void
+  - evaluateSpeakingAsync(submissionID: UUID, exercise: *Exercise, audioURL: string, partNumber: *int): void
+  - recordToUserService(submissionID: UUID, exercise: *Exercise, bandScore: float64): void
+}
+
+' ===== Repository Layer =====
+class ExerciseRepository {
+  - db: *sql.DB
+  + GetExercises(query: *ExerciseListQuery): ([]Exercise, int, error)
+  + GetExerciseByID(id: UUID): (*ExerciseDetailResponse, error)
+  + GetExerciseByIDSimple(exerciseID: UUID): (*Exercise, error)
+  + GetSectionsWithQuestions(exerciseID: UUID): ([]SectionWithQuestions, error)
+  + GetQuestionsWithOptions(sectionID: UUID): ([]QuestionWithOptions, error)
+  + CreateSubmission(userID, exerciseID: UUID, deviceType: *string): (*UserExerciseAttempt, error)
+  + SaveSubmissionAnswers(submissionID: UUID, answers: []SubmitAnswerItem): error
+  + CompleteSubmission(submissionID: UUID): error
+  + GetSubmissionResult(submissionID: UUID): (*SubmissionResultResponse, error)
+  + GetSubmissionByID(submissionID: UUID): (*UserExerciseAttempt, error)
+  + GetUserSubmissions(userID: UUID, query: *MySubmissionsQuery): (*MySubmissionsResponse, error)
+  + CreateExercise(req: *CreateExerciseRequest, createdBy: UUID): (*Exercise, error)
+  + UpdateExercise(id: UUID, req: *UpdateExerciseRequest): error
+  + DeleteExercise(id: UUID): error
+  + CheckExerciseOwnership(exerciseID, userID: UUID): error
+  + CreateSection(exerciseID: UUID, req: *CreateSectionRequest): (*ExerciseSection, error)
+  + CreateQuestion(req: *CreateQuestionRequest): (*Question, error)
+  + CreateQuestionOption(questionID: UUID, req: *CreateQuestionOptionRequest): (*QuestionOption, error)
+  + CreateQuestionAnswer(questionID: UUID, req: *CreateQuestionAnswerRequest): (*QuestionAnswer, error)
+  + PublishExercise(id: UUID): error
+  + UnpublishExercise(id: UUID): error
+  + GetAllTags(): ([]ExerciseTag, error)
+  + GetExerciseTags(exerciseID: UUID): ([]ExerciseTag, error)
+  + AddTagToExercise(exerciseID: UUID, tagID: int): error
+  + RemoveTagFromExercise(exerciseID: UUID, tagID: int): error
+  + CreateTag(name, slug: string): (*ExerciseTag, error)
+  + GetBankQuestions(skillType, questionType: string, limit, offset: int): ([]QuestionBank, int, error)
+  + CreateBankQuestion(req: *CreateBankQuestionRequest, userID: UUID): (*QuestionBank, error)
+  + UpdateBankQuestion(id: UUID, req: *UpdateBankQuestionRequest): error
+  + DeleteBankQuestion(id: UUID): error
+  + GetExerciseAnalytics(exerciseID: UUID): (*ExerciseAnalytics, error)
+  + UpdateSubmissionBandScore(submissionID: UUID, bandScore: float64): error
+  + UpdateSubmissionWritingData(submissionID: UUID, essayText: string, wordCount: int, taskType, promptText: string): error
+  + UpdateSubmissionSpeakingData(submissionID: UUID, audioURL: string, audioDuration, speakingPart: int): error
+  + UpdateSubmissionEvaluationStatus(submissionID: UUID, status: string): error
+  + UpdateSubmissionTranscript(submissionID: UUID, transcript: string): error
+  + UpdateSubmissionWithAIResult(submissionID: UUID, result: *AIEvaluationResult): error
+  + MarkUserServiceSyncSuccess(submissionID: UUID): error
+  + MarkUserServiceSyncFailed(submissionID: UUID, errorMsg: string): error
+  + MarkUserServiceSyncNotRequired(submissionID: UUID): error
+  + GetPendingSyncs(limit: int): ([]*UserExerciseAttempt, error)
+}
+
+' ===== Entity Layer =====
+class Exercise {
+  + ID: UUID
+  + Title: string
+  + Slug: string
+  + Description: *string
+  + ExerciseType: string
+  + SkillType: string
+  + IELTSTestType: *string
+  + Difficulty: string
+  + IELTSLevel: *string
+  + TotalQuestions: int
+  + TotalSections: int
+  + TimeLimitMinutes: *int
+  + ThumbnailURL: *string
+  + AudioURL: *string
+  + AudioDurationSeconds: *int
+  + AudioTranscript: *string
+  + PassageCount: *int
+  + CourseID: *UUID
+  + ModuleID: *UUID
+  + PassingScore: *float64
+  + TotalPoints: *float64
+  + IsFree: bool
+  + IsPublished: bool
+  + TotalAttempts: int
+  + AverageScore: *float64
+  + AverageCompletionTime: *int
+  + DisplayOrder: int
+  + CreatedBy: UUID
+  + PublishedAt: *time.Time
+  + CreatedAt: time.Time
+  + UpdatedAt: time.Time
+  + WritingTaskType: *string
+  + WritingPromptText: *string
+  + WritingVisualType: *string
+  + WritingVisualURL: *string
+  + WritingWordRequirement: *int
+  + SpeakingPartNumber: *int
+  + SpeakingPromptText: *string
+  + SpeakingCueCardTopic: *string
+  + SpeakingCueCardPoints: []string
+  + SpeakingPreparationTime: *int
+  + SpeakingResponseTime: *int
+  + SpeakingFollowUpQuestions: []string
+  + IsOfficialTest(): bool
+  + RequiresAIEvaluation(): bool
+}
+
+class ExerciseSection {
+  + ID: UUID
+  + ExerciseID: UUID
+  + Title: string
+  + Description: *string
+  + SectionNumber: int
+  + AudioURL: *string
+  + AudioStartTime: *int
+  + AudioEndTime: *int
+  + Transcript: *string
+  + PassageTitle: *string
+  + PassageContent: *string
+  + PassageWordCount: *int
+  + Instructions: *string
+  + TotalQuestions: int
+  + TimeLimitMinutes: *int
+  + DisplayOrder: int
+  + CreatedAt: time.Time
+  + UpdatedAt: time.Time
+}
+
+class Question {
+  + ID: UUID
+  + ExerciseID: UUID
+  + SectionID: *UUID
+  + QuestionNumber: int
+  + QuestionText: string
+  + QuestionType: string
+  + AudioURL: *string
+  + ImageURL: *string
+  + ContextText: *string
+  + Points: float64
+  + Difficulty: *string
+  + Explanation: *string
+  + Tips: *string
+  + DisplayOrder: int
+  + CreatedAt: time.Time
+  + UpdatedAt: time.Time
+}
+
+class QuestionOption {
+  + ID: UUID
+  + QuestionID: UUID
+  + OptionLabel: string
+  + OptionText: string
+  + OptionImageURL: *string
+  + IsCorrect: bool
+  + DisplayOrder: int
+  + CreatedAt: time.Time
+}
+
+class QuestionAnswer {
+  + ID: UUID
+  + QuestionID: UUID
+  + AnswerText: string
+  + AlternativeAnswers: *string
+  + IsCaseSensitive: bool
+  + MatchingOrder: *int
+  + CreatedAt: time.Time
+}
+
+class UserExerciseAttempt {
+  + ID: UUID
+  + UserID: UUID
+  + ExerciseID: UUID
+  + AttemptNumber: int
+  + Status: string
+  + TotalQuestions: int
+  + QuestionsAnswered: int
+  + CorrectAnswers: int
+  + Score: *float64
+  + BandScore: *float64
+  + TimeLimitMinutes: *int
+  + TimeSpentSeconds: int
+  + StartedAt: time.Time
+  + CompletedAt: *time.Time
+  + DeviceType: *string
+  + EssayText: *string
+  + WordCount: *int
+  + TaskType: *string
+  + PromptText: *string
+  + AudioURL: *string
+  + AudioDurationSeconds: *int
+  + TranscriptText: *string
+  + SpeakingPartNumber: *int
+  + EvaluationStatus: *string
+  + AIEvaluationID: *string
+  + DetailedScores: *string
+  + AIFeedback: *string
+  + OfficialTestResultID: *UUID
+  + PracticeActivityID: *UUID
+  + UserServiceSyncStatus: string
+  + UserServiceSyncAttempts: int
+  + UserServiceLastSyncAttempt: *time.Time
+  + UserServiceSyncError: *string
+  + CreatedAt: time.Time
+  + UpdatedAt: time.Time
+}
+
+class SubmissionAnswer {
+  + ID: UUID
+  + AttemptID: UUID
+  + QuestionID: UUID
+  + UserID: UUID
+  + AnswerText: *string
+  + SelectedOptionID: *UUID
+  + IsCorrect: *bool
+  + PointsEarned: *float64
+  + TimeSpentSeconds: *int
+  + AnsweredAt: time.Time
+}
+
+class ExerciseTag {
+  + ID: int
+  + Name: string
+  + Slug: string
+  + CreatedAt: time.Time
+}
+
+class QuestionBank {
+  + ID: UUID
+  + Title: *string
+  + SkillType: string
+  + QuestionType: string
+  + Difficulty: *string
+  + Topic: *string
+  + QuestionText: string
+  + ContextText: *string
+  + AudioURL: *string
+  + ImageURL: *string
+  + AnswerData: string
+  + Tags: []string
+  + TimesUsed: int
+  + CreatedBy: UUID
+  + IsVerified: bool
+  + IsPublished: bool
+  + CreatedAt: time.Time
+  + UpdatedAt: time.Time
+}
+
+class ExerciseAnalytics {
+  + ExerciseID: UUID
+  + TotalAttempts: int
+  + CompletedAttempts: int
+  + AbandonedAttempts: int
+  + AverageScore: *float64
+  + MedianScore: *float64
+  + HighestScore: *float64
+  + LowestScore: *float64
+  + AverageCompletionTime: *int
+  + MedianCompletionTime: *int
+  + ActualDifficulty: *string
+  + QuestionStatistics: *string
+  + UpdatedAt: time.Time
+}
+
+' ===== DTO Layer =====
+class ExerciseListQuery {
+  + Page: int
+  + Limit: int
+  + SkillType: string
+  + Difficulty: string
+  + ExerciseType: string
+  + IsFree: *bool
+  + CourseID: *UUID
+  + ModuleID: *UUID
+  + CourseLevelOnly: bool
+  + Search: string
+  + SortBy: string
+  + SortOrder: string
+}
+
+class ExerciseDetailResponse {
+  + Exercise: *Exercise
+  + Sections: []SectionWithQuestions
+}
+
+class SectionWithQuestions {
+  + Section: *ExerciseSection
+  + Questions: []QuestionWithOptions
+}
+
+class QuestionWithOptions {
+  + Question: *Question
+  + Options: []QuestionOption
+}
+
+class SubmitAnswersRequest {
+  + Answers: []SubmitAnswerItem
+}
+
+class SubmitAnswerItem {
+  + QuestionID: UUID
+  + SelectedOptionID: *UUID
+  + TextAnswer: *string
+  + TimeSpentSeconds: *int
+}
+
+class SubmitExerciseRequest {
+  + Answers: []SubmitAnswerItem
+  + WritingData: *WritingSubmissionData
+  + SpeakingData: *SpeakingSubmissionData
+  + TimeSpentSeconds: int
+  + IsOfficialTest: bool
+}
+
+class WritingSubmissionData {
+  + EssayText: string
+  + WordCount: int
+  + TaskType: string
+  + PromptText: string
+}
+
+class SpeakingSubmissionData {
+  + AudioURL: string
+  + AudioDurationSeconds: int
+  + SpeakingPartNumber: int
+}
+
+class SubmissionResultResponse {
+  + Submission: *UserExerciseAttempt
+  + Exercise: *Exercise
+  + Answers: []SubmissionAnswerWithQuestion
+  + Performance: *PerformanceStats
+}
+
+class SubmissionAnswerWithQuestion {
+  + Answer: *SubmissionAnswer
+  + Question: *Question
+  + CorrectAnswer: interface{}
+}
+
+class PerformanceStats {
+  + TotalQuestions: int
+  + CorrectAnswers: int
+  + IncorrectAnswers: int
+  + SkippedAnswers: int
+  + Accuracy: float64
+  + Score: float64
+  + Percentage: float64
+  + BandScore: *float64
+  + IsPassed: bool
+  + TimeSpentSeconds: int
+  + AverageTimePerQ: float64
+}
+
+class CreateExerciseRequest {
+  + Title: string
+  + Slug: string
+  + Description: *string
+  + ExerciseType: string
+  + SkillType: string
+  + Difficulty: string
+  + IELTSLevel: *string
+  + TimeLimitMinutes: *int
+  + ThumbnailURL: *string
+  + AudioURL: *string
+  + AudioDurationSeconds: *int
+  + PassageCount: *int
+  + CourseID: *UUID
+  + ModuleID: *UUID
+  + PassingScore: *float64
+  + IsFree: *bool
+}
+
+class UpdateExerciseRequest {
+  + Title: *string
+  + Description: *string
+  + Difficulty: *string
+  + TimeLimitMinutes: *int
+  + ThumbnailURL: *string
+  + PassingScore: *float64
+  + IsFree: *bool
+  + IsPublished: *bool
+}
+
+class CreateSectionRequest {
+  + Title: string
+  + Description: *string
+  + SectionNumber: int
+  + AudioURL: *string
+  + AudioStartTime: *int
+  + AudioEndTime: *int
+  + Transcript: *string
+  + PassageTitle: *string
+  + PassageContent: *string
+  + PassageWordCount: *int
+  + Instructions: *string
+  + TimeLimitMinutes: *int
+  + DisplayOrder: int
+}
+
+class CreateQuestionRequest {
+  + ExerciseID: UUID
+  + SectionID: *UUID
+  + QuestionNumber: int
+  + QuestionText: string
+  + QuestionType: string
+  + AudioURL: *string
+  + ImageURL: *string
+  + ContextText: *string
+  + Points: *float64
+  + Difficulty: *string
+  + Explanation: *string
+  + Tips: *string
+  + DisplayOrder: int
+}
+
+class CreateQuestionOptionRequest {
+  + OptionLabel: string
+  + OptionText: string
+  + OptionImageURL: *string
+  + IsCorrect: bool
+  + DisplayOrder: int
+}
+
+class CreateQuestionAnswerRequest {
+  + AnswerText: string
+  + AlternativeAnswers: []string
+  + IsCaseSensitive: bool
+  + MatchingOrder: *int
+}
+
+class MySubmissionsQuery {
+  + Page: int
+  + Limit: int
+  + SkillType: string
+  + Status: string
+  + SortBy: string
+  + SortOrder: string
+  + DateFrom: string
+  + DateTo: string
+  + Search: string
+}
+
+class MySubmissionsResponse {
+  + Submissions: []UserExerciseAttemptWithExercise
+  + Total: int
+}
+
+class UserExerciseAttemptWithExercise {
+  + Submission: *UserExerciseAttempt
+  + Exercise: *Exercise
+}
+
+class CreateBankQuestionRequest {
+  + Title: *string
+  + SkillType: string
+  + QuestionType: string
+  + Difficulty: *string
+  + Topic: *string
+  + QuestionText: string
+  + ContextText: *string
+  + AudioURL: *string
+  + ImageURL: *string
+  + AnswerData: map[string]interface{}
+  + Tags: []string
+}
+
+class UpdateBankQuestionRequest {
+  + Title: *string
+  + SkillType: string
+  + QuestionText: string
+  + QuestionType: string
+  + Difficulty: *string
+  + Topic: *string
+  + ContextText: *string
+  + AudioURL: *string
+  + ImageURL: *string
+  + AnswerData: map[string]interface{}
+  + Tags: []string
+}
+
+class CreateTagRequest {
+  + Name: string
+  + Slug: string
+}
+
+class AddTagRequest {
+  + TagID: int
+}
+
+class AIEvaluationResult {
+  + OverallBandScore: float64
+  + DetailedScores: map[string]interface{}
+  + Feedback: string
+  + CriteriaScores: map[string]float64
+}
+
+' ===== Config Layer =====
+class Config {
+  + ServerPort: string
+  + DBHost: string
+  + DBPort: string
+  + DBUser: string
+  + DBPassword: string
+  + DBName: string
+  + JWTSecret: string
+  + UserServiceURL: string
+  + NotificationServiceURL: string
+  + AIServiceURL: string
+  + StorageServiceURL: string
+  + InternalAPIKey: string
+}
+
+' ===== Relationships =====
+ExerciseHandler --> ExerciseService : uses
+ExerciseService --> ExerciseRepository : uses
+ExerciseService --> UserServiceClient : uses
+ExerciseService --> NotificationServiceClient : uses
+ExerciseService --> AIServiceClient : uses
+ExerciseRepository --> Exercise : CRUD
+ExerciseRepository --> ExerciseSection : CRUD
+ExerciseRepository --> Question : CRUD
+ExerciseRepository --> QuestionOption : CRUD
+ExerciseRepository --> QuestionAnswer : CRUD
+ExerciseRepository --> UserExerciseAttempt : CRUD
+ExerciseRepository --> SubmissionAnswer : CRUD
+ExerciseRepository --> ExerciseTag : CRUD
+ExerciseRepository --> QuestionBank : CRUD
+ExerciseRepository --> ExerciseAnalytics : CRUD
+
+Exercise "1" -- "0..*" ExerciseSection : has
+ExerciseSection "1" -- "0..*" Question : contains
+Question "1" -- "0..*" QuestionOption : options
+Question "1" -- "0..1" QuestionAnswer : has
+UserExerciseAttempt "*" -- "1" Exercise : for
+UserExerciseAttempt "1" -- "0..*" SubmissionAnswer : contains
+SubmissionAnswer "*" -- "1" Question : answers
+Exercise "0..*" -- "0..*" ExerciseTag : tagged
+
+@enduml

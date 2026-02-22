@@ -1,0 +1,90 @@
+@startuml
+title Biểu đồ Hoạt Động - Học Bài Học
+
+start
+note right : Frontend
+:User truy cập khóa học;
+:User chọn bài học;
+:Hiển thị lesson content;
+
+note right : Course Service
+:Load lesson details;
+:Kiểm tra quyền truy cập;
+if (User có quyền?) then (no)
+  :Trả về lỗi;
+  stop
+else (yes)
+endif
+
+:Tạo hoặc cập nhật LessonProgress;
+:Ghi start_time;
+
+note right : Storage Service
+if (Lesson có video?) then (yes)
+  :Tải video player;
+  :Load video metadata;
+else (no)
+endif
+
+if (Lesson có transcript?) then (yes)
+  :Tải transcript;
+  :Cho phép chọn ngôn ngữ;
+else (no)
+endif
+
+if (Có materials?) then (yes)
+  :Tải tài liệu;
+else (no)
+endif
+
+note right : Frontend
+if (Lesson có video?) then (yes)
+  :Vòng lặp: User xem video;
+  repeat
+    :Ghi watched_duration;
+    :Ghi current_position;
+    :Kiểm tra progress percentage;
+  repeat while (Video chưa xem xong?)
+  :Đánh dấu video_watched = true;
+else (no)
+endif
+
+:Vòng lặp: Hiển thị content sections;
+repeat
+  :User đọc content;
+  :Ghi reading_time;
+repeat while (Còn section?)
+
+note right : Course Service
+:Tính completion_percentage;
+
+if (Completion >= 80%?) then (yes)
+  :Đánh dấu lesson = completed;
+  :Unlock lesson tiếp theo;
+  :Unlock exercises;
+else (no)
+  :Đánh dấu lesson = in_progress;
+endif
+
+:Cập nhật LessonProgress;
+:Ghi completion_date;
+:Kiểm tra course completion;
+if (Hoàn thành tất cả lessons?) then (yes)
+  :Đánh dấu course = completed;
+  :Tạo certificate;
+else (no)
+endif
+
+note right : User Service
+:Cập nhật user learning stats;
+:Cập nhật study streaks;
+
+note right : Notification Service
+:Gửi notification;
+
+note right : Frontend
+:Hiển thị completion summary;
+:Cung cấp nút "Lesson tiếp theo";
+:Cung cấp nút "Bài tập";
+stop
+@enduml

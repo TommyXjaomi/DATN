@@ -1,0 +1,205 @@
+@startuml
+skinparam classAttributeIconSize 0
+
+' ===== Handler Layer =====
+class AIHandler {
+  - service: AIService
+  + HealthCheck(c: *gin.Context): void
+  + EvaluateWriting(c: *gin.Context): void
+  + TranscribeSpeaking(c: *gin.Context): void
+  + EvaluateSpeaking(c: *gin.Context): void
+  + GetCacheStatistics(c: *gin.Context): void
+}
+
+' ===== Service Layer =====
+class AIService {
+  - repo: AIRepository
+  - config: Config
+  - openAIClient: OpenAIClient
+  - cacheService: CacheService
+  + EvaluateWritingPure(essayText, taskType, promptText: string): (*OpenAIWritingEvaluation, error)
+  + TranscribeSpeakingPure(audioURL: string): (string, error)
+  + EvaluateSpeakingPure(audioURL, transcriptText: string, partNumber: int): (*OpenAISpeakingEvaluation, error)
+  + GetCacheStatistics(): (map[string]interface{}, error)
+}
+
+class OpenAIClient {
+  - APIKey: string
+  - BaseURL: string
+  - HTTPClient: *http.Client
+  + TranscribeAudio(audioURL: string, audioData: []byte): (*OpenAITranscription, error)
+  + EvaluateWriting(taskPromptText, essayText: string, wordCount, timeSpent: int): (*OpenAIWritingEvaluation, error)
+  + EvaluateSpeaking(part, promptText, transcriptText: string, wordCount: int, duration: float64): (*OpenAISpeakingEvaluation, error)
+  - callChatAPI(payload: interface{}, result: interface{}): (interface{}, error)
+}
+
+class CacheService {
+  - repo: AIRepository
+  + CheckWritingCache(essayText, taskType, promptText: string): (*OpenAIWritingEvaluation, bool)
+  + SaveWritingCache(essayText, taskType, promptText: string, result: *OpenAIWritingEvaluation): error
+  + CheckSpeakingCache(audioURL, transcriptText: string, partNumber: int): (*OpenAISpeakingEvaluation, bool)
+  + SaveSpeakingCache(audioURL, transcriptText: string, partNumber: int, result: *OpenAISpeakingEvaluation): error
+  + GetCacheStatistics(): (map[string]interface{}, error)
+}
+
+' ===== Repository Layer =====
+class AIRepository {
+  - db: Database
+  - config: Config
+  + GetCachedEvaluation(hash: string): (*CacheEntry, error)
+  + SaveCachedEvaluation(hash, content: string, expiresAt: interface{}): error
+  + DeleteCachedEvaluation(hash: string): error
+  + GetCacheStatistics(): (map[string]interface{}, error)
+}
+
+' ===== Entity Layer =====
+class AIEvaluationCache {
+  + id: UUID
+  + content_hash: string
+  + skill_type: string
+  + task_type: string
+  + overall_band_score: numeric
+  + detailed_scores: jsonb
+  + feedback: jsonb
+  + ai_model_name: string
+  + ai_model_version: string
+  + processing_time_ms: int
+  + confidence_score: numeric
+  + prompt_tokens: int
+  + completion_tokens: int
+  + total_cost_usd: numeric
+  + created_at: timestamp
+  + expires_at: timestamp
+  + hit_count: int
+  + last_hit_at: timestamp
+  + notes: text
+}
+
+class AIEvaluationLogs {
+  + id: UUID
+  + skill_type: string
+  + task_type: string
+  + content_hash: string
+  + cache_hit: boolean
+  + band_score: numeric
+  + processing_time_ms: int
+  + prompt_tokens: int
+  + completion_tokens: int
+  + cost_usd: numeric
+  + success: boolean
+  + error_message: text
+  + ai_model_name: string
+  + created_at: timestamp
+}
+
+' ===== DTO Layer =====
+class FeedbackBilingual {
+  + vi: string
+  + en: string
+}
+
+class OpenAIWritingEvaluation {
+  + overall_band: float64
+  + criteria_scores: struct
+  + detailed_feedback: struct
+  + examiner_feedback: string
+  + strengths: []string
+  + areas_for_improvement: []string
+}
+
+class OpenAISpeakingEvaluation {
+  + overall_band: float64
+  + criteria_scores: struct
+  + detailed_feedback: struct
+  + examiner_feedback: string
+  + strengths: []string
+  + areas_for_improvement: []string
+}
+
+class OpenAITranscription {
+  + text: string
+  + duration: float64
+  + words: []struct
+}
+
+' ===== Config Layer =====
+class Config {
+  + ServerPort: string
+  + DBHost: string
+  + DBPort: string
+  + DBUser: string
+  + DBPassword: string
+  + DBName: string
+  + AuthServiceURL: string
+  + JWTSecret: string
+  + InternalAPIKey: string
+  + OpenAIAPIKey: string
+  + UserServiceURL: string
+  + ExerciseServiceURL: string
+  + NotificationServiceURL: string
+}
+
+' ===== Middleware Layer =====
+class AuthMiddleware {
+  - jwtSecret: string
+  - internalAPIKey: string
+  + AuthRequired(): gin.HandlerFunc
+  + RequireRole(allowedRoles: ...string): gin.HandlerFunc
+  + OptionalAuth(): gin.HandlerFunc
+}
+
+class RateLimitMiddleware {
+  - userLimiters: map[string]*limiter.Limiter
+  - globalLimiter: *limiter.Limiter
+  - submissionLimiters: map[string]*limiter.Limiter
+  + GlobalRateLimit(): gin.HandlerFunc
+  + SubmissionRateLimit(): gin.HandlerFunc
+}
+
+' ===== Validation Layer =====
+class Validation {
+  + ValidateAudioFile(fileSizeBytes: int64, durationSeconds: int, fileName, mimeType: string): error
+  + ValidateWritingSubmission(taskType, essayText: string): error
+}
+
+' ===== Database Layer =====
+class Database {
+  + DB: *sql.DB
+  + Close(): error
+}
+
+' ===== Relationships =====
+AIHandler -- AIService : uses
+
+AIService -- AIRepository : uses
+AIService -- Config : uses
+AIService -- OpenAIClient : uses
+AIService -- CacheService : uses
+
+OpenAIClient -- OpenAIWritingEvaluation : returns
+OpenAIClient -- OpenAISpeakingEvaluation : returns
+OpenAIClient -- OpenAITranscription : returns
+
+CacheService -- AIRepository : uses
+
+AIRepository -- Database : uses
+AIRepository -- Config : uses
+AIRepository -- AIEvaluationCache : CRUD
+AIRepository -- AIEvaluationLogs : CRUD
+
+AuthMiddleware -- Config : uses
+RateLimitMiddleware -- Config : uses
+
+Validation -- OpenAIWritingEvaluation : validates
+Validation -- OpenAITranscription : validates
+
+Database -- Config : uses
+
+' ===== Entity Relationships =====
+AIEvaluationCache "1" -- "0..*" AIEvaluationLogs : logs
+
+' ===== DTO Relationships =====
+OpenAIWritingEvaluation -- FeedbackBilingual : contains
+OpenAISpeakingEvaluation -- FeedbackBilingual : contains
+
+@enduml

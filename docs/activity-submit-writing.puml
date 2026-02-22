@@ -1,0 +1,138 @@
+@startuml
+left to right direction
+!theme plain
+skinparam activity {
+  BackgroundColor #E8F4F8
+  BorderColor #2E86AB
+  FontColor #000000
+}
+skinparam swimlane {
+  BackgroundColor #F0F0F0
+  BorderColor #2E86AB
+  TitleBackgroundColor #2E86AB
+  TitleFontColor #FFFFFF
+}
+
+title Nộp Bài Writing - AI Evaluation
+
+|#LightBlue|Student|
+start
+:Chọn Writing exercise;
+:Click "Bắt đầu làm bài";
+:Hiển thị đề bài và requirements;
+:Viết essay;
+
+:Click "Nộp bài";
+:Submit essay text;
+
+|#LightGreen|API Gateway|
+:Validate JWT token;
+:Extract user_id;
+:Route request đến Exercise Service;
+
+|#LightYellow|Exercise Service|
+:Validate exercise_id;
+:Load exercise từ database;
+if (Exercise không tồn tại?) then (yes)
+  :Trả về lỗi "Exercise not found";
+  stop
+else (no)
+endif
+
+:Validate essay text;
+if (Essay text rỗng?) then (yes)
+  :Trả về lỗi "Essay text required";
+  stop
+else (no)
+endif
+
+:Calculate word count;
+:Validate word count;
+if (Task 1 và word count < 150?) then (yes)
+  :Trả về lỗi "Word count too low";
+  stop
+elseif (Task 2 và word count < 250?) then (yes)
+  :Trả về lỗi "Word count too low";
+  stop
+else (no)
+endif
+
+:Create UserExerciseAttempt\nvới status = "in_progress";
+:Save essay text, word_count,\ntask_type, prompt_text;
+:Update evaluation_status = "pending";
+
+:Trả về submission_id\ncho Student;
+
+|#LightBlue|Student|
+:Hiển thị "Đang xử lý...";
+:Polling hoặc SSE để check status;
+
+|#LightYellow|Exercise Service|
+fork
+  :Start async evaluation;
+  
+  |#LightCyan|AI Service|
+  :Generate content hash\n(essay_text + task_type + prompt);
+  :Check cache với hash;
+  if (Cache hit?) then (yes)
+    :Lấy kết quả từ cache;
+    :Trả về cached evaluation;
+  else (no)
+    :Cache miss;
+    :Call OpenAI GPT-4o API;
+    :Evaluate 4 criteria:\n- Task Achievement\n- Coherence & Cohesion\n- Lexical Resource\n- Grammar;
+    :Calculate overall band score;
+    :Generate feedback và suggestions;
+    :Save to cache\n(async, non-blocking);
+    :Trả về evaluation result;
+  endif
+  
+  |#LightYellow|Exercise Service|
+  :Update submission với AI result;
+  :Set evaluation_status = "completed";
+  :Set status = "completed";
+  :Set band_score;
+  :Set detailed_scores (JSON);
+  :Set ai_feedback;
+  :Set completed_at = NOW();
+  
+  fork
+    |#LightPink|User Service|
+    :Record practice activity;
+    :Update Writing band score;
+    :Update skill statistics;
+    :Check achievements;
+  end fork
+  
+  fork
+    |#LightCoral|Notification Service|
+    :Gửi notification\n"Kết quả Writing đã có";
+    :Lưu notification;
+  end fork
+  
+end fork
+
+|#LightBlue|Student|
+if (Polling status?) then (yes)
+  :Check submission status;
+  if (Status = completed?) then (yes)
+    :Load kết quả chi tiết;
+  else (no)
+    :Tiếp tục polling;
+  endif
+else (no)
+  :Nhận notification;
+  :Click để xem kết quả;
+endif
+
+:Hiển thị kết quả:\n- Band score\n- 4 criteria scores\n- Feedback\n- Strengths\n- Weaknesses\n- Suggestions;
+stop
+
+note right
+  **Retry Logic:**
+  - AI Service có retry mechanism
+  - Max 3 attempts với exponential backoff
+  - Nếu fail: evaluation_status = "failed"
+end note
+
+@enduml

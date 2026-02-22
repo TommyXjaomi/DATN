@@ -1,0 +1,92 @@
+@startuml
+title Storage Service - Sơ đồ Lớp Phân Tích (Entities)
+skinparam classAttributeIconSize 0
+
+class StorageBucket {
+  -string name
+  -string region
+  -string policy
+  -string versioning
+  -bool is_public
+  -bool is_active
+  -time.Time created_at
+}
+
+class FileObject {
+  -string id
+  -string bucket_name
+  -string object_name
+  -string url
+  -int64 size
+  -string content_type
+  -string etag
+  -UUID uploaded_by
+  -string file_category
+  -string file_type
+  -bool is_deleted
+  -int download_count
+  -time.Time uploaded_at
+  -time.Time last_modified
+  -time.Time created_at
+}
+
+class FileVersion {
+  -string id
+  -string object_id
+  -string bucket_name
+  -int version_number
+  -int64 size
+  -string etag
+  -UUID uploaded_by
+  -time.Time created_at
+}
+
+class FileAccess {
+  -UUID id
+  -string object_id
+  -UUID user_id
+  -string access_type
+  -time.Time accessed_at
+  -time.Time created_at
+}
+
+class FileMetadata {
+  -string id
+  -string object_id
+  -JSONB metadata
+  -bool is_processed
+  -string processing_status
+  -string tags
+  -time.Time created_at
+  -time.Time updated_at
+}
+
+class DeletedFile {
+  -UUID id
+  -string object_id
+  -string bucket_name
+  -UUID deleted_by
+  -string deletion_reason
+  -time.Time deleted_at
+  -time.Time created_at
+}
+
+class FileQuota {
+  -UUID id
+  -UUID user_id
+  -int64 total_quota_bytes
+  -int64 used_bytes
+  -int64 remaining_bytes
+  -time.Time created_at
+  -time.Time updated_at
+}
+
+' ===== Relationships =====
+StorageBucket "1" -- "0..*" FileObject : contains
+FileObject "1" -- "0..*" FileVersion : has_versions
+FileObject "1" -- "0..*" FileAccess : accessed_by
+FileObject "1" -- "1" FileMetadata : has_metadata
+FileObject "0..*" -- "1" DeletedFile : tracked_deletion
+FileObject "*" -- "1" FileQuota : uses_quota
+
+@enduml

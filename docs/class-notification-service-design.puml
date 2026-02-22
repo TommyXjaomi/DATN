@@ -1,0 +1,540 @@
+@startuml
+skinparam classAttributeIconSize 0
+
+' ===== Handler Layer =====
+class NotificationHandler {
+  - service: NotificationService
+  - broadcaster: NotificationBroadcaster
+  + GetMyNotifications(c: *gin.Context): void
+  + GetNotificationByID(c: *gin.Context): void
+  + MarkAsRead(c: *gin.Context): void
+  + MarkAllAsRead(c: *gin.Context): void
+  + DeleteNotification(c: *gin.Context): void
+  + GetUnreadCount(c: *gin.Context): void
+  + RegisterDevice(c: *gin.Context): void
+  + GetPreferences(c: *gin.Context): void
+  + UpdatePreferences(c: *gin.Context): void
+  + CreateNotification(c: *gin.Context): void
+  + SendBulkNotifications(c: *gin.Context): void
+  + CreateScheduledNotification(c: *gin.Context): void
+  + GetScheduledNotifications(c: *gin.Context): void
+  + GetScheduledNotificationByID(c: *gin.Context): void
+  + UpdateScheduledNotification(c: *gin.Context): void
+  + DeleteScheduledNotification(c: *gin.Context): void
+  + StreamNotifications(c: *gin.Context): void
+  + GetTimezone(c: *gin.Context): void
+  + UpdateTimezone(c: *gin.Context): void
+  - convertToNotificationResponse(n: *Notification): NotificationResponse
+}
+
+class InternalHandler {
+  - notificationService: NotificationService
+  + SendNotificationInternal(c: *gin.Context): void
+  + SendBulkNotificationInternal(c: *gin.Context): void
+  + UpdatePreferencesInternal(c: *gin.Context): void
+}
+
+' ===== Service Layer =====
+class NotificationService {
+  - repo: NotificationRepository
+  - broadcaster: NotificationBroadcaster
+  + CreateNotification(req: *CreateNotificationRequest): (*Notification, error)
+  + GetNotifications(userID: UUID, query: *NotificationListQuery): ([]Notification, int, error)
+  + GetNotificationByID(id: UUID, userID: UUID): (*Notification, error)
+  + MarkAsRead(id: UUID, userID: UUID): error
+  + MarkAllAsRead(userID: UUID): (int, error)
+  + DeleteNotification(id: UUID, userID: UUID): error
+  + GetUnreadCount(userID: UUID): (int, error)
+  + RegisterDevice(userID: UUID, req: *RegisterDeviceRequest): (*DeviceToken, error)
+  + GetDeviceTokens(userID: UUID): ([]DeviceToken, error)
+  + GetPreferences(userID: UUID): (*NotificationPreferences, error)
+  + UpdatePreferences(userID: UUID, req: *UpdatePreferencesRequest): (*NotificationPreferences, error)
+  + SendBulkNotifications(req: *SendBulkNotificationRequest): (int, int, error)
+  + RenderTemplate(templateCode: string, variables: map[string]string): (string, string, error)
+  + CreateScheduledNotification(userID: UUID, req: *CreateScheduledNotificationRequest): (*ScheduledNotification, error)
+  + GetScheduledNotifications(userID: UUID): ([]ScheduledNotification, error)
+  + GetScheduledNotificationByID(id: UUID, userID: UUID): (*ScheduledNotification, error)
+  + UpdateScheduledNotification(id: UUID, userID: UUID, req: *UpdateScheduledNotificationRequest): (*ScheduledNotification, error)
+  + DeleteScheduledNotification(id: UUID, userID: UUID): error
+  - checkNotificationPermissionsWithRetry(userID: UUID, notifType: string, category: string): (bool, error)
+  - logNotificationEvent(notificationID: *UUID, userID: UUID, eventType: string, eventStatus: string, notificationType: *string, errorMessage: *string): void
+}
+
+class NotificationBroadcaster {
+  - clients: map[UUID]map[chan []byte]bool
+  - mu: sync.RWMutex
+  + Subscribe(userID: UUID): chan []byte
+  + Unsubscribe(userID: UUID, ch: chan []byte): void
+  + Broadcast(userID: UUID, notification: *Notification): void
+}
+
+' ===== Repository Layer =====
+class NotificationRepository {
+  - db: *sql.DB
+  + CreateNotification(notification: *Notification): error
+  + GetNotifications(userID: UUID, query: *NotificationListQuery): ([]Notification, int, error)
+  + GetNotificationByID(id: UUID): (*Notification, error)
+  + MarkAsRead(id: UUID): error
+  + MarkAllAsRead(userID: UUID): (int, error)
+  + DeleteNotification(id: UUID): error
+  + GetUnreadCount(userID: UUID): (int, error)
+  + RegisterDeviceToken(token: *DeviceToken): error
+  + GetDeviceTokens(userID: UUID): ([]DeviceToken, error)
+  + GetNotificationPreferences(userID: UUID): (*NotificationPreferences, error)
+  + CreateDefaultPreferences(userID: UUID): (*NotificationPreferences, error)
+  + UpdateNotificationPreferences(prefs: *NotificationPreferences): error
+  + CanSendNotification(userID: UUID, notifType: string, category: string): (bool, error)
+  + GetTemplateByCode(code: string): (*NotificationTemplate, error)
+  + CreateNotificationLog(log: *NotificationLog): error
+  + CreateScheduledNotification(schedule: *ScheduledNotification): error
+  + GetScheduledNotifications(userID: UUID): ([]ScheduledNotification, error)
+  + GetScheduledNotificationByID(id: UUID): (*ScheduledNotification, error)
+  + UpdateScheduledNotification(schedule: *ScheduledNotification): error
+  + DeleteScheduledNotification(id: UUID): error
+  + GetDueScheduledNotifications(): ([]ScheduledNotification, error)
+  + CreateBulkNotifications(notifications: []*Notification): error
+  + GetBulkNotificationPreferences(userIDs: []UUID, notifType: string, category: string): (map[UUID]bool, error)
+}
+
+' ===== Entity Layer =====
+class Notification {
+  - ID: UUID
+  - UserID: UUID
+  - Type: string
+  - Category: string
+  - Title: string
+  - Message: string
+  - ActionType: *string
+  - ActionData: *string
+  - IconURL: *string
+  - ImageURL: *string
+  - IsRead: bool
+  - ReadAt: *time.Time
+  - IsSent: bool
+  - SentAt: *time.Time
+  - ScheduledFor: *time.Time
+  - ExpiresAt: *time.Time
+  - CreatedAt: time.Time
+  - UpdatedAt: time.Time
+}
+
+class DeviceToken {
+  - ID: UUID
+  - UserID: UUID
+  - DeviceToken: string
+  - DeviceType: string
+  - DeviceID: *string
+  - DeviceName: *string
+  - AppVersion: *string
+  - OSVersion: *string
+  - IsActive: bool
+  - LastUsedAt: time.Time
+  - CreatedAt: time.Time
+  - UpdatedAt: time.Time
+}
+
+class NotificationPreferences {
+  - UserID: UUID
+  - PushEnabled: bool
+  - PushAchievements: bool
+  - PushReminders: bool
+  - PushCourseUpdates: bool
+  - PushExerciseGraded: bool
+  - EmailEnabled: bool
+  - EmailWeeklyReport: bool
+  - EmailCourseUpdates: bool
+  - EmailMarketing: bool
+  - InAppEnabled: bool
+  - QuietHoursEnabled: bool
+  - QuietHoursStart: *string
+  - QuietHoursEnd: *string
+  - MaxNotificationsPerDay: int
+  - Timezone: string
+  - UpdatedAt: time.Time
+}
+
+class PushNotification {
+  - ID: UUID
+  - NotificationID: *UUID
+  - UserID: UUID
+  - DeviceToken: string
+  - DeviceType: string
+  - DeviceID: *string
+  - Title: string
+  - Body: string
+  - Data: *string
+  - Status: string
+  - SentAt: *time.Time
+  - DeliveredAt: *time.Time
+  - ClickedAt: *time.Time
+  - ErrorMessage: *string
+  - RetryCount: int
+  - CreatedAt: time.Time
+}
+
+class EmailNotification {
+  - ID: UUID
+  - NotificationID: *UUID
+  - UserID: UUID
+  - ToEmail: string
+  - Subject: string
+  - BodyHTML: string
+  - BodyText: *string
+  - TemplateName: *string
+  - TemplateData: *string
+  - Status: string
+  - SentAt: *time.Time
+  - DeliveredAt: *time.Time
+  - OpenedAt: *time.Time
+  - ClickedAt: *time.Time
+  - ExternalID: *string
+  - ErrorMessage: *string
+  - RetryCount: int
+  - CreatedAt: time.Time
+}
+
+class NotificationTemplate {
+  - ID: int
+  - TemplateCode: string
+  - Name: string
+  - Description: *string
+  - NotificationType: string
+  - Category: string
+  - TitleTemplate: *string
+  - BodyTemplate: string
+  - SubjectTemplate: *string
+  - HTMLTemplate: *string
+  - RequiredVariables: pq.StringArray
+  - IsActive: bool
+  - CreatedAt: time.Time
+  - UpdatedAt: time.Time
+}
+
+class ScheduledNotification {
+  - ID: UUID
+  - UserID: UUID
+  - Title: string
+  - Message: string
+  - ScheduleType: string
+  - ScheduledTime: string
+  - DaysOfWeek: IntArray
+  - Timezone: string
+  - IsActive: bool
+  - LastSentAt: *time.Time
+  - NextSendAt: *time.Time
+  - CreatedAt: time.Time
+  - UpdatedAt: time.Time
+}
+
+class NotificationLog {
+  - ID: int64
+  - NotificationID: *UUID
+  - UserID: UUID
+  - EventType: string
+  - EventStatus: string
+  - NotificationType: *string
+  - ErrorMessage: *string
+  - Metadata: *string
+  - CreatedAt: time.Time
+}
+
+' ===== DTO Layer =====
+class CreateNotificationRequest {
+  - UserID: UUID
+  - Type: string
+  - Category: string
+  - Title: string
+  - Message: string
+  - ActionType: *string
+  - ActionData: map[string]interface{}
+  - IconURL: *string
+  - ImageURL: *string
+  - ScheduledFor: *string
+  - ExpiresAt: *string
+}
+
+class NotificationResponse {
+  - ID: UUID
+  - Type: string
+  - Category: string
+  - Title: string
+  - Message: string
+  - ActionType: *string
+  - ActionData: map[string]interface{}
+  - IconURL: *string
+  - ImageURL: *string
+  - IsRead: bool
+  - ReadAt: *string
+  - CreatedAt: string
+}
+
+class NotificationListQuery {
+  - Page: int
+  - Limit: int
+  - IsRead: *bool
+  - Type: string
+  - Category: string
+  - SortBy: string
+  - SortOrder: string
+  - DateFrom: string
+  - DateTo: string
+}
+
+class NotificationListResponse {
+  - Notifications: []NotificationResponse
+  - Pagination: PaginationResponse
+}
+
+class PaginationResponse {
+  - Page: int
+  - Limit: int
+  - TotalItems: int
+  - TotalPages: int
+}
+
+class UnreadCountResponse {
+  - UnreadCount: int
+}
+
+class RegisterDeviceRequest {
+  - DeviceToken: string
+  - DeviceType: string
+  - DeviceID: *string
+  - DeviceName: *string
+  - AppVersion: *string
+  - OSVersion: *string
+}
+
+class DeviceTokenResponse {
+  - ID: UUID
+  - DeviceToken: string
+  - DeviceType: string
+  - DeviceName: *string
+  - IsActive: bool
+  - LastUsedAt: string
+}
+
+class UpdatePreferencesRequest {
+  - PushEnabled: *bool
+  - PushAchievements: *bool
+  - PushReminders: *bool
+  - PushCourseUpdates: *bool
+  - PushExerciseGraded: *bool
+  - EmailEnabled: *bool
+  - EmailWeeklyReport: *bool
+  - EmailCourseUpdates: *bool
+  - EmailMarketing: *bool
+  - InAppEnabled: *bool
+  - QuietHoursEnabled: *bool
+  - QuietHoursStart: *string
+  - QuietHoursEnd: *string
+  - MaxNotificationsPerDay: *int
+  - Timezone: *string
+}
+
+class PreferencesResponse {
+  - PushEnabled: bool
+  - PushAchievements: bool
+  - PushReminders: bool
+  - PushCourseUpdates: bool
+  - PushExerciseGraded: bool
+  - EmailEnabled: bool
+  - EmailWeeklyReport: bool
+  - EmailCourseUpdates: bool
+  - EmailMarketing: bool
+  - InAppEnabled: bool
+  - QuietHoursEnabled: bool
+  - QuietHoursStart: *string
+  - QuietHoursEnd: *string
+  - MaxNotificationsPerDay: int
+  - Timezone: string
+  - UpdatedAt: string
+}
+
+class SendBulkNotificationRequest {
+  - UserIDs: []UUID
+  - Type: string
+  - Category: string
+  - Title: string
+  - Message: string
+  - ActionType: *string
+  - ActionData: map[string]interface{}
+  - IconURL: *string
+  - ImageURL: *string
+}
+
+class BulkNotificationResponse {
+  - TotalUsers: int
+  - SuccessCount: int
+  - FailedCount: int
+  - Message: string
+}
+
+class CreateScheduledNotificationRequest {
+  - Title: string
+  - Message: string
+  - ScheduleType: string
+  - ScheduledTime: string
+  - DaysOfWeek: []int
+  - Timezone: string
+}
+
+class UpdateScheduledNotificationRequest {
+  - Title: *string
+  - Message: *string
+  - ScheduleType: *string
+  - ScheduledTime: *string
+  - DaysOfWeek: *[]int
+  - Timezone: *string
+  - IsActive: *bool
+}
+
+class ScheduledNotificationResponse {
+  - ID: UUID
+  - Title: string
+  - Message: string
+  - ScheduleType: string
+  - ScheduledTime: string
+  - DaysOfWeek: []int
+  - Timezone: string
+  - IsActive: bool
+  - LastSentAt: *string
+  - NextSendAt: *string
+  - CreatedAt: string
+  - UpdatedAt: string
+}
+
+class ErrorResponse {
+  - Error: string
+  - Message: string
+  - Code: string
+}
+
+class SuccessResponse {
+  - Message: string
+  - Data: interface{}
+}
+
+class SendNotificationInternalRequest {
+  - UserID: UUID
+  - Title: string
+  - Message: string
+  - Type: string
+  - Category: string
+  - ActionType: *string
+  - ActionData: map[string]interface{}
+  - IconURL: *string
+  - ImageURL: *string
+}
+
+class SendBulkNotificationInternalRequest {
+  - UserIDs: []UUID
+  - Title: string
+  - Message: string
+  - Type: string
+  - Category: string
+  - ActionType: *string
+  - ActionData: map[string]interface{}
+  - IconURL: *string
+  - ImageURL: *string
+}
+
+class UpdatePreferencesInternalRequest {
+  - PushEnabled: *bool
+  - InAppEnabled: *bool
+}
+
+' ===== Config Layer =====
+class Config {
+  - ServerPort: string
+  - JWTSecret: string
+  - InternalAPIKey: string
+  - Database: DatabaseConfig
+  + LoadConfig(): (*Config, error)
+  + GetDBConnectionString(): string
+}
+
+class DatabaseConfig {
+  - Host: string
+  - Port: string
+  - User: string
+  - Password: string
+  - DBName: string
+}
+
+' ===== Middleware Layer =====
+class AuthMiddleware {
+  - jwtSecret: string
+  - internalAPIKey: string
+  + Authenticate(): gin.HandlerFunc
+  + RequireRole(roles: ...string): gin.HandlerFunc
+  + InternalAuth(): gin.HandlerFunc
+}
+
+class Claims {
+  - UserID: UUID
+  - Email: string
+  - Role: string
+}
+
+' ===== Relationships =====
+NotificationHandler --> NotificationService : uses
+NotificationHandler --> NotificationBroadcaster : uses
+InternalHandler --> NotificationService : uses
+
+NotificationService --> NotificationRepository : uses
+NotificationService --> NotificationBroadcaster : uses
+
+NotificationRepository --> Notification : CRUD
+NotificationRepository --> DeviceToken : CRUD
+NotificationRepository --> NotificationPreferences : CRUD
+NotificationRepository --> NotificationTemplate : CRUD
+NotificationRepository --> ScheduledNotification : CRUD
+NotificationRepository --> NotificationLog : CRUD
+NotificationRepository --> PushNotification : CRUD
+NotificationRepository --> EmailNotification : CRUD
+
+NotificationHandler ..> CreateNotificationRequest : uses
+NotificationHandler ..> NotificationResponse : returns
+NotificationHandler ..> NotificationListQuery : uses
+NotificationHandler ..> NotificationListResponse : returns
+NotificationHandler ..> RegisterDeviceRequest : uses
+NotificationHandler ..> DeviceTokenResponse : returns
+NotificationHandler ..> UpdatePreferencesRequest : uses
+NotificationHandler ..> PreferencesResponse : returns
+NotificationHandler ..> SendBulkNotificationRequest : uses
+NotificationHandler ..> BulkNotificationResponse : returns
+NotificationHandler ..> CreateScheduledNotificationRequest : uses
+NotificationHandler ..> ScheduledNotificationResponse : returns
+NotificationHandler ..> UpdateScheduledNotificationRequest : uses
+NotificationHandler ..> ErrorResponse : returns
+NotificationHandler ..> SuccessResponse : returns
+
+InternalHandler ..> SendNotificationInternalRequest : uses
+InternalHandler ..> SendBulkNotificationInternalRequest : uses
+InternalHandler ..> UpdatePreferencesInternalRequest : uses
+
+NotificationService ..> CreateNotificationRequest : uses
+NotificationService ..> NotificationListQuery : uses
+NotificationService ..> RegisterDeviceRequest : uses
+NotificationService ..> UpdatePreferencesRequest : uses
+NotificationService ..> SendBulkNotificationRequest : uses
+NotificationService ..> CreateScheduledNotificationRequest : uses
+NotificationService ..> UpdateScheduledNotificationRequest : uses
+
+NotificationBroadcaster ..> Notification : uses
+
+AuthMiddleware ..> Claims : uses
+
+Config --> DatabaseConfig : contains
+
+' ===== Entity Relationships =====
+Notification "*" -- "1" DeviceToken : sentTo
+NotificationTemplate "1" -- "0..*" Notification : generates
+ScheduledNotification "*" -- "1" Notification : schedules
+Notification "*" -- "1" NotificationLog : logs
+Notification "*" -- "0..1" PushNotification : triggers
+Notification "*" -- "0..1" EmailNotification : triggers
+NotificationPreferences "1" -- "1" Notification : controls
+
+@enduml

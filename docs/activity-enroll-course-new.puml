@@ -1,0 +1,83 @@
+@startuml
+title Biểu đồ Hoạt Động - Đăng Ký Khóa Học
+
+start
+:User xem danh sách khóa học;
+:User chọn khóa học;
+:Hiển thị chi tiết khóa học;
+
+:Kiểm tra user đã xác thực;
+if (User logged in?) then (no)
+  :Yêu cầu user đăng nhập;
+  :Chuyển đến trang login;
+  stop
+else (yes)
+endif
+
+:Lấy thông tin khóa học;
+:Kiểm tra loại khóa học;
+
+if (Khóa học trả phí?) then (yes)
+  :Lấy giá khóa học;
+  :Kiểm tra coupon/discount;
+  :Tính tổng tiền;
+  :Hiển thị payment gateway;
+  :User chọn phương thức thanh toán;
+  
+  :Xử lý thanh toán;
+  if (Thanh toán thành công?) then (yes)
+    :Lưu payment record;
+    :Cập nhật payment status;
+    :Ghi transaction ID;
+    :Lưu payment confirmation email;
+  else (no)
+    :Hiển thị lỗi thanh toán;
+    :Ghi log transaction failed;
+    stop
+  endif
+else (no)
+  :Khóa học miễn phí;
+  :Ghi enrollment type = free;
+endif
+
+:Kiểm tra prerequisite;
+if (Có yêu cầu tiên quyết?) then (yes)
+  if (User hoàn thành prerequisite?) then (no)
+    :Hiển thị lỗi: Chưa đủ điều kiện;
+    :Ghi log prerequisite not met;
+    :Ghi log prerequisite courses required;
+    stop
+  else (yes)
+    :Xác nhận điều kiện tiên quyết thỏa mãn;
+    :Ghi log prerequisite verified;
+  endif
+else (no)
+  :Không có điều kiện tiên quyết;
+  :Bỏ qua kiểm tra prerequisite;
+endif
+
+:Kiểm tra enrollment có tồn tại;
+if (Đã đăng ký khóa học này?) then (yes)
+  :Hiển thị lỗi: Đã đăng ký;
+  :Ghi log duplicate enrollment attempt;
+  stop
+else (no)
+  :Xác nhận chưa đăng ký;
+  :Sẵn sàng tạo enrollment;
+endif
+
+:Tạo CourseEnrollment record;
+:Ghi enrollment_date;
+:Tạo LessonProgress cho tất cả lessons;
+:Khởi tạo exercise attempt counters;
+:Cập nhật user learning stats;
+:Ghi log enrollment event;
+
+:Gửi email xác nhận đăng ký;
+:Gửi email hướng dẫn;
+:Tạo notification;
+:Ghi log notification sent;
+
+:Chuyển đến trang khóa học;
+stop
+@enduml

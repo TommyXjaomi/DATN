@@ -1,0 +1,70 @@
+@startuml
+title Auth Domain - Sơ đồ Lớp Entities (Private Attributes)
+skinparam classAttributeIconSize 0
+
+class AuthUser {
+  -id: UUID
+  -email: string
+  -password_hash: string
+  -role: string
+  -email_verified: bool
+  -failed_login_attempts: int
+  -is_locked: bool
+  -locked_until: time.Time
+  -last_login_at: time.Time
+  -last_login_ip: string
+  -last_login_user_agent: string
+  -created_at: time.Time
+  -updated_at: time.Time
+}
+
+class Role {
+  -id: int
+  -name: string
+  -description: string
+  -created_at: time.Time
+}
+
+class Permission {
+  -id: int
+  -name: string
+  -description: string
+  -created_at: time.Time
+}
+
+class RolePermission {
+  -role_id: int
+  -permission_id: int
+  -created_at: time.Time
+}
+
+class EmailVerification {
+  -id: UUID
+  -user_id: UUID
+  -code: string
+  -is_verified: bool
+  -expires_at: time.Time
+  -verified_at: time.Time
+  -created_at: time.Time
+}
+
+class RefreshToken {
+  -id: UUID
+  -user_id: UUID
+  -token_hash: string
+  -ip_address: string
+  -user_agent: string
+  -is_revoked: bool
+  -expires_at: time.Time
+  -revoked_at: time.Time
+  -created_at: time.Time
+}
+
+' ===== Relationships =====
+AuthUser "1" -- "0..*" EmailVerification 
+AuthUser "1" -- "0..*" RefreshToken 
+AuthUser "*" -- "1" Role 
+Role "1" -- "0..*" RolePermission 
+Permission "1" -- "0..*" RolePermission 
+
+@enduml

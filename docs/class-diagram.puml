@@ -1,0 +1,150 @@
+@startuml DATN_Class_Diagram
+' Class diagram for DATN project (high-level)
+' Generated from service model structs
+
+skinparam classAttributeIconSize 0
+
+class User {
+  +UUID id
+  +string email
+  +string role
+}
+
+class UserProfile {
+  +UUID user_id
+  +string full_name
+  +string avatar_url
+  +string language_preference
+}
+
+class LearningProgress {
+  +UUID id
+  +UUID user_id
+  +float total_study_hours
+  +int total_lessons_completed
+  +int total_exercises_completed
+}
+
+class Course {
+  +UUID id
+  +string title
+  +string slug
+  +string skill_type
+  +string level
+  +float price
+}
+
+class Module {
+  +UUID id
+  +UUID course_id
+  +string title
+}
+
+class Lesson {
+  +UUID id
+  +UUID module_id
+  +string title
+  +string content_type
+  +int duration_minutes
+}
+
+class LessonVideo {
+  +UUID id
+  +UUID lesson_id
+  +string video_url
+  +int duration_seconds
+}
+
+class CourseEnrollment {
+  +UUID id
+  +UUID user_id
+  +UUID course_id
+  +float progress_percentage
+}
+
+class LessonProgress {
+  +UUID id
+  +UUID user_id
+  +UUID lesson_id
+  +string status
+  +float progress_percentage
+}
+
+class Exercise {
+  +UUID id
+  +string title
+  +string exercise_type
+  +string skill_type
+  +int total_questions
+}
+
+class ExerciseSection {
+  +UUID id
+  +UUID exercise_id
+  +string title
+}
+
+class Question {
+  +UUID id
+  +UUID exercise_id
+  +string question_text
+  +string question_type
+}
+
+class QuestionOption {
+  +UUID id
+  +UUID question_id
+  +string option_text
+  +bool is_correct
+}
+
+class UserExerciseAttempt {
+  +UUID id
+  +UUID user_id
+  +UUID exercise_id
+  +int attempt_number
+  +string status
+  +float score
+}
+
+class SubmissionAnswer {
+  +UUID id
+  +UUID attempt_id
+  +UUID question_id
+  +string answer_text
+  +bool is_correct
+}
+
+class Notification {
+  +UUID id
+  +UUID user_id
+  +string title
+  +string body
+  +string channel
+}
+
+class DeviceToken {
+  +UUID id
+  +UUID user_id
+  +string token
+}
+
+' Relationships
+User "1" -- "1" UserProfile : has
+User "1" -- "1..*" LearningProgress : owns
+User "1" -- "0..*" CourseEnrollment : enrolls
+Course "1" -- "0..*" Module : contains
+Module "1" -- "0..*" Lesson : contains
+Lesson "1" -- "0..*" LessonVideo : has
+Lesson "1" -- "0..*" LessonProgress : tracked
+User "1" -- "0..*" LessonProgress : tracks
+Exercise "1" -- "0..*" ExerciseSection : has
+Exercise "1" -- "0..*" Question : contains
+Question "1" -- "0..*" QuestionOption : options
+UserExerciseAttempt "*" -- "1" User : belongsTo
+UserExerciseAttempt "*" -- "1" Exercise : for
+UserExerciseAttempt "1" -- "0..*" SubmissionAnswer : contains
+Notification "*" -- "1" User : addressedTo
+DeviceToken "*" -- "1" User : belongsTo
+
+@enduml

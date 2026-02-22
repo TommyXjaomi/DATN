@@ -1,0 +1,625 @@
+@startuml
+skinparam classAttributeIconSize 0
+
+' ===== Handler Layer =====
+class CourseHandler {
+  - service: CourseService
+  - videoSyncService: VideoSyncService
+  + HealthCheck(c: *gin.Context): void
+  + GetCourses(c: *gin.Context): void
+  + GetCourseDetail(c: *gin.Context): void
+  + GetLessonDetail(c: *gin.Context): void
+  + EnrollCourse(c: *gin.Context): void
+  + GetMyEnrollments(c: *gin.Context): void
+  + GetLessonProgress(c: *gin.Context): void
+  + UpdateLessonProgress(c: *gin.Context): void
+  + GetEnrollmentProgress(c: *gin.Context): void
+  + GetCourseProgress(c: *gin.Context): void
+  + CreateCourse(c: *gin.Context): void
+  + UpdateCourse(c: *gin.Context): void
+  + DeleteCourse(c: *gin.Context): void
+  + CreateModule(c: *gin.Context): void
+  + CreateLesson(c: *gin.Context): void
+  + PublishCourse(c: *gin.Context): void
+  + GetCourseReviews(c: *gin.Context): void
+  + CreateReview(c: *gin.Context): void
+  + UpdateReview(c: *gin.Context): void
+  + GetCategories(c: *gin.Context): void
+  + GetCourseCategories(c: *gin.Context): void
+  + TrackVideoProgress(c: *gin.Context): void
+  + GetVideoWatchHistory(c: *gin.Context): void
+  + DownloadMaterial(c: *gin.Context): void
+  + GetVideoSubtitles(c: *gin.Context): void
+  + AddVideoToLesson(c: *gin.Context): void
+  + SyncAllVideoDurations(c: *gin.Context): void
+  + SyncLessonVideoDurations(c: *gin.Context): void
+  + SyncSingleVideoDuration(c: *gin.Context): void
+  + ForceResyncAllVideos(c: *gin.Context): void
+}
+
+' ===== Service Layer =====
+class CourseService {
+  - repo: CourseRepository
+  - userServiceClient: UserServiceClient
+  - notificationClient: NotificationServiceClient
+  - exerciseClient: ExerciseServiceClient
+  - youtubeService: YouTubeService
+  + GetCourses(query: *CourseListQuery): ([]Course, int, error)
+  + GetCourseDetail(courseID: UUID, userID: *UUID): (*CourseDetailResponse, error)
+  + GetLessonDetail(lessonID: UUID, userID: *UUID): (*LessonDetailResponse, error)
+  + EnrollCourse(userID: UUID, req: *EnrollmentRequest): (*CourseEnrollment, error)
+  + GetMyEnrollments(userID: UUID, page, limit: int): (*MyEnrollmentsResponse, int, error)
+  + UpdateLessonProgress(userID, lessonID: UUID, req: *UpdateLessonProgressRequest): (*LessonProgress, error)
+  + GetEnrollmentProgress(userID, courseID: UUID): (*EnrollmentProgressResponse, error)
+  + GetLessonProgressByID(userID, lessonID: UUID): (*LessonProgress, error)
+  + GetCourseProgressLessons(userID, courseID: UUID): ([]LessonProgress, error)
+  + CreateCourse(instructorID: UUID, instructorName: string, req: *CreateCourseRequest): (*Course, error)
+  + UpdateCourse(courseID, userID: UUID, userRole: string, req: *UpdateCourseRequest): (*Course, error)
+  + DeleteCourse(courseID: UUID): error
+  + CreateModule(userID: UUID, userRole: string, req: *CreateModuleRequest): (*Module, error)
+  + CreateLesson(userID: UUID, userRole: string, req: *CreateLessonRequest): (*Lesson, error)
+  + PublishCourse(courseID, userID: UUID, userRole: string): error
+  + GetCourseReviews(courseID: UUID, page, limit: int): ([]CourseReview, int, error)
+  + CreateReview(userID, courseID: UUID, req: *CreateReviewRequest): (*CourseReview, error)
+  + UpdateReview(userID, courseID: UUID, req: *UpdateReviewRequest): (*CourseReview, error)
+  + GetAllCategories(): ([]CourseCategory, error)
+  + GetCourseCategories(courseID: UUID): ([]CourseCategory, error)
+  + TrackVideoProgress(userID: UUID, req: *TrackVideoProgressRequest): error
+  + GetUserVideoWatchHistory(userID: UUID, page, limit: int): ([]VideoWatchHistory, int, error)
+  + IncrementMaterialDownload(materialID: UUID): error
+  + GetVideoSubtitles(videoID: UUID): ([]VideoSubtitle, error)
+  + AddVideoToLesson(userID: UUID, userRole: string, lessonID: UUID, req: *AddVideoToLessonRequest): (*LessonVideo, error)
+  + SyncYouTubeVideoDuration(videoID: string): error
+  - handleLessonCompletion(userID, lessonID: UUID, lesson: *Lesson, progress: *LessonProgress): void
+}
+
+class YouTubeService {
+  - service: *youtube.Service
+  + GetVideoDuration(videoID: string): (int64, error)
+  + GetVideoDetails(videoID: string): (*UploadVideoResponse, error)
+  + ValidateVideo(videoID: string): (bool, error)
+  + UploadVideo(req: *UploadVideoRequest): (*UploadVideoResponse, error)
+}
+
+class VideoSyncService {
+  - repo: CourseRepository
+  - youtubeService: YouTubeService
+  - ticker: *time.Ticker
+  - stopChan: chan bool
+  + StartPeriodicSync(): void
+  + Stop(): void
+  + SyncMissingDurations(): void
+  + ForceResyncAllVideos(): (int, int, error)
+  + SyncSingleVideo(videoID: string): error
+  + SyncLessonVideos(lessonIDStr: string): (int, error)
+}
+
+' ===== Repository Layer =====
+class CourseRepository {
+  - db: *sql.DB
+  + GetCourses(query: *CourseListQuery): ([]Course, int, error)
+  + GetCourseByID(courseID: UUID): (*Course, error)
+  + GetModulesByCourseID(courseID: UUID): ([]Module, error)
+  + GetLessonsByModuleID(moduleID: UUID): ([]Lesson, error)
+  + GetLessonByID(lessonID: UUID): (*Lesson, error)
+  + GetModuleByID(moduleID: UUID): (*Module, error)
+  + GetVideosByLessonID(lessonID: UUID): ([]LessonVideo, error)
+  + GetMaterialsByLessonID(lessonID: UUID): ([]LessonMaterial, error)
+  + CreateEnrollment(enrollment: *CourseEnrollment): error
+  + GetEnrollment(userID, courseID: UUID): (*CourseEnrollment, error)
+  + GetUserEnrollments(userID: UUID, page, limit: int): ([]CourseEnrollment, int, error)
+  + GetCourseEnrollments(courseID: UUID): ([]CourseEnrollment, error)
+  + GetLessonProgress(userID, lessonID: UUID): (*LessonProgress, error)
+  + UpdateLessonProgress(progress: *LessonProgress): error
+  + CreateCourse(course: *Course): error
+  + UpdateCourse(courseID: UUID, updates: map[string]interface{}): error
+  + DeleteCourse(courseID: UUID): error
+  + CreateModule(module: *Module): error
+  + CreateLesson(lesson: *Lesson): error
+  + PublishCourse(courseID: UUID): error
+  + CheckCourseOwnership(courseID, instructorID: UUID): (bool, error)
+  + GetCourseInstructorID(courseID: UUID): (UUID, error)
+  + GetModuleCourseID(moduleID: UUID): (UUID, error)
+  + GetCourseReviews(courseID: UUID, page, limit: int): ([]CourseReview, int, error)
+  + CreateReview(review: *CourseReview): error
+  + GetUserReview(userID, courseID: UUID): (*CourseReview, error)
+  + UpdateReview(userID, courseID: UUID, req: *UpdateReviewRequest): (*CourseReview, error)
+  + GetAllCategories(): ([]CourseCategory, error)
+  + GetCourseCategories(courseID: UUID): ([]CourseCategory, error)
+  + CreateVideoWatchHistory(history: *VideoWatchHistory): error
+  + GetUserVideoWatchHistory(userID: UUID, page, limit: int): ([]VideoWatchHistory, int, error)
+  + GetVideoSubtitles(videoID: UUID): ([]VideoSubtitle, error)
+  + IncrementMaterialDownload(materialID: UUID): error
+  + CreateLessonVideo(video: *LessonVideo): error
+  + GetLessonVideoCount(lessonID: UUID): (int, error)
+  + UpdateVideoDuration(videoID: string, durationSeconds: int): error
+  + UpdateVideoDurationAndSyncLesson(videoID: string, durationSeconds: int): error
+  + GetVideosWithMissingDuration(): ([]*LessonVideo, error)
+  + GetAllYouTubeVideos(): ([]*LessonVideo, error)
+  + UpdateLessonDuration(lessonID: UUID, durationMinutes: int): error
+}
+
+' ===== Entity Layer =====
+class Course {
+  + ID: UUID
+  + Title: string
+  + Slug: string
+  + Description: *string
+  + ShortDescription: *string
+  + SkillType: string
+  + Level: string
+  + TargetBandScore: *float64
+  + ThumbnailURL: *string
+  + PreviewVideoURL: *string
+  + InstructorID: UUID
+  + InstructorName: *string
+  + DurationHours: *float64
+  + TotalLessons: int
+  + TotalVideos: int
+  + EnrollmentType: string
+  + Price: float64
+  + Currency: string
+  + Status: string
+  + IsFeatured: bool
+  + IsRecommended: bool
+  + TotalEnrollments: int
+  + AverageRating: float64
+  + TotalReviews: int
+  + DisplayOrder: int
+  + PublishedAt: *time.Time
+  + CreatedAt: time.Time
+  + UpdatedAt: time.Time
+}
+
+class Module {
+  + ID: UUID
+  + CourseID: UUID
+  + Title: string
+  + Description: *string
+  + DurationHours: *float64
+  + TotalLessons: int
+  + TotalExercises: int
+  + DisplayOrder: int
+  + IsPublished: bool
+  + CreatedAt: time.Time
+  + UpdatedAt: time.Time
+}
+
+class Lesson {
+  + ID: UUID
+  + ModuleID: UUID
+  + CourseID: UUID
+  + Title: string
+  + Description: *string
+  + ContentType: string
+  + DurationMinutes: *int
+  + DisplayOrder: int
+  + IsFree: bool
+  + IsPublished: bool
+  + TotalCompletions: int
+  + AverageTimeSpent: *int
+  + CreatedAt: time.Time
+  + UpdatedAt: time.Time
+}
+
+class LessonVideo {
+  + ID: UUID
+  + LessonID: UUID
+  + Title: string
+  + VideoURL: string
+  + VideoProvider: string
+  + VideoID: *string
+  + DurationSeconds: int
+  + Quality: string
+  + ThumbnailURL: *string
+  + DisplayOrder: int
+  + CreatedAt: time.Time
+  + UpdatedAt: time.Time
+}
+
+class LessonMaterial {
+  + ID: UUID
+  + LessonID: UUID
+  + Title: string
+  + Description: *string
+  + FileType: string
+  + FileURL: string
+  + FileSizeBytes: *int64
+  + DisplayOrder: int
+  + TotalDownloads: int
+  + CreatedAt: time.Time
+  + UpdatedAt: time.Time
+}
+
+class CourseEnrollment {
+  + ID: UUID
+  + UserID: UUID
+  + CourseID: UUID
+  + EnrollmentDate: time.Time
+  + EnrollmentType: string
+  + PaymentID: *UUID
+  + AmountPaid: *float64
+  + Currency: *string
+  + ProgressPercentage: float64
+  + LessonsCompleted: int
+  + TotalTimeSpentMinutes: int
+  + Status: string
+  + CompletedAt: *time.Time
+  + CertificateIssued: bool
+  + CertificateURL: *string
+  + ExpiresAt: *time.Time
+  + LastAccessedAt: *time.Time
+  + CreatedAt: time.Time
+  + UpdatedAt: time.Time
+}
+
+class LessonProgress {
+  + ID: UUID
+  + UserID: UUID
+  + LessonID: UUID
+  + CourseID: UUID
+  + Status: string
+  + ProgressPercentage: float64
+  + VideoWatchedSeconds: int
+  + VideoTotalSeconds: *int
+  + LastPositionSeconds: int
+  + CompletedAt: *time.Time
+  + FirstAccessedAt: time.Time
+  + LastAccessedAt: time.Time
+}
+
+class CourseReview {
+  + ID: UUID
+  + UserID: UUID
+  + CourseID: UUID
+  + Rating: int
+  + Title: *string
+  + Comment: *string
+  + HelpfulCount: int
+  + IsApproved: bool
+  + ApprovedBy: *UUID
+  + ApprovedAt: *time.Time
+  + CreatedAt: time.Time
+  + UpdatedAt: time.Time
+  + UserName: *string
+  + UserEmail: *string
+  + UserAvatarURL: *string
+}
+
+class VideoWatchHistory {
+  + ID: UUID
+  + UserID: UUID
+  + VideoID: UUID
+  + LessonID: UUID
+  + WatchedSeconds: int
+  + TotalSeconds: int
+  + WatchPercentage: float64
+  + SessionID: *UUID
+  + DeviceType: *string
+  + WatchedAt: time.Time
+}
+
+class VideoSubtitle {
+  + ID: UUID
+  + VideoID: UUID
+  + Language: string
+  + SubtitleURL: string
+  + Format: string
+  + IsDefault: bool
+  + CreatedAt: time.Time
+}
+
+class CourseCategory {
+  + ID: int
+  + Name: string
+  + Slug: string
+  + Description: *string
+  + ParentID: *int
+  + DisplayOrder: int
+  + CreatedAt: time.Time
+}
+
+class CourseCategoryMapping {
+  + CourseID: UUID
+  + CategoryID: int
+}
+
+' ===== DTO Layer =====
+class CreateCourseRequest {
+  + Title: string
+  + Slug: string
+  + Description: *string
+  + ShortDescription: *string
+  + SkillType: string
+  + Level: string
+  + TargetBandScore: *float64
+  + ThumbnailURL: *string
+  + PreviewVideoURL: *string
+  + DurationHours: *float64
+  + EnrollmentType: string
+  + Price: float64
+  + Currency: string
+}
+
+class UpdateCourseRequest {
+  + Title: *string
+  + Description: *string
+  + ShortDescription: *string
+  + TargetBandScore: *float64
+  + ThumbnailURL: *string
+  + PreviewVideoURL: *string
+  + DurationHours: *float64
+  + Price: *float64
+  + Status: *string
+  + IsFeatured: *bool
+  + IsRecommended: *bool
+}
+
+class CreateModuleRequest {
+  + CourseID: UUID
+  + Title: string
+  + Description: *string
+  + DurationHours: *float64
+  + DisplayOrder: int
+}
+
+class CreateLessonRequest {
+  + ModuleID: UUID
+  + Title: string
+  + Description: *string
+  + ContentType: string
+  + DurationMinutes: *int
+  + DisplayOrder: int
+  + IsFree: bool
+}
+
+class CourseListQuery {
+  + SkillType: string
+  + Level: string
+  + EnrollmentType: string
+  + IsFeatured: *bool
+  + Search: string
+  + Page: int
+  + Limit: int
+  + SortBy: string
+  + SortOrder: string
+}
+
+class CourseDetailResponse {
+  + Course: Course
+  + Modules: []ModuleWithLessons
+  + CourseLevelExercises: []ExerciseSummary
+  + IsEnrolled: bool
+  + EnrollmentDetails: *CourseEnrollment
+}
+
+class ModuleWithLessons {
+  + Module: Module
+  + Lessons: []LessonWithVideos
+  + Exercises: []ExerciseSummary
+}
+
+class LessonWithVideos {
+  + Lesson: Lesson
+  + Videos: []LessonVideo
+}
+
+class EnrollmentRequest {
+  + CourseID: UUID
+  + EnrollmentType: string
+}
+
+class UpdateLessonProgressRequest {
+  + ProgressPercentage: *float64
+  + VideoWatchedSeconds: *int
+  + VideoTotalSeconds: *int
+  + LastPositionSeconds: *int
+  + IsCompleted: *bool
+}
+
+class MyEnrollmentsResponse {
+  + Enrollments: []EnrollmentWithCourse
+  + Total: int
+}
+
+class EnrollmentWithCourse {
+  + Enrollment: CourseEnrollment
+  + Course: Course
+}
+
+class LessonDetailResponse {
+  + Lesson: Lesson
+  + Videos: []LessonVideo
+  + Materials: []LessonMaterial
+  + Progress: *LessonProgress
+}
+
+class EnrollmentProgressResponse {
+  + Enrollment: CourseEnrollment
+  + Course: Course
+  + ModulesProgress: []ModuleProgress
+  + RecentLessons: []LessonWithProgress
+}
+
+class ModuleProgress {
+  + Module: Module
+  + TotalLessons: int
+  + CompletedLessons: int
+  + ProgressPercentage: float64
+}
+
+class LessonWithProgress {
+  + Lesson: Lesson
+  + Progress: LessonProgress
+}
+
+class CreateReviewRequest {
+  + Rating: int
+  + Title: *string
+  + Comment: *string
+}
+
+class UpdateReviewRequest {
+  + Rating: *int
+  + Title: *string
+  + Comment: *string
+}
+
+class CourseReviewsResponse {
+  + Reviews: []CourseReview
+  + Total: int
+  + Page: int
+  + Limit: int
+  + TotalPages: int
+}
+
+class TrackVideoProgressRequest {
+  + VideoID: UUID
+  + LessonID: UUID
+  + WatchedSeconds: int
+  + TotalSeconds: int
+  + SessionID: *UUID
+  + DeviceType: *string
+}
+
+class VideoWatchHistoryResponse {
+  + History: []VideoWatchHistory
+  + Total: int
+  + Page: int
+  + Limit: int
+  + TotalPages: int
+}
+
+class AddVideoToLessonRequest {
+  + Title: string
+  + VideoProvider: string
+  + VideoID: string
+  + VideoURL: string
+  + DurationSeconds: *int
+  + ThumbnailURL: *string
+  + Quality: *string
+  + FileSize: *int64
+  + DisplayOrder: *int
+}
+
+' ===== Config Layer =====
+class Config {
+  + ServerPort: string
+  + DBHost: string
+  + DBPort: string
+  + DBUser: string
+  + DBPassword: string
+  + DBName: string
+  + JWTSecret: string
+  + UserServiceURL: string
+  + NotificationServiceURL: string
+  + ExerciseServiceURL: string
+  + InternalAPIKey: string
+}
+
+' ===== Relationships =====
+' Handler Layer Relationships
+CourseHandler --> CourseService : uses
+CourseHandler --> VideoSyncService : uses
+
+' Service Layer Relationships
+CourseService --> CourseRepository : uses
+CourseService --> YouTubeService : uses
+CourseService --> UserServiceClient : uses
+CourseService --> NotificationServiceClient : uses
+CourseService --> ExerciseServiceClient : uses
+VideoSyncService --> CourseRepository : uses
+VideoSyncService --> YouTubeService : uses
+
+' Repository Layer Relationships
+CourseRepository --> Course : CRUD
+CourseRepository --> Module : CRUD
+CourseRepository --> Lesson : CRUD
+CourseRepository --> LessonVideo : CRUD
+CourseRepository --> LessonMaterial : CRUD
+CourseRepository --> CourseEnrollment : CRUD
+CourseRepository --> LessonProgress : CRUD
+CourseRepository --> CourseReview : CRUD
+CourseRepository --> VideoWatchHistory : CRUD
+CourseRepository --> VideoSubtitle : CRUD
+CourseRepository --> CourseCategory : CRUD
+
+' DTO Layer Relationships - Handler to DTOs
+CourseHandler ..> CreateCourseRequest : receives
+CourseHandler ..> UpdateCourseRequest : receives
+CourseHandler ..> CreateModuleRequest : receives
+CourseHandler ..> CreateLessonRequest : receives
+CourseHandler ..> EnrollmentRequest : receives
+CourseHandler ..> UpdateLessonProgressRequest : receives
+CourseHandler ..> CreateReviewRequest : receives
+CourseHandler ..> UpdateReviewRequest : receives
+CourseHandler ..> TrackVideoProgressRequest : receives
+CourseHandler ..> AddVideoToLessonRequest : receives
+CourseHandler ..> CourseListQuery : receives
+CourseHandler ..> CourseDetailResponse : returns
+CourseHandler ..> LessonDetailResponse : returns
+CourseHandler ..> MyEnrollmentsResponse : returns
+CourseHandler ..> EnrollmentProgressResponse : returns
+CourseHandler ..> CourseReviewsResponse : returns
+CourseHandler ..> VideoWatchHistoryResponse : returns
+
+' DTO Layer Relationships - Service to DTOs
+CourseService ..> CreateCourseRequest : receives
+CourseService ..> UpdateCourseRequest : receives
+CourseService ..> CreateModuleRequest : receives
+CourseService ..> CreateLessonRequest : receives
+CourseService ..> EnrollmentRequest : receives
+CourseService ..> UpdateLessonProgressRequest : receives
+CourseService ..> CreateReviewRequest : receives
+CourseService ..> UpdateReviewRequest : receives
+CourseService ..> TrackVideoProgressRequest : receives
+CourseService ..> AddVideoToLessonRequest : receives
+CourseService ..> CourseListQuery : receives
+CourseService ..> CourseDetailResponse : returns
+CourseService ..> LessonDetailResponse : returns
+CourseService ..> MyEnrollmentsResponse : returns
+CourseService ..> EnrollmentProgressResponse : returns
+CourseService ..> CourseReviewsResponse : returns
+CourseService ..> VideoWatchHistoryResponse : returns
+
+' DTO Layer Relationships - Repository to DTOs
+CourseRepository ..> CourseListQuery : receives
+
+' DTO Layer Relationships - Response DTOs contain Entities
+CourseDetailResponse --> Course : contains
+CourseDetailResponse --> CourseEnrollment : contains
+CourseDetailResponse --> ModuleWithLessons : contains
+ModuleWithLessons --> Module : contains
+ModuleWithLessons --> LessonWithVideos : contains
+LessonWithVideos --> Lesson : contains
+LessonWithVideos --> LessonVideo : contains
+LessonDetailResponse --> Lesson : contains
+LessonDetailResponse --> LessonVideo : contains
+LessonDetailResponse --> LessonMaterial : contains
+LessonDetailResponse --> LessonProgress : contains
+EnrollmentProgressResponse --> CourseEnrollment : contains
+EnrollmentProgressResponse --> Course : contains
+EnrollmentProgressResponse --> ModuleProgress : contains
+EnrollmentProgressResponse --> LessonWithProgress : contains
+ModuleProgress --> Module : contains
+LessonWithProgress --> Lesson : contains
+LessonWithProgress --> LessonProgress : contains
+MyEnrollmentsResponse --> EnrollmentWithCourse : contains
+EnrollmentWithCourse --> CourseEnrollment : contains
+EnrollmentWithCourse --> Course : contains
+CourseReviewsResponse --> CourseReview : contains
+VideoWatchHistoryResponse --> VideoWatchHistory : contains
+
+' Entity Layer Relationships
+Course "1" -- "0..*" Module : contains
+Module "1" -- "0..*" Lesson : contains
+Lesson "1" -- "0..*" LessonVideo : has
+Lesson "1" -- "0..*" LessonMaterial : has
+Course "1" -- "0..*" CourseEnrollment : enrolls
+Lesson "1" -- "0..*" LessonProgress : tracked
+Course "1" -- "0..*" CourseReview : reviewed
+LessonVideo "1" -- "0..*" VideoWatchHistory : tracked
+LessonVideo "1" -- "0..*" VideoSubtitle : has
+Course "0..*" -- "0..*" CourseCategory : categorized
+
+@enduml

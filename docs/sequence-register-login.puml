@@ -1,0 +1,90 @@
+@startuml
+title Sequence Diagram - Đăng ký tài khoản (Register)
+
+actor User
+participant "Frontend UI" as UI
+participant "API Gateway" as Gateway
+participant "Auth Service" as Auth
+participant "PostgreSQL\n(auth_db)" as DB
+participant "Email Service" as Email
+
+User -> UI: 1. Nhập email & mật khẩu
+UI -> Gateway: 2. POST /api/auth/register\n{email, password}
+activate Gateway
+
+Gateway -> Auth: 3. Forward request
+activate Auth
+
+Auth -> Auth: 4. Validate email format
+Auth -> Auth: 5. Validate password strength
+Auth -> DB: 6. Check email exists\nSELECT * FROM users WHERE email=?
+activate DB
+DB --> Auth: 7. Return user record (null)
+deactivate DB
+
+Auth -> Auth: 8. Hash password (bcrypt)
+Auth -> Auth: 9. Generate UUID for user_id
+
+Auth -> DB: 10. INSERT new user record\n{user_id, email, password_hash, created_at}
+activate DB
+DB --> Auth: 11. Return success
+deactivate DB
+
+Auth -> Auth: 12. Generate verification code (6 digits)
+Auth -> DB: 13. INSERT email_verification\n{user_id, code, expires_at}
+activate DB
+DB --> Auth: 14. Return success
+deactivate DB
+
+Auth -> Email: 15. Send verification email\n{email, code}
+activate Email
+Email --> Auth: 16. Return message ID
+deactivate Email
+
+Auth -> Auth: 17. Log registration event
+Auth --> Gateway: 18. Return response\n{status: 201, message: "Register success"}
+deactivate Auth
+
+Gateway --> UI: 19. Return response
+deactivate Gateway
+
+UI -> UI: 20. Display success message
+UI -> UI: 21. Show email verification prompt
+UI --> User: 22. Navigate to verify email page
+
+User -> UI: 23. Nhập mã xác thực từ email
+UI -> Gateway: 24. POST /api/auth/verify-email\n{email, code}
+activate Gateway
+
+Gateway -> Auth: 25. Forward request
+activate Auth
+
+Auth -> DB: 26. GET email_verification\nWHERE email=? AND code=?
+activate DB
+DB --> Auth: 27. Return verification record
+deactivate DB
+
+Auth -> Auth: 28. Check if code expired
+Auth -> Auth: 29. Check if code matches
+
+Auth -> DB: 30. UPDATE users\nSET email_verified=true WHERE user_id=?
+activate DB
+DB --> Auth: 31. Return success
+deactivate DB
+
+Auth -> DB: 32. DELETE email_verification record
+activate DB
+DB --> Auth: 33. Return success
+deactivate DB
+
+Auth -> Auth: 34. Log verification event
+Auth --> Gateway: 35. Return response\n{status: 200, message: "Email verified"}
+deactivate Auth
+
+Gateway --> UI: 36. Return response
+deactivate Gateway
+
+UI -> UI: 37. Display verification success
+UI --> User: 38. Redirect to login page
+
+@enduml

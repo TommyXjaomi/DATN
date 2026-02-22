@@ -1,0 +1,255 @@
+@startuml
+skinparam classAttributeIconSize 0
+
+class CourseHandler {
+    -courseService: CourseService
+    -enrollmentService: EnrollmentService
+    -lessonService: LessonService
+    --
+    +getCourse(courseId: UUID): Course
+    +listCourses(filter: CourseFilter): Page<Course>
+    +enrollCourse(userId: UUID, courseId: UUID): CourseEnrollment
+    +getEnrollment(userId: UUID, courseId: UUID): CourseEnrollment
+    +getLesson(lessonId: UUID): Lesson
+    +updateLessonProgress(userId: UUID, lessonId: UUID, progress: LessonProgress): void
+}
+
+class CourseService {
+    -courseRepository: CourseRepository
+    -moduleRepository: ModuleRepository
+    --
+    +createCourse(course: Course): Course
+    +updateCourse(courseId: UUID, course: Course): Course
+    +getCourse(courseId: UUID): Course
+    +listCourses(filter: CourseFilter): Page<Course>
+    +publishCourse(courseId: UUID): void
+    +checkPrerequisites(userId: UUID, courseId: UUID): Boolean
+  }
+
+  class LessonService {
+    -lessonRepository: LessonRepository
+    -lessonVideoRepository: LessonVideoRepository
+    -lessonMaterialRepository: LessonMaterialRepository
+    --
+    +getLesson(lessonId: UUID): Lesson
+    +getLessonContent(lessonId: UUID): LessonContent
+    +getVideo(lessonId: UUID): LessonVideo
+    +getMaterials(lessonId: UUID): List<LessonMaterial>
+    +updateLessonProgress(userId: UUID, lessonId: UUID): void
+  }
+
+  class EnrollmentService {
+    -enrollmentRepository: CourseEnrollmentRepository
+    -progressRepository: LessonProgressRepository
+    --
+    +enrollUser(userId: UUID, courseId: UUID, type: String): CourseEnrollment
+    +getEnrollment(userId: UUID, courseId: UUID): CourseEnrollment
+    +getUserEnrollments(userId: UUID): List<CourseEnrollment>
+    +updateEnrollmentProgress(enrollmentId: UUID, progress: Float): void
+    +completeCourse(enrollmentId: UUID): void
+}
+
+interface ICourseRepository {
+    +findById(id: UUID): Course
+    +findAll(filter: CourseFilter): Page<Course>
+    +save(course: Course): Course
+    +update(course: Course): Course
+  }
+
+  class CourseRepository implements ICourseRepository {
+    -dbConnection: Connection
+    --
+    +findById(id: UUID): Course
+    +findAll(filter: CourseFilter): Page<Course>
+    +save(course: Course): Course
+    +update(course: Course): Course
+    +findBySkillType(skillType: String): List<Course>
+  }
+
+  interface IModuleRepository {
+    +findById(id: UUID): Module
+    +findByCourseId(courseId: UUID): List<Module>
+    +save(module: Module): Module
+    +update(module: Module): Module
+  }
+
+  class ModuleRepository implements IModuleRepository {
+    -dbConnection: Connection
+    --
+    +findById(id: UUID): Module
+    +findByCourseId(courseId: UUID): List<Module>
+    +save(module: Module): Module
+    +update(module: Module): Module
+  }
+
+  interface ILessonRepository {
+    +findById(id: UUID): Lesson
+    +findByModuleId(moduleId: UUID): List<Lesson>
+    +save(lesson: Lesson): Lesson
+    +update(lesson: Lesson): Lesson
+  }
+
+  class LessonRepository implements ILessonRepository {
+    -dbConnection: Connection
+    --
+    +findById(id: UUID): Lesson
+    +findByModuleId(moduleId: UUID): List<Lesson>
+    +save(lesson: Lesson): Lesson
+    +update(lesson: Lesson): Lesson
+  }
+
+  interface ILessonVideoRepository {
+    +findByLessonId(lessonId: UUID): List<LessonVideo>
+    +save(video: LessonVideo): LessonVideo
+  }
+
+  class LessonVideoRepository implements ILessonVideoRepository {
+    -dbConnection: Connection
+    --
+    +findByLessonId(lessonId: UUID): List<LessonVideo>
+    +save(video: LessonVideo): LessonVideo
+  }
+
+  interface ICourseEnrollmentRepository {
+    +save(enrollment: CourseEnrollment): CourseEnrollment
+    +findById(id: UUID): CourseEnrollment
+    +findByUserId(userId: UUID): List<CourseEnrollment>
+    +findByUserAndCourse(userId: UUID, courseId: UUID): CourseEnrollment
+    +update(enrollment: CourseEnrollment): CourseEnrollment
+  }
+
+  class CourseEnrollmentRepository implements ICourseEnrollmentRepository {
+    -dbConnection: Connection
+    --
+    +save(enrollment: CourseEnrollment): CourseEnrollment
+    +findById(id: UUID): CourseEnrollment
+    +findByUserId(userId: UUID): List<CourseEnrollment>
+    +findByUserAndCourse(userId: UUID, courseId: UUID): CourseEnrollment
+    +update(enrollment: CourseEnrollment): CourseEnrollment
+  }
+
+  interface ILessonProgressRepository {
+    +save(progress: LessonProgress): LessonProgress
+    +findByUserAndLesson(userId: UUID, lessonId: UUID): LessonProgress
+    +update(progress: LessonProgress): LessonProgress
+    +findByUserId(userId: UUID): List<LessonProgress>
+  }
+
+  class LessonProgressRepository implements ILessonProgressRepository {
+    -dbConnection: Connection
+    --
+    +save(progress: LessonProgress): LessonProgress
+    +findByUserAndLesson(userId: UUID, lessonId: UUID): LessonProgress
+    +update(progress: LessonProgress): LessonProgress
+    +findByUserId(userId: UUID): List<LessonProgress>
+}
+
+class Course {
+    -id: UUID
+    -title: String
+    -slug: String
+    -skillType: String
+    -level: String
+    -price: Float
+    -totalLessons: Integer
+    -totalModules: Integer
+    -averageRating: Float
+    -isPublished: Boolean
+    --
+    +getId(): UUID
+    +getTitle(): String
+    +getTotalModules(): Integer
+  }
+
+  class Module {
+    -id: UUID
+    -courseId: UUID
+    -title: String
+    -totalLessons: Integer
+    -totalExercises: Integer
+    -isPublished: Boolean
+    --
+    +getId(): UUID
+    +getTitle(): String
+  }
+
+  class Lesson {
+    -id: UUID
+    -moduleId: UUID
+    -courseId: UUID
+    -title: String
+    -contentType: String
+    -durationMinutes: Integer
+    -isFree: Boolean
+    --
+    +getId(): UUID
+    +getTitle(): String
+    +getDuration(): Integer
+  }
+
+  class LessonVideo {
+    -id: UUID
+    -lessonId: UUID
+    -title: String
+    -videoUrl: String
+    -videoProvider: String
+    -durationSeconds: Integer
+    --
+    +getId(): UUID
+    +getVideoUrl(): String
+  }
+
+  class CourseEnrollment {
+    -id: UUID
+    -userId: UUID
+    -courseId: UUID
+    -enrollmentType: String
+    -progressPercentage: Float
+    -lessonsCompleted: Integer
+    -status: String
+    --
+    +getId(): UUID
+    +getProgress(): Float
+    +updateProgress(Float): void
+  }
+
+  class LessonProgress {
+    -id: UUID
+    -userId: UUID
+    -lessonId: UUID
+    -courseId: UUID
+    -status: String
+    -progressPercentage: Float
+    -videoWatchedSeconds: Integer
+    --
+    +getId(): UUID
+    +updateWatchedTime(Integer): void
+    +markComplete(): void
+}
+
+' ===== RELATIONSHIPS =====
+CourseHandler -- CourseService : uses
+CourseHandler -- LessonService : uses
+CourseHandler -- EnrollmentService : uses
+
+CourseService -- CourseRepository : uses
+CourseService -- ModuleRepository : uses
+LessonService -- LessonRepository : uses
+LessonService -- LessonVideoRepository : uses
+EnrollmentService -- CourseEnrollmentRepository : uses
+EnrollmentService -- LessonProgressRepository : uses
+
+CourseRepository -- Course : manages
+ModuleRepository -- Module : manages
+LessonRepository -- Lesson : manages
+LessonVideoRepository -- LessonVideo : manages
+CourseEnrollmentRepository -- CourseEnrollment : manages
+LessonProgressRepository -- LessonProgress : manages
+
+Course "1" *-- "0..*" Module : contains
+Module "1" *-- "0..*" Lesson : has
+Lesson "1" *-- "0..*" LessonVideo : includes
+Course "1" o-- "0..*" CourseEnrollment : enrolls
+CourseEnrollment "1" *-- "0..*" LessonProgress : tracks
+
+@enduml

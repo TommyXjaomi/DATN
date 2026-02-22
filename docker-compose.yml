@@ -1,3 +1,5 @@
+version: '3.9'
+
 services:
   # ============================================
   # PostgreSQL Databases
@@ -306,6 +308,8 @@ services:
       context: .
       dockerfile: ./services/exercise-service/Dockerfile
     container_name: ielts_exercise_service
+    env_file:
+      - .env
     environment:
       - SERVER_PORT=8084
       - DB_HOST=postgres
@@ -468,6 +472,8 @@ services:
       context: .
       dockerfile: ./services/ai-service/Dockerfile
     container_name: ielts_ai_service
+    env_file:
+      - .env
     environment:
       - SERVER_PORT=8085
       - DB_HOST=postgres

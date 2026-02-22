@@ -1,0 +1,194 @@
+@startuml
+!theme plain
+title Sơ Đồ Kết Nối Giữa Các Services và Giao Thức Giao Tiếp
+
+skinparam component {
+    BackgroundColor #B3E5FC
+    BorderColor #0277BD
+}
+
+skinparam interface {
+    BackgroundColor #FFE0B2
+    BorderColor #E65100
+}
+
+interface HTTP_REST as "HTTP/REST\nJSON" {
+}
+
+interface QUEUE as "Message Queue\n(RabbitMQ/Kafka)" {
+}
+
+interface CACHE_PROTOCOL as "Redis Protocol\n(RESP)" {
+}
+
+interface S3_PROTOCOL as "S3 Compatible\n(MinIO)" {
+}
+
+interface DATABASE as "PostgreSQL\nJDBC/Direct SQL" {
+}
+
+' API Gateway
+component "🚪 API Gateway" as GW {
+    port "8080" as GW_PORT
+}
+
+' Services
+component "👤 User Service" as US {
+    port "8081" as US_PORT
+    port "8081/health" as US_HEALTH
+}
+
+component "🔐 Auth Service" as AS {
+    port "8082" as AS_PORT
+    port "8082/health" as AS_HEALTH
+}
+
+component "📚 Course Service" as CS {
+    port "8083" as CS_PORT
+    port "8083/health" as CS_HEALTH
+}
+
+component "✏️ Exercise Service" as ES {
+    port "8084" as ES_PORT
+    port "8084/health" as ES_HEALTH
+}
+
+component "🤖 AI Service" as AI {
+    port "8085" as AI_PORT
+    port "8085/health" as AI_HEALTH
+}
+
+component "🔔 Notification Service" as NS {
+    port "8086" as NS_PORT
+    port "8086/health" as NS_HEALTH
+}
+
+component "💾 Storage Service" as SS {
+    port "8087" as SS_PORT
+    port "8087/health" as SS_HEALTH
+}
+
+' Databases & External
+database "🗄️ PostgreSQL" as DB {
+    port "5432" as DB_PORT
+}
+
+component "⚡ Redis" as REDIS {
+    port "6379" as REDIS_PORT
+}
+
+component "📦 MinIO" as MINIO {
+    port "9000" as MINIO_PORT
+    port "9001" as MINIO_CONSOLE
+}
+
+component "🤖 OpenAI API" as OPENAI {
+    port "HTTPS" as OPENAI_PORT
+}
+
+' Client
+component "📱 Mobile App\n🌐 Web App" as CLIENTS {
+}
+
+' Connections - Clients to Gateway
+CLIENTS --|> HTTP_REST
+HTTP_REST --|> GW_PORT
+
+' Gateway to Services
+GW_PORT -->|HTTP/REST| US_PORT : "POST /users/*\nGET /users/*\nPUT /users/*"
+GW_PORT -->|HTTP/REST| AS_PORT : "POST /auth/login\nPOST /auth/register\nPOST /auth/verify"
+GW_PORT -->|HTTP/REST| CS_PORT : "GET /courses/*\nPOST /enrollments"
+GW_PORT -->|HTTP/REST| ES_PORT : "POST /submissions\nGET /results/*"
+GW_PORT -->|HTTP/REST| SS_PORT : "POST /storage/audio/upload\nGET /storage/audio/*"
+GW_PORT -->|HTTP/REST| NS_PORT : "POST /notifications"
+
+' Inter-Service Communications
+ES_PORT -->|HTTP/REST| AI_PORT : "POST /ai/speaking/evaluate\nPOST /ai/writing/evaluate"
+AI_PORT -->|S3 API| MINIO_PORT : "GET /ielts-audio/audio/*\n(Download audio files)"
+ES_PORT -->|HTTP/REST| SS_PORT : "POST /storage/audio/upload"
+AS_PORT -->|HTTP/REST| US_PORT : "GET /users/{id}"
+ES_PORT -->|HTTP/REST| NS_PORT : "POST /notifications\n(Trigger notifications)"
+
+' Health Checks
+GW_PORT -.->|GET /health| US_HEALTH : "Health Check"
+GW_PORT -.->|GET /health| AS_HEALTH : "Health Check"
+GW_PORT -.->|GET /health| CS_HEALTH : "Health Check"
+GW_PORT -.->|GET /health| ES_HEALTH : "Health Check"
+GW_PORT -.->|GET /health| AI_HEALTH : "Health Check"
+GW_PORT -.->|GET /health| NS_HEALTH : "Health Check"
+GW_PORT -.->|GET /health| SS_HEALTH : "Health Check"
+
+' Database Connections
+US_PORT --|> DATABASE
+AS_PORT --|> DATABASE
+CS_PORT --|> DATABASE
+ES_PORT --|> DATABASE
+AI_PORT --|> DATABASE
+DB_PORT : "Shared Database\nAll services"
+
+' Cache Connections
+US_PORT -->|RESP| REDIS_PORT : "Cache user data"
+AS_PORT -->|RESP| REDIS_PORT : "Cache sessions"
+CS_PORT -->|RESP| REDIS_PORT : "Cache courses"
+ES_PORT -->|RESP| REDIS_PORT : "Cache results"
+
+' Storage Connections
+SS_PORT -->|S3 API| MINIO_PORT : "Upload/Download\naudio files"
+ES_PORT -->|File Path| SS_PORT : "Query audio URLs"
+
+' External API
+AI_PORT -->|HTTPS REST| OPENAI_PORT : "POST /audio/transcriptions\nPOST /chat/completions"
+NS_PORT -->|HTTPS SMTP| OPENAI : "Send emails"
+
+note right of CLIENTS
+  All client requests
+  go through API Gateway
+  for unified routing
+  and authentication
+end note
+
+note right of GW
+  Port: 8080
+  Routes requests to
+  appropriate services
+  based on URL path
+end note
+
+note bottom of DB
+  PostgreSQL Port: 5432
+  Shared database
+  for all services
+  JDBC connections
+end note
+
+note bottom of REDIS
+  Port: 6379
+  Distributed cache
+  Session management
+  Result caching
+end note
+
+note bottom of MINIO
+  Port: 9000 (API)
+  Port: 9001 (Console)
+  S3-compatible
+  Audio file storage
+  Bucket: ielts-audio
+end note
+
+note bottom of OPENAI
+  External API
+  For transcription
+  & evaluation
+  Requires API key
+end note
+
+legend right
+    |<#B3E5FC> Microservice |
+    |<#FFE0B2> Protocol/Port |
+    |<#FFFFFF> Database/Storage |
+    |Solid Arrow | Synchronous Call |
+    |Dotted Arrow | Health Check |
+end legend
+
+@enduml

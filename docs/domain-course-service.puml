@@ -1,0 +1,158 @@
+@startuml
+title Course Domain - Sơ đồ Lớp Entities (Private Attributes)
+skinparam classAttributeIconSize 0
+
+class Course {
+  -id: UUID
+  -title: string
+  -slug: string
+  -description: string
+  -skill_type: string
+  -level: string
+  -price: float
+  -enrollment_type: string
+  -total_lessons: int
+  -total_modules: int
+  -total_videos: int
+  -total_enrollments: int
+  -average_rating: float
+  -total_reviews: int
+  -is_published: bool
+  -published_at: time.Time
+  -created_at: time.Time
+  -updated_at: time.Time
+}
+
+class Module {
+  -id: UUID
+  -course_id: UUID
+  -title: string
+  -description: string
+  -total_lessons: int
+  -total_exercises: int
+  -display_order: int
+  -is_published: bool
+  -created_at: time.Time
+  -updated_at: time.Time
+}
+
+class Lesson {
+  -id: UUID
+  -module_id: UUID
+  -course_id: UUID
+  -title: string
+  -content_type: string
+  -description: string
+  -duration_minutes: int
+  -is_free: bool
+  -is_published: bool
+  -total_completions: int
+  -display_order: int
+  -created_at: time.Time
+  -updated_at: time.Time
+}
+
+class LessonVideo {
+  -id: UUID
+  -lesson_id: UUID
+  -title: string
+  -video_url: string
+  -video_provider: string
+  -duration_seconds: int
+  -quality: string
+  -thumbnail_url: string
+  -created_at: time.Time
+  -updated_at: time.Time
+}
+
+class LessonMaterial {
+  -id: UUID
+  -lesson_id: UUID
+  -title: string
+  -description: string
+  -file_type: string
+  -file_url: string
+  -file_size_bytes: int
+  -total_downloads: int
+  -display_order: int
+  -created_at: time.Time
+  -updated_at: time.Time
+}
+
+class LessonTranscript {
+  -id: UUID
+  -lesson_id: UUID
+  -video_id: UUID
+  -language: string
+  -content: string
+  -is_auto_generated: bool
+  -is_verified: bool
+  -created_at: time.Time
+  -updated_at: time.Time
+}
+
+class CourseEnrollment {
+  -id: UUID
+  -user_id: UUID
+  -course_id: UUID
+  -enrollment_type: string
+  -progress_percentage: float
+  -lessons_completed: int
+  -total_time_spent_minutes: int
+  -status: string
+  -certificate_issued: bool
+  -certificate_url: string
+  -enrollment_date: time.Time
+  -expires_at: time.Time
+  -last_accessed_at: time.Time
+  -completed_at: time.Time
+  -created_at: time.Time
+  -updated_at: time.Time
+}
+
+class LessonProgress {
+  -id: UUID
+  -user_id: UUID
+  -lesson_id: UUID
+  -course_id: UUID
+  -status: string
+  -progress_percentage: float
+  -video_watched_seconds: int
+  -last_position_seconds: int
+  -first_accessed_at: time.Time
+  -last_accessed_at: time.Time
+  -completed_at: time.Time
+  -created_at: time.Time
+}
+
+class CourseReview {
+  -id: UUID
+  -user_id: UUID
+  -course_id: UUID
+  -rating: int
+  -review_text: string
+  -is_verified_purchase: bool
+  -helpful_count: int
+  -created_at: time.Time
+  -updated_at: time.Time
+}
+
+class CoursePrerequisite {
+  -id: UUID
+  -course_id: UUID
+  -prerequisite_course_id: UUID
+  -created_at: time.Time
+}
+
+' ===== Relationships =====
+Course "1" -- "0..*" Module 
+Module "1" -- "0..*" Lesson 
+Lesson "1" -- "0..*" LessonVideo 
+Lesson "1" -- "0..*" LessonMaterial 
+LessonVideo "1" -- "0..*" LessonTranscript 
+Course "1" -- "0..*" CourseEnrollment 
+Lesson "1" -- "0..*" LessonProgress 
+Course "1" -- "0..*" CourseReview 
+Course "1" -- "0..*" CoursePrerequisite 
+
+@enduml

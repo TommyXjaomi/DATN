@@ -1,0 +1,176 @@
+@startuml
+!theme plain
+title Sơ Đồ Kiến Trúc Hệ Thống - Các Thành Phần Dịch Vụ và Cơ Chế Giao Tiếp
+
+skinparam rectangle {
+    BackgroundColor #E1F5FF
+    BorderColor #01579B
+    FontColor #000000
+    FontSize 12
+}
+
+skinparam component {
+    BackgroundColor #B3E5FC
+    BorderColor #0277BD
+    FontColor #000000
+}
+
+skinparam database {
+    BackgroundColor #FFE0B2
+    BorderColor #E65100
+    FontColor #000000
+}
+
+' ===== EXTERNAL CLIENTS =====
+package "Clients (Người Dùng)" {
+    rectangle "📱 Mobile App\n(Android)" as Mobile
+    rectangle "🌐 Web App\n(Frontend)" as Web
+    rectangle "🔧 Admin Portal\n(Management)" as Admin
+}
+
+' ===== API GATEWAY =====
+package "🚪 API Gateway (Port 8080)" {
+    component "API Gateway\nRoute & Auth" as Gateway
+}
+
+' ===== MICROSERVICES =====
+package "🔵 Microservices" {
+    package "👤 User Service (Port 8081)" {
+        component "User Controller" as UC
+        component "User Service" as US
+        component "Profile Service" as PS
+    }
+    
+    package "🔐 Auth Service (Port 8082)" {
+        component "Auth Controller" as AC
+        component "JWT Manager" as JWT
+        component "Email Service" as ES
+    }
+    
+    package "📚 Course Service (Port 8083)" {
+        component "Course Controller" as CC
+        component "Course Service" as CS
+        component "Lesson Service" as LS
+        component "Enrollment Service" as EMS
+    }
+    
+    package "✏️ Exercise Service (Port 8084)" {
+        component "Exercise Controller" as EC
+        component "Exercise Service" as EXS
+        component "Submission Service" as SS
+        component "Result Cache" as RC
+    }
+    
+    package "🤖 AI Service (Port 8085)" {
+        component "AI Controller" as AIC
+        component "Transcription Service\n(OpenAI)" as TS
+        component "Evaluation Engine" as EE
+        component "Grammar Analyzer" as GA
+    }
+    
+    package "💾 Storage Service (Port 8087)" {
+        component "Storage Controller" as STC
+        component "MinIO Manager" as MM
+        component "URL Generator" as UG
+    }
+    
+    package "🔔 Notification Service (Port 8086)" {
+        component "Notification Controller" as NC
+        component "Email Sender" as ES2
+        component "Push Service" as PS2
+    }
+}
+
+' ===== DATA LAYERS =====
+package "📊 Data Layer" {
+    database "🗄️ PostgreSQL\n(Main DB)" as DB
+    database "⚡ Redis\n(Cache)" as Redis
+    database "📦 MinIO\n(Audio Storage)" as MinIO
+}
+
+' ===== EXTERNAL SERVICES =====
+package "🌍 External Services" {
+    rectangle "🤖 OpenAI API\n(Transcription & Evaluation)" as OpenAI
+}
+
+' ===== COMMUNICATION FLOWS =====
+
+' Mobile & Web to Gateway
+Mobile -->|HTTP/REST| Gateway
+Web -->|HTTP/REST| Gateway
+Admin -->|HTTP/REST| Gateway
+
+' Gateway to Services
+Gateway -->|Route Requests| UC
+Gateway -->|Route Requests| AC
+Gateway -->|Route Requests| CC
+Gateway -->|Route Requests| EC
+Gateway -->|Route Requests| NC
+
+' User Service
+UC --> US
+US --> PS
+US -->|Query| DB
+PS -->|Cache| Redis
+
+' Auth Service
+AC --> JWT
+JWT --> ES
+AC -->|Query/Store| DB
+
+' Course Service
+CC --> CS
+CS --> LS
+LS --> EMS
+CS -->|Query| DB
+EMS -->|Query| DB
+
+' Exercise Service
+EC --> EXS
+EXS --> SS
+SS --> RC
+EXS -->|Query| DB
+RC -->|Cache| Redis
+SS -->|Upload/Download| MinIO
+SS -->|Results| DB
+
+' AI Service
+EXS -->|Submit Audio & Prompt| AIC
+AIC --> TS
+TS -->|Transcribe| OpenAI
+AIC --> EE
+EE -->|External API| OpenAI
+EE --> GA
+GA -->|Analyze| DB
+
+' Storage Service
+STC --> MM
+MM -->|Upload/Retrieve| MinIO
+MM --> UG
+UG -->|Generate URLs| RC
+
+' Exercise to Storage
+EXS -->|Upload Audio| STC
+
+' AI to Storage
+AIC -->|Download Audio| MinIO
+
+' Exercise to Notification
+EXS -->|Trigger Events| NC
+NC --> ES2
+NC --> PS2
+
+' Services to Redis Cache
+UC -->|Cache User Data| Redis
+CS -->|Cache Courses| Redis
+SS -->|Cache Results| Redis
+
+' ===== LEGEND =====
+legend right
+    |<#B3E5FC> Microservice Component |
+    |<#FFE0B2> Database/Storage |
+    |<#E1F5FF> External Client |
+    |<#FFFFFF> External Service |
+end legend
+
+@enduml

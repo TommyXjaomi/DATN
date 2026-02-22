@@ -1,0 +1,51 @@
+@startuml
+!theme plain
+title Sơ Đồ Chi Tiết Luồng Dữ Liệu Hệ Thống - Data Flow Diagram (DFD)
+
+skinparam actor {
+    BackgroundColor #E1F5FF
+    BorderColor #01579B
+}
+
+skinparam process {
+    BackgroundColor #B3E5FC
+    BorderColor #0277BD
+}
+
+skinparam database {
+    BackgroundColor #FFE0B2
+    BorderColor #E65100
+}
+
+skinparam entity {
+    BackgroundColor #C8E6C9
+    BorderColor #2E7D32
+}
+
+' ===== LEVEL 0: Context Diagram =====
+
+actor "👤 User/Student" as User
+actor "🎓 Instructor" as Instructor
+actor "👨‍💼 Admin" as Admin
+
+process "🎓 IELTS Learning\nSystem" as MainSystem {
+}
+
+database "📊 System\nDatabase" as SystemDB
+
+User -->|Interact| MainSystem
+Instructor -->|Manage| MainSystem
+Admin -->|Configure| MainSystem
+MainSystem -->|Store/Retrieve| SystemDB
+SystemDB -->|Feedback| MainSystem
+
+note right of MainSystem
+  Main System: Web/Mobile Application
+  for IELTS learning with:
+  - Courses & lessons
+  - Exercises (speaking, writing)
+  - AI-powered evaluation
+  - Results tracking
+end note
+
+@enduml

@@ -1,0 +1,90 @@
+@startuml
+title Sequence Diagram - Đăng nhập (Login)
+
+actor User
+participant "Frontend UI" as UI
+participant "API Gateway" as Gateway
+participant "Auth Service" as Auth
+participant "PostgreSQL\n(auth_db)" as DB
+participant "Redis Cache" as Cache
+
+User -> UI: 1. Nhập email & mật khẩu
+UI -> Gateway: 2. POST /api/auth/login\n{email, password}
+activate Gateway
+
+Gateway -> Auth: 3. Forward request
+activate Auth
+
+Auth -> Cache: 4. Check rate limiting\nGET login_attempts:{email}
+activate Cache
+Cache --> Auth: 5. Return attempt count
+deactivate Cache
+
+Auth -> DB: 6. Query user by email\nSELECT * FROM users WHERE email=?
+activate DB
+DB --> Auth: 7. Return user record
+deactivate DB
+
+Auth -> Auth: 8. Verify password with bcrypt.Compare
+Auth -> Auth: 9. Check if password matches
+
+Auth -> DB: 10. Check email_verified status
+activate DB
+DB --> Auth: 11. Return verification status
+deactivate DB
+
+Auth -> Auth: 12. Generate JWT Access Token\n(exp: 1 hour)
+Auth -> Auth: 13. Generate JWT Refresh Token\n(exp: 7 days)
+
+Auth -> DB: 14. INSERT refresh_token record\n{user_id, token_hash, expires_at}
+activate DB
+DB --> Auth: 15. Return success
+deactivate DB
+
+Auth -> Cache: 16. Reset login attempts counter\nDEL login_attempts:{email}
+activate Cache
+Cache --> Auth: 17. Return success
+deactivate Cache
+
+Auth -> DB: 18. UPDATE users\nSET last_login_at=NOW()
+activate DB
+DB --> Auth: 19. Return success
+deactivate DB
+
+Auth -> Auth: 20. Log login event to audit log
+Auth --> Gateway: 21. Return response\n{access_token, refresh_token, user_info}
+deactivate Auth
+
+Gateway --> UI: 22. Return tokens
+deactivate Gateway
+
+UI -> UI: 23. Store access_token in memory
+UI -> UI: 24. Store refresh_token in secure cookie
+UI -> UI: 25. Set authorization header
+UI --> User: 26. Redirect to dashboard
+
+User -> UI: 27. Access protected page
+UI -> Gateway: 28. GET /api/user/profile\nHeaders: {Authorization: Bearer access_token}
+activate Gateway
+
+Gateway -> Gateway: 29. Validate JWT signature
+Gateway -> Gateway: 30. Check token expiration
+
+Gateway -> Auth: 31. Forward request
+activate Auth
+
+Auth -> DB: 32. GET user profile data
+activate DB
+DB --> Auth: 33. Return user profile with permissions
+deactivate DB
+
+Auth --> Gateway: 34. Return profile
+deactivate Auth
+
+Gateway --> UI: 35. Return user profile
+deactivate Gateway
+
+UI -> UI: 36. Display user dashboard
+UI --> User: 37. Show personalized content
+
+@enduml

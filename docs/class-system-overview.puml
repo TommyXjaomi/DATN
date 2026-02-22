@@ -1,0 +1,502 @@
+@startuml
+title Sơ đồ Lớp Toàn Hệ Thống (System-wide Class Diagram)
+skinparam classAttributeIconSize 0
+
+' ===== AUTH SERVICE ENTITIES =====
+class AuthUser {
+  -UUID id
+  -string email
+  -string password_hash
+  -string role
+  -bool email_verified
+  -int failed_login_attempts
+  -bool is_locked
+  -time.Time created_at
+  -time.Time updated_at
+}
+
+class Role {
+  -int id
+  -string name
+  -string description
+}
+
+class EmailVerification {
+  -UUID id
+  -UUID user_id
+  -string code
+  -bool is_verified
+}
+
+class RefreshToken {
+  -UUID id
+  -UUID user_id
+  -string token_hash
+  -bool is_revoked
+  -time.Time expires_at
+}
+
+' ===== USER SERVICE ENTITIES =====
+class UserProfile {
+  -UUID user_id
+  -string full_name
+  -string avatar_url
+  -string email
+  -string phone
+  -string city
+  -string country
+  -string timezone
+}
+
+class LearningProgress {
+  -UUID id
+  -UUID user_id
+  -float total_study_hours
+  -int total_lessons_completed
+  -int total_exercises_completed
+  -float listening_progress
+  -float reading_progress
+  -float writing_progress
+  -float speaking_progress
+}
+
+class StudySession {
+  -UUID id
+  -UUID user_id
+  -string session_type
+  -string skill_type
+  -int duration_minutes
+  -bool is_completed
+}
+
+class Achievement {
+  -UUID id
+  -string code
+  -string name
+  -string description
+  -int badge_points
+}
+
+class UserAchievement {
+  -UUID id
+  -UUID user_id
+  -UUID achievement_id
+  -bool is_unlocked
+  -time.Time earned_at
+}
+
+class StudyGoal {
+  -UUID id
+  -UUID user_id
+  -string goal_type
+  -string title
+  -int target_value
+  -string skill_type
+  -string status
+}
+
+class StudyReminder {
+  -UUID id
+  -UUID user_id
+  -string title
+  -string reminder_type
+  -string reminder_time
+  -bool is_active
+}
+
+class StudyStreak {
+  -UUID id
+  -UUID user_id
+  -int streak_count
+  -int longest_streak
+}
+
+' ===== COURSE SERVICE ENTITIES =====
+class Course {
+  -UUID id
+  -string title
+  -string slug
+  -string skill_type
+  -string level
+  -float price
+  -int total_lessons
+  -int total_modules
+  -float average_rating
+  -bool is_published
+}
+
+class Module {
+  -UUID id
+  -UUID course_id
+  -string title
+  -int total_lessons
+  -int total_exercises
+  -bool is_published
+}
+
+class Lesson {
+  -UUID id
+  -UUID module_id
+  -UUID course_id
+  -string title
+  -string content_type
+  -int duration_minutes
+  -bool is_free
+  -bool is_published
+}
+
+class LessonVideo {
+  -UUID id
+  -UUID lesson_id
+  -string title
+  -string video_url
+  -string video_provider
+  -int duration_seconds
+}
+
+class LessonMaterial {
+  -UUID id
+  -UUID lesson_id
+  -string title
+  -string file_type
+  -string file_url
+  -int file_size_bytes
+}
+
+class LessonTranscript {
+  -UUID id
+  -UUID lesson_id
+  -UUID video_id
+  -string language
+  -string content
+}
+
+class CourseEnrollment {
+  -UUID id
+  -UUID user_id
+  -UUID course_id
+  -string enrollment_type
+  -float progress_percentage
+  -int lessons_completed
+  -string status
+  -bool certificate_issued
+}
+
+class LessonProgress {
+  -UUID id
+  -UUID user_id
+  -UUID lesson_id
+  -UUID course_id
+  -string status
+  -float progress_percentage
+  -int video_watched_seconds
+}
+
+class CourseReview {
+  -UUID id
+  -UUID user_id
+  -UUID course_id
+  -int rating
+  -string review_text
+}
+
+class CoursePrerequisite {
+  -UUID id
+  -UUID course_id
+  -UUID prerequisite_course_id
+}
+
+' ===== EXERCISE SERVICE ENTITIES =====
+class Exercise {
+  -UUID id
+  -string title
+  -string exercise_type
+  -string skill_type
+  -int total_questions
+  -int total_sections
+  -string difficulty
+  -float passing_score
+  -bool is_free
+  -bool is_published
+}
+
+class ExerciseSection {
+  -UUID id
+  -UUID exercise_id
+  -string title
+  -int section_number
+  -int total_questions
+}
+
+class Question {
+  -UUID id
+  -UUID exercise_id
+  -UUID section_id
+  -string question_text
+  -string question_type
+  -float points
+  -string difficulty
+}
+
+class QuestionOption {
+  -UUID id
+  -UUID question_id
+  -string option_label
+  -string option_text
+  -bool is_correct
+}
+
+class UserExerciseAttempt {
+  -UUID id
+  -UUID user_id
+  -UUID exercise_id
+  -int attempt_number
+  -string status
+  -int total_questions
+  -int correct_answers
+  -float score
+  -float band_score
+}
+
+class SubmissionAnswer {
+  -UUID id
+  -UUID attempt_id
+  -UUID question_id
+  -string answer_text
+  -bool is_correct
+  -float points_earned
+}
+
+class ExerciseResult {
+  -UUID id
+  -UUID attempt_id
+  -UUID exercise_id
+  -UUID user_id
+  -float final_score
+  -float band_score
+  -bool passed
+}
+
+' ===== NOTIFICATION SERVICE ENTITIES =====
+class Notification {
+  -UUID id
+  -UUID user_id
+  -string notification_type
+  -string title
+  -string body
+  -string channel
+  -bool is_read
+  -time.Time sent_at
+}
+
+class NotificationEvent {
+  -UUID id
+  -string event_type
+  -string description
+  -bool is_active
+}
+
+class NotificationTemplate {
+  -UUID id
+  -string name
+  -string event_type
+  -string channel
+  -string title_template
+  -string body_template
+}
+
+class DeviceToken {
+  -UUID id
+  -UUID user_id
+  -string token
+  -string device_type
+  -string device_os
+  -bool is_active
+}
+
+class ScheduledNotification {
+  -UUID id
+  -UUID user_id
+  -string title
+  -string channel
+  -string frequency
+  -bool is_active
+}
+
+class NotificationPreference {
+  -UUID id
+  -UUID user_id
+  -UUID notification_event_id
+  -bool email_enabled
+  -bool push_enabled
+}
+
+class NotificationLog {
+  -UUID id
+  -UUID notification_id
+  -UUID device_token_id
+  -string channel
+  -string status
+}
+
+' ===== AI SERVICE ENTITIES =====
+class AIEvaluationRequest {
+  -UUID id
+  -UUID user_id
+  -UUID exercise_attempt_id
+  -UUID question_id
+  -string skill_type
+  -string task_type
+  -string content
+}
+
+class AIEvaluationResult {
+  -UUID id
+  -UUID request_id
+  -float overall_band_score
+  -float fluency_score
+  -float accuracy_score
+  -JSONB detailed_scores
+}
+
+class AIEvaluationCache {
+  -UUID id
+  -string content_hash
+  -string skill_type
+  -float overall_band_score
+  -int hit_count
+}
+
+class AIEvaluationLog {
+  -UUID id
+  -UUID request_id
+  -string task_type
+  -bool cache_hit
+  -int processing_time_ms
+}
+
+class AIModel {
+  -UUID id
+  -string name
+  -string version
+  -string provider
+  -bool is_active
+}
+
+' ===== STORAGE SERVICE ENTITIES =====
+class StorageBucket {
+  -string name
+  -string region
+  -string policy
+  -bool is_public
+  -bool is_active
+}
+
+class FileObject {
+  -string id
+  -string bucket_name
+  -string object_name
+  -string url
+  -int64 size
+  -string content_type
+}
+
+class FileVersion {
+  -string id
+  -string object_id
+  -string bucket_name
+  -int version_number
+  -int64 size
+}
+
+class FileAccess {
+  -UUID id
+  -string object_id
+  -UUID user_id
+  -string access_type
+  -time.Time accessed_at
+}
+
+class FileMetadata {
+  -string id
+  -string object_id
+  -JSONB metadata
+  -string tags
+}
+
+class DeletedFile {
+  -UUID id
+  -string object_id
+  -UUID deleted_by
+  -string deletion_reason
+}
+
+class FileQuota {
+  -UUID id
+  -UUID user_id
+  -int64 total_quota_bytes
+  -int64 used_bytes
+}
+
+' ===== RELATIONSHIPS =====
+
+' Auth -> User
+AuthUser "1" -- "1" UserProfile : creates
+AuthUser "*" -- "1" Role : has
+
+' User Service Relationships
+UserProfile "1" -- "1" LearningProgress : tracks
+UserProfile "1" -- "0..*" StudySession : has
+UserProfile "1" -- "0..*" UserAchievement : earns
+UserProfile "1" -- "0..*" StudyGoal : sets
+UserProfile "1" -- "0..*" StudyReminder : creates
+UserProfile "1" -- "1" StudyStreak : maintains
+Achievement "1" -- "0..*" UserAchievement : awarded_by
+
+' Course Service Relationships
+Course "1" -- "0..*" Module : contains
+Module "1" -- "0..*" Lesson : has
+Lesson "1" -- "0..*" LessonVideo : includes
+Lesson "1" -- "0..*" LessonMaterial : has
+LessonVideo "1" -- "0..*" LessonTranscript : generates
+Course "1" -- "0..*" CourseEnrollment : enrolls
+UserProfile "1" -- "0..*" CourseEnrollment : registers_for
+Lesson "1" -- "0..*" LessonProgress : tracks
+Course "1" -- "0..*" CourseReview : receives
+UserProfile "1" -- "0..*" CourseReview : writes
+Course "1" -- "0..*" CoursePrerequisite : requires
+
+' Exercise Service Relationships
+Exercise "1" -- "0..*" ExerciseSection : contains
+ExerciseSection "1" -- "0..*" Question : has
+Question "1" -- "0..*" QuestionOption : has_options
+UserExerciseAttempt "*" -- "1" Exercise : attempts
+UserExerciseAttempt "1" -- "0..*" SubmissionAnswer : contains
+UserExerciseAttempt "1" -- "1" ExerciseResult : produces
+UserProfile "1" -- "0..*" UserExerciseAttempt : takes_tests
+
+' Notification Service Relationships
+UserProfile "1" -- "0..*" Notification : receives
+UserProfile "1" -- "0..*" DeviceToken : registers
+UserProfile "1" -- "0..*" ScheduledNotification : schedules
+DeviceToken "1" -- "0..*" NotificationLog : has_logs
+Notification "1" -- "0..*" NotificationLog : logs
+NotificationEvent "1" -- "0..*" NotificationTemplate : used_by
+NotificationEvent "1" -- "0..*" NotificationPreference : configured_by
+
+' AI Service Relationships
+UserExerciseAttempt "1" -- "0..*" AIEvaluationRequest : triggers
+AIEvaluationRequest "1" -- "1" AIEvaluationResult : generates
+AIEvaluationRequest "*" -- "1" AIModel : uses
+AIEvaluationRequest "1" -- "0..*" AIEvaluationLog : logs
+
+' Storage Service Relationships
+UserProfile "1" -- "0..*" FileQuota : has_quota
+StorageBucket "1" -- "0..*" FileObject : contains
+FileObject "1" -- "0..*" FileVersion : has_versions
+FileObject "1" -- "0..*" FileAccess : accessed_by
+FileObject "1" -- "1" FileMetadata : has_metadata
+FileObject "0..*" -- "1" DeletedFile : tracked_deletion
+FileObject "*" -- "1" FileQuota : uses_quota
+
+@enduml

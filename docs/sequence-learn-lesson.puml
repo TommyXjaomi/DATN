@@ -1,0 +1,79 @@
+@startuml
+title Sơ đồ Tuần Tự - Học Bài Học
+
+actor User
+participant "Frontend" <<boundary>>
+participant "API Gateway" <<control>>
+participant "Course Service" <<control>>
+participant "PostgreSQL" <<entity>>
+participant "Storage Service" <<control>>
+participant "Redis" <<entity>>
+
+User -> Frontend: Chọn bài học
+Frontend -> "API Gateway": GET /lessons/:id
+"API Gateway" -> "Course Service": Lấy chi tiết bài học
+"Course Service" -> PostgreSQL: Query lesson details
+PostgreSQL --> "Course Service": Lesson data
+"Course Service" --> "API Gateway": Lesson details
+"API Gateway" --> Frontend: Lesson data
+
+Frontend -> "API Gateway": GET /lessons/:id/progress
+"API Gateway" -> "Course Service": Kiểm tra quyền truy cập
+"Course Service" -> PostgreSQL: Query user enrollment
+PostgreSQL --> "Course Service": Enrollment status
+"Course Service" -> PostgreSQL: Tạo/cập nhật LessonProgress
+PostgreSQL --> "Course Service": LessonProgress record
+"Course Service" --> "API Gateway": Progress data
+"API Gateway" --> Frontend: Progress initialized
+
+Frontend -> "API Gateway": GET /lessons/:id/content
+"API Gateway" -> "Course Service": Lấy content
+"Course Service" -> "Storage Service": Lấy video metadata
+"Storage Service" -> Redis: Kiểm tra cache
+alt Video cached
+  Redis --> "Storage Service": Video metadata
+else Video not cached
+  "Storage Service" --> PostgreSQL: Query video info
+  PostgreSQL --> "Storage Service": Video data
+  "Storage Service" -> Redis: Lưu vào cache
+end
+"Storage Service" --> "Course Service": Video & materials
+"Course Service" --> "API Gateway": Full lesson content
+"API Gateway" --> Frontend: Lesson content (video, transcript, materials)
+
+User -> Frontend: Xem video
+Frontend -> Frontend: Ghi watched_duration
+loop Mỗi 30 giây
+  Frontend -> "API Gateway": POST /lessons/:id/progress/update
+  "API Gateway" -> "Course Service": Cập nhật progress
+  "Course Service" -> PostgreSQL: Update watched_duration, current_position
+  PostgreSQL --> "Course Service": Updated
+  "Course Service" --> "API Gateway": OK
+  "API Gateway" --> Frontend: Acknowledged
+end
+
+User -> Frontend: Video xem xong
+Frontend -> "API Gateway": POST /lessons/:id/complete
+"API Gateway" -> "Course Service": Đánh dấu hoàn thành
+"Course Service" -> PostgreSQL: Update completion_percentage, status
+alt Completion >= 80%
+  "Course Service" -> PostgreSQL: Unlock next lesson
+  "Course Service" -> PostgreSQL: Unlock exercises
+  "Course Service" -> PostgreSQL: Cập nhật user stats
+else Completion < 80%
+  "Course Service" -> PostgreSQL: Set status = in_progress
+end
+PostgreSQL --> "Course Service": Updated
+"Course Service" -> "Course Service": Kiểm tra course completion
+alt Tất cả lessons hoàn thành
+  "Course Service" -> PostgreSQL: Tạo certificate
+  "Course Service" -> PostgreSQL: Mark course completed
+else Còn lessons chưa hoàn thành
+  "Course Service" -> PostgreSQL: Update course progress
+end
+"Course Service" --> "API Gateway": Completion result
+"API Gateway" --> Frontend: Lesson completed
+Frontend --> User: Hiển thị completion summary
+Frontend --> User: Đề xuất next lesson
+
+@enduml

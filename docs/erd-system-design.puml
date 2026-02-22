@@ -1,0 +1,593 @@
+@startuml
+title Sơ đồ ER - IELTS Learning Platform (Design Phase)
+
+entity "auth_users" as AuthUser {
+  * id : UUID <<PK>>
+  --
+  email : String
+  password_hash : String
+  role : String
+  email_verified : Boolean
+  failed_login_attempts : Integer
+  is_locked : Boolean
+  created_at : LocalDateTime
+  updated_at : LocalDateTime
+}
+
+entity "roles" as Role {
+  * id : Integer <<PK>>
+  --
+  name : String
+  description : String
+}
+
+entity "email_verifications" as EmailVerification {
+  * id : UUID <<PK>>
+  --
+  user_id : UUID <<FK>>
+  code : String
+  is_verified : Boolean
+}
+
+entity "refresh_tokens" as RefreshToken {
+  * id : UUID <<PK>>
+  --
+  user_id : UUID <<FK>>
+  token_hash : String
+  is_revoked : Boolean
+  expires_at : LocalDateTime
+}
+
+entity "user_profiles" as UserProfile {
+  * user_id : UUID <<PK, FK>>
+  --
+  full_name : String
+  avatar_url : String
+  email : String
+  phone : String
+  city : String
+  country : String
+  timezone : String
+  created_at : LocalDateTime
+  updated_at : LocalDateTime
+}
+
+entity "learning_progress" as LearningProgress {
+  * id : UUID <<PK>>
+  --
+  user_id : UUID <<FK>>
+  total_study_hours : Float
+  total_lessons_completed : Integer
+  total_exercises_completed : Integer
+  listening_progress : Float
+  reading_progress : Float
+  writing_progress : Float
+  speaking_progress : Float
+  updated_at : LocalDateTime
+}
+
+entity "study_sessions" as StudySession {
+  * id : UUID <<PK>>
+  --
+  user_id : UUID <<FK>>
+  session_type : String
+  skill_type : String
+  duration_minutes : Integer
+  is_completed : Boolean
+  start_time : LocalDateTime
+  end_time : LocalDateTime
+}
+
+entity "achievements" as Achievement {
+  * id : UUID <<PK>>
+  --
+  code : String
+  name : String
+  description : String
+  badge_points : Integer
+  icon_url : String
+}
+
+entity "user_achievements" as UserAchievement {
+  * id : UUID <<PK>>
+  --
+  user_id : UUID <<FK>>
+  achievement_id : UUID <<FK>>
+  is_unlocked : Boolean
+  earned_at : LocalDateTime
+}
+
+entity "study_goals" as StudyGoal {
+  * id : UUID <<PK>>
+  --
+  user_id : UUID <<FK>>
+  goal_type : String
+  title : String
+  target_value : Integer
+  skill_type : String
+  status : String
+  target_date : LocalDateTime
+}
+
+entity "study_reminders" as StudyReminder {
+  * id : UUID <<PK>>
+  --
+  user_id : UUID <<FK>>
+  title : String
+  reminder_type : String
+  reminder_time : String
+  is_active : Boolean
+  frequency : String
+}
+
+entity "study_streaks" as StudyStreak {
+  * id : UUID <<PK>>
+  --
+  user_id : UUID <<FK>>
+  streak_count : Integer
+  longest_streak : Integer
+  last_activity_date : LocalDateTime
+  created_at : LocalDateTime
+}
+
+entity "courses" as Course {
+  * id : UUID <<PK>>
+  --
+  title : String
+  slug : String
+  skill_type : String
+  level : String
+  price : Float
+  total_lessons : Integer
+  total_modules : Integer
+  average_rating : Float
+  is_published : Boolean
+  description : String
+  created_at : LocalDateTime
+}
+
+entity "modules" as Module {
+  * id : UUID <<PK>>
+  --
+  course_id : UUID <<FK>>
+  title : String
+  total_lessons : Integer
+  total_exercises : Integer
+  is_published : Boolean
+  module_order : Integer
+}
+
+entity "lessons" as Lesson {
+  * id : UUID <<PK>>
+  --
+  module_id : UUID <<FK>>
+  course_id : UUID <<FK>>
+  title : String
+  content_type : String
+  duration_minutes : Integer
+  is_free : Boolean
+  is_published : Boolean
+  lesson_order : Integer
+}
+
+entity "lesson_videos" as LessonVideo {
+  * id : UUID <<PK>>
+  --
+  lesson_id : UUID <<FK>>
+  title : String
+  video_url : String
+  video_provider : String
+  duration_seconds : Integer
+}
+
+entity "lesson_materials" as LessonMaterial {
+  * id : UUID <<PK>>
+  --
+  lesson_id : UUID <<FK>>
+  title : String
+  file_type : String
+  file_url : String
+  file_size_bytes : Integer
+}
+
+entity "lesson_transcripts" as LessonTranscript {
+  * id : UUID <<PK>>
+  --
+  lesson_id : UUID <<FK>>
+  video_id : UUID <<FK>>
+  language : String
+  content : String
+  transcript_type : String
+}
+
+entity "course_enrollments" as CourseEnrollment {
+  * id : UUID <<PK>>
+  --
+  user_id : UUID <<FK>>
+  course_id : UUID <<FK>>
+  enrollment_type : String
+  progress_percentage : Float
+  lessons_completed : Integer
+  status : String
+  certificate_issued : Boolean
+  enrolled_at : LocalDateTime
+  completed_at : LocalDateTime
+}
+
+entity "lesson_progress" as LessonProgress {
+  * id : UUID <<PK>>
+  --
+  user_id : UUID <<FK>>
+  lesson_id : UUID <<FK>>
+  course_id : UUID <<FK>>
+  status : String
+  progress_percentage : Float
+  video_watched_seconds : Integer
+  started_at : LocalDateTime
+  completed_at : LocalDateTime
+}
+
+entity "course_reviews" as CourseReview {
+  * id : UUID <<PK>>
+  --
+  user_id : UUID <<FK>>
+  course_id : UUID <<FK>>
+  rating : Integer
+  review_text : String
+  created_at : LocalDateTime
+  updated_at : LocalDateTime
+}
+
+entity "course_prerequisites" as CoursePrerequisite {
+  * id : UUID <<PK>>
+  --
+  course_id : UUID <<FK>>
+  prerequisite_course_id : UUID <<FK>>
+}
+
+entity "exercises" as Exercise {
+  * id : UUID <<PK>>
+  --
+  title : String
+  exercise_type : String
+  skill_type : String
+  total_questions : Integer
+  total_sections : Integer
+  difficulty : String
+  passing_score : Float
+  is_free : Boolean
+  is_published : Boolean
+  description : String
+}
+
+entity "exercise_sections" as ExerciseSection {
+  * id : UUID <<PK>>
+  --
+  exercise_id : UUID <<FK>>
+  title : String
+  section_number : Integer
+  total_questions : Integer
+  duration_minutes : Integer
+}
+
+entity "questions" as Question {
+  * id : UUID <<PK>>
+  --
+  exercise_id : UUID <<FK>>
+  section_id : UUID <<FK>>
+  question_text : String
+  question_type : String
+  points : Float
+  difficulty : String
+  question_number : Integer
+}
+
+entity "question_options" as QuestionOption {
+  * id : UUID <<PK>>
+  --
+  question_id : UUID <<FK>>
+  option_label : String
+  option_text : String
+  is_correct : Boolean
+}
+
+entity "user_exercise_attempts" as UserExerciseAttempt {
+  * id : UUID <<PK>>
+  --
+  user_id : UUID <<FK>>
+  exercise_id : UUID <<FK>>
+  attempt_number : Integer
+  status : String
+  total_questions : Integer
+  correct_answers : Integer
+  score : Float
+  band_score : Float
+  started_at : LocalDateTime
+  completed_at : LocalDateTime
+}
+
+entity "submission_answers" as SubmissionAnswer {
+  * id : UUID <<PK>>
+  --
+  attempt_id : UUID <<FK>>
+  question_id : UUID <<FK>>
+  answer_text : String
+  is_correct : Boolean
+  points_earned : Float
+  submitted_at : LocalDateTime
+}
+
+entity "exercise_results" as ExerciseResult {
+  * id : UUID <<PK>>
+  --
+  attempt_id : UUID <<FK>>
+  exercise_id : UUID <<FK>>
+  user_id : UUID <<FK>>
+  final_score : Float
+  band_score : Float
+  passed : Boolean
+  created_at : LocalDateTime
+}
+
+entity "notifications" as Notification {
+  * id : UUID <<PK>>
+  --
+  user_id : UUID <<FK>>
+  notification_type : String
+  title : String
+  body : String
+  channel : String
+  is_read : Boolean
+  sent_at : LocalDateTime
+  read_at : LocalDateTime
+}
+
+entity "notification_events" as NotificationEvent {
+  * id : UUID <<PK>>
+  --
+  event_type : String
+  description : String
+  is_active : Boolean
+}
+
+entity "notification_templates" as NotificationTemplate {
+  * id : UUID <<PK>>
+  --
+  name : String
+  event_type : String
+  channel : String
+  title_template : String
+  body_template : String
+}
+
+entity "device_tokens" as DeviceToken {
+  * id : UUID <<PK>>
+  --
+  user_id : UUID <<FK>>
+  token : String
+  device_type : String
+  device_os : String
+  is_active : Boolean
+  created_at : LocalDateTime
+  last_used_at : LocalDateTime
+}
+
+entity "scheduled_notifications" as ScheduledNotification {
+  * id : UUID <<PK>>
+  --
+  user_id : UUID <<FK>>
+  title : String
+  channel : String
+  frequency : String
+  is_active : Boolean
+  next_schedule_time : LocalDateTime
+}
+
+entity "notification_preferences" as NotificationPreference {
+  * id : UUID <<PK>>
+  --
+  user_id : UUID <<FK>>
+  notification_event_id : UUID <<FK>>
+  email_enabled : Boolean
+  push_enabled : Boolean
+  updated_at : LocalDateTime
+}
+
+entity "notification_logs" as NotificationLog {
+  * id : UUID <<PK>>
+  --
+  notification_id : UUID <<FK>>
+  device_token_id : UUID <<FK>>
+  channel : String
+  status : String
+  sent_at : LocalDateTime
+}
+
+entity "ai_evaluation_requests" as AIEvaluationRequest {
+  * id : UUID <<PK>>
+  --
+  user_id : UUID <<FK>>
+  exercise_attempt_id : UUID <<FK>>
+  question_id : UUID <<FK>>
+  skill_type : String
+  task_type : String
+  content : String
+  created_at : LocalDateTime
+}
+
+entity "ai_evaluation_results" as AIEvaluationResult {
+  * id : UUID <<PK>>
+  --
+  request_id : UUID <<FK>>
+  overall_band_score : Float
+  fluency_score : Float
+  accuracy_score : Float
+  detailed_scores : JSONB
+  evaluated_at : LocalDateTime
+}
+
+entity "ai_evaluation_cache" as AIEvaluationCache {
+  * id : UUID <<PK>>
+  --
+  content_hash : String
+  skill_type : String
+  overall_band_score : Float
+  hit_count : Integer
+  created_at : LocalDateTime
+}
+
+entity "ai_evaluation_logs" as AIEvaluationLog {
+  * id : UUID <<PK>>
+  --
+  request_id : UUID <<FK>>
+  task_type : String
+  cache_hit : Boolean
+  processing_time_ms : Integer
+  evaluated_at : LocalDateTime
+}
+
+entity "ai_models" as AIModel {
+  * id : UUID <<PK>>
+  --
+  name : String
+  version : String
+  provider : String
+  is_active : Boolean
+  created_at : LocalDateTime
+}
+
+entity "storage_buckets" as StorageBucket {
+  * name : String <<PK>>
+  --
+  region : String
+  policy : String
+  is_public : Boolean
+  is_active : Boolean
+  created_at : LocalDateTime
+}
+
+entity "file_objects" as FileObject {
+  * id : String <<PK>>
+  --
+  bucket_name : String <<FK>>
+  object_name : String
+  url : String
+  size : Long
+  content_type : String
+  created_at : LocalDateTime
+  updated_at : LocalDateTime
+}
+
+entity "file_versions" as FileVersion {
+  * id : String <<PK>>
+  --
+  object_id : String <<FK>>
+  bucket_name : String <<FK>>
+  version_number : Integer
+  size : Long
+  created_at : LocalDateTime
+}
+
+entity "file_access" as FileAccess {
+  * id : UUID <<PK>>
+  --
+  object_id : String <<FK>>
+  user_id : UUID <<FK>>
+  access_type : String
+  accessed_at : LocalDateTime
+}
+
+entity "file_metadata" as FileMetadata {
+  * id : String <<PK>>
+  --
+  object_id : String <<FK>>
+  metadata : JSONB
+  tags : String
+  updated_at : LocalDateTime
+}
+
+entity "deleted_files" as DeletedFile {
+  * id : UUID <<PK>>
+  --
+  object_id : String <<FK>>
+  deleted_by : UUID <<FK>>
+  deletion_reason : String
+  deleted_at : LocalDateTime
+}
+
+entity "file_quotas" as FileQuota {
+  * id : UUID <<PK>>
+  --
+  user_id : UUID <<FK>>
+  total_quota_bytes : Long
+  used_bytes : Long
+  updated_at : LocalDateTime
+}
+
+' ===== RELATIONSHIPS =====
+
+' Auth Service
+AuthUser ||--|| UserProfile : creates
+AuthUser ||--o{ EmailVerification : has
+AuthUser ||--o{ RefreshToken : generates
+Role ||--o{ AuthUser : has
+
+' User Service
+UserProfile ||--|| LearningProgress : aggregates
+UserProfile ||--o{ StudySession : has
+UserProfile ||--o{ UserAchievement : earns
+UserProfile ||--o{ StudyGoal : sets
+UserProfile ||--o{ StudyReminder : creates
+UserProfile ||--|| StudyStreak : maintains
+Achievement ||--o{ UserAchievement : awarded_by
+
+' Course Service
+Course ||--o{ Module : contains
+Course ||--o{ CoursePrerequisite : requires
+Course ||--o{ CourseEnrollment : enrolls
+Course ||--o{ CourseReview : receives
+Module ||--o{ Lesson : has
+Lesson ||--o{ LessonVideo : includes
+Lesson ||--o{ LessonMaterial : has
+LessonVideo ||--o{ LessonTranscript : generates
+CourseEnrollment ||--o{ LessonProgress : tracks
+UserProfile ||--o{ CourseEnrollment : registers_for
+UserProfile ||--o{ LessonProgress : learns
+UserProfile ||--o{ CourseReview : writes
+
+' Exercise Service
+Exercise ||--o{ ExerciseSection : contains
+ExerciseSection ||--o{ Question : has
+Question ||--o{ QuestionOption : has
+Exercise ||--o{ UserExerciseAttempt : attempts
+UserExerciseAttempt ||--o{ SubmissionAnswer : contains
+UserExerciseAttempt ||--|| ExerciseResult : produces
+UserProfile ||--o{ UserExerciseAttempt : takes_tests
+UserProfile ||--o{ ExerciseResult : sees_results
+
+' Notification Service
+UserProfile ||--o{ Notification : receives
+UserProfile ||--o{ DeviceToken : registers
+UserProfile ||--o{ ScheduledNotification : schedules
+UserProfile ||--o{ NotificationPreference : configures
+DeviceToken ||--o{ NotificationLog : logs
+Notification ||--o{ NotificationLog : logs
+NotificationEvent ||--o{ NotificationTemplate : used_by
+NotificationEvent ||--o{ NotificationPreference : configured_by
+
+' AI Service
+UserExerciseAttempt ||--o{ AIEvaluationRequest : triggers
+AIEvaluationRequest ||--|| AIEvaluationResult : generates
+AIModel ||--o{ AIEvaluationRequest : uses
+AIEvaluationRequest ||--o{ AIEvaluationLog : logs
+
+' Storage Service
+UserProfile ||--|| FileQuota : has_quota
+StorageBucket ||--o{ FileObject : contains
+FileObject ||--o{ FileVersion : has
+FileObject ||--o{ FileAccess : accessed_by
+FileObject ||--|| FileMetadata : has
+FileObject ||--o{ DeletedFile : tracked_deletion
+FileQuota ||--o{ FileObject : uses
+
+@enduml

@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"io"
+	"log"
 	"mime/multipart"
 	"net/http"
 	"time"
@@ -492,6 +493,9 @@ func (c *OpenAIClient) callChatAPI(payload interface{}, result interface{}) (int
 		return nil, fmt.Errorf("failed to marshal payload: %w", err)
 	}
 
+	log.Printf("📤 OpenAI API Request: POST %s/chat/completions", c.BaseURL)
+	log.Printf("📊 Request Payload (first 500 chars): %s", string(jsonData[:min(500, len(jsonData))]))
+
 	req, err := http.NewRequest("POST", c.BaseURL+"/chat/completions", bytes.NewBuffer(jsonData))
 	if err != nil {
 		return nil, fmt.Errorf("failed to create request: %w", err)
@@ -502,14 +506,27 @@ func (c *OpenAIClient) callChatAPI(payload interface{}, result interface{}) (int
 
 	resp, err := c.HTTPClient.Do(req)
 	if err != nil {
+		log.Printf("❌ OpenAI API Request Failed: %v", err)
 		return nil, fmt.Errorf("failed to send request: %w", err)
 	}
 	defer resp.Body.Close()
 
+	log.Printf("📥 OpenAI API Response Status: %d (%s)", resp.StatusCode, resp.Status)
+
 	if resp.StatusCode != http.StatusOK {
 		bodyBytes, _ := io.ReadAll(resp.Body)
+		log.Printf("❌ OpenAI API Error Response: %s", string(bodyBytes))
 		return nil, fmt.Errorf("OpenAI API error: %s - %s", resp.Status, string(bodyBytes))
 	}
+
+	// Read body for debugging
+	bodyBytes, err := io.ReadAll(resp.Body)
+	if err != nil {
+		log.Printf("❌ Error reading response body: %v", err)
+		return nil, fmt.Errorf("failed to read response body: %w", err)
+	}
+
+	log.Printf("📥 Full OpenAI API Response Body: %s", string(bodyBytes))
 
 	var response struct {
 		Choices []struct {
@@ -517,22 +534,37 @@ func (c *OpenAIClient) callChatAPI(payload interface{}, result interface{}) (int
 				Content string `json:"content"`
 			} `json:"message"`
 		} `json:"choices"`
+		Error map[string]interface{} `json:"error"`
 	}
 
-	if err := json.NewDecoder(resp.Body).Decode(&response); err != nil {
+	if err := json.Unmarshal(bodyBytes, &response); err != nil {
+		log.Printf("❌ Failed to decode OpenAI response: %v", err)
 		return nil, fmt.Errorf("failed to decode response: %w", err)
 	}
 
+	// Check for API error
+	if response.Error != nil {
+		log.Printf("❌ OpenAI API returned error: %v", response.Error)
+		return nil, fmt.Errorf("OpenAI API error: %v", response.Error)
+	}
+
 	if len(response.Choices) == 0 {
+		log.Printf("❌ No choices in OpenAI response")
 		return nil, fmt.Errorf("no choices in response")
 	}
+
+	log.Printf("✅ OpenAI API Response received (first 300 chars of content): %s", response.Choices[0].Message.Content[:min(300, len(response.Choices[0].Message.Content))])
 
 	// Parse JSON content to result type
 	contentBytes := []byte(response.Choices[0].Message.Content)
 	if err := json.Unmarshal(contentBytes, result); err != nil {
+		log.Printf("❌ Failed to unmarshal evaluation result: %v", err)
+		log.Printf("Raw content: %s", string(contentBytes))
 		return nil, fmt.Errorf("failed to unmarshal evaluation: %w", err)
 	}
 
+	log.Printf("✅ Successfully parsed OpenAI evaluation result")
+	log.Printf("Overall Band Score: %v", result)
 	return result, nil
 }
 

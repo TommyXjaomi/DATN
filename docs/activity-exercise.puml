@@ -1,0 +1,54 @@
+@startuml
+title Quy trình Làm bài tập
+
+start
+:User chọn bài tập từ danh sách;
+:Load nội dung bài tập từ DB;
+
+if (User có quyền truy cập?) then (no)
+  :Kiểm tra user đã enrolled khóa học;
+  :Kiểm tra lesson này thuộc khóa học;
+  :Kiểm tra lesson_progress status;
+  :Ghi log unauthorized access;
+  :Hiển thị lỗi chưa đăng ký khóa học;
+else (yes)
+  :User có quyền;
+endif
+
+:Tạo bản ghi UserExerciseAttempt;
+:Lưu attempt_number;
+:Ghi thời gian bắt đầu start_time;
+:Tải toàn bộ câu hỏi và options;
+
+repeat
+  :Hiển thị câu hỏi;
+  :Người dùng chọn/nhập đáp án;
+  :Lưu submission tạm thời;
+repeat while (Còn câu hỏi tiếp theo?)
+
+:Tính điểm multiple choice: (câu đúng / tổng) * 100;
+:Ghi thời gian kết thúc end_time;
+:Lưu tất cả SubmissionAnswer vào DB;
+
+if (Bài Writing/Speaking?) then (yes)
+  :Gửi request đến AI Service;
+  :Gửi kèm user_id, exercise_id, submissions;
+  :Chờ AI Service evaluate;
+  :Nhận kết quả AI: fluency, accuracy, band score;
+  :Lưu AI evaluation vào DB;
+else (no)
+  :Bài trắc nghiệm - chỉ tính multiple choice;
+endif
+
+:Tạo ExerciseResult record;
+:Tính final_score (multiple + AI nếu có);
+:Lưu time_spent và performance_data;
+:Cập nhật LessonProgress.attempted_count;
+:Kiểm tra nếu score >= passing_score;
+:Hiển thị kết quả chi tiết;
+:Cung cấp giải thích từng câu;
+:Ghi log hoàn thành bài tập;
+:Cập nhật user statistics;
+:Chuyển trang kết quả;
+stop
+@enduml

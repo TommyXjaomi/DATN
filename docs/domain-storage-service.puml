@@ -1,0 +1,92 @@
+@startuml
+title Storage Domain - Sơ đồ Lớp Entities (Private Attributes)
+skinparam classAttributeIconSize 0
+
+class StorageBucket {
+  -name: string
+  -region: string
+  -policy: string
+  -versioning: string
+  -is_public: bool
+  -is_active: bool
+  -created_at: time.Time
+}
+
+class FileObject {
+  -id: string
+  -bucket_name: string
+  -object_name: string
+  -url: string
+  -size: int64
+  -content_type: string
+  -etag: string
+  -file_category: string
+  -file_type: string
+  -is_deleted: bool
+  -download_count: int
+  -uploaded_by: UUID
+  -uploaded_at: time.Time
+  -last_modified: time.Time
+  -created_at: time.Time
+}
+
+class FileVersion {
+  -id: string
+  -object_id: string
+  -bucket_name: string
+  -version_number: int
+  -size: int64
+  -etag: string
+  -uploaded_by: UUID
+  -created_at: time.Time
+}
+
+class FileAccess {
+  -id: UUID
+  -object_id: string
+  -user_id: UUID
+  -access_type: string
+  -accessed_at: time.Time
+  -created_at: time.Time
+}
+
+class FileMetadata {
+  -id: string
+  -object_id: string
+  -metadata: JSONB
+  -is_processed: bool
+  -processing_status: string
+  -tags: string
+  -created_at: time.Time
+  -updated_at: time.Time
+}
+
+class DeletedFile {
+  -id: UUID
+  -object_id: string
+  -bucket_name: string
+  -deleted_by: UUID
+  -deletion_reason: string
+  -deleted_at: time.Time
+  -created_at: time.Time
+}
+
+class FileQuota {
+  -id: UUID
+  -user_id: UUID
+  -total_quota_bytes: int64
+  -used_bytes: int64
+  -remaining_bytes: int64
+  -created_at: time.Time
+  -updated_at: time.Time
+}
+
+' ===== Relationships =====
+StorageBucket "1" -- "0..*" FileObject  
+FileObject "1" -- "0..*" FileVersion  
+FileObject "1" -- "0..*" FileAccess  
+FileObject "1" -- "1" FileMetadata  
+FileObject "0..*" -- "1" DeletedFile  
+FileObject "*" -- "1" FileQuota  
+
+@enduml

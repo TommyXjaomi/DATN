@@ -1,0 +1,110 @@
+@startuml
+title Sơ đồ Tuần Tự - Đăng Ký Khóa Học
+
+actor User
+participant "Frontend"
+participant "API Gateway"
+participant "Course Service"
+participant "Payment Service"
+participant "PostgreSQL"
+participant "User Service"
+participant "Notification Service"
+
+User -> "Frontend": Xem chi tiết khóa học
+"Frontend" -> "API Gateway": GET /courses/:id
+"API Gateway" -> "Course Service": Lấy thông tin khóa học
+"Course Service" -> "PostgreSQL": Query course details
+"PostgreSQL" --> "Course Service": Course data
+"Course Service" --> "API Gateway": Course details
+"API Gateway" --> "Frontend": Course information
+
+User -> "Frontend": Bấm Đăng ký
+"Frontend" -> "API Gateway": POST /enrollments
+"API Gateway" -> "Course Service": Xử lý đăng ký
+"Course Service" -> "PostgreSQL": Kiểm tra authentication
+alt User not authenticated
+  "Course Service" --> "API Gateway": Lỗi unauthorized
+  "API Gateway" --> "Frontend": Redirect to login
+  break
+else User authenticated
+  "Course Service" -> "Course Service": Tiếp tục xử lý đăng ký
+end
+
+"Course Service" -> "PostgreSQL": Kiểm tra prerequisite
+alt Có yêu cầu tiên quyết
+  "Course Service" -> "PostgreSQL": Kiểm tra user hoàn thành prerequisite
+  alt User hoàn thành
+    "Course Service" -> "Course Service": Xác nhận điều kiện tiên quyết
+  else User chưa hoàn thành
+    "Course Service" --> "API Gateway": Lỗi prerequisite not met
+    "API Gateway" --> "Frontend": Hiển thị lỗi
+    "Frontend" --> User: Yêu cầu hoàn thành prerequisite
+    break
+  end
+else Không có prerequisite
+  "Course Service" -> "Course Service": Bỏ qua kiểm tra prerequisite
+end
+
+"Course Service" -> "PostgreSQL": Kiểm tra duplicate enrollment
+alt Đã đăng ký rồi
+  "Course Service" --> "API Gateway": Lỗi already enrolled
+  "API Gateway" --> "Frontend": Lỗi
+  "Frontend" --> User: Thông báo đã đăng ký
+  break
+else Chưa đăng ký
+  "Course Service" -> "Course Service": Tiếp tục xử lý đăng ký
+end
+
+"Course Service" -> "PostgreSQL": Kiểm tra loại khóa học
+alt Khóa học trả phí
+  "Course Service" -> "Payment Service": Khởi tạo payment
+  "Payment Service" --> "Frontend": Payment gateway data
+  "Frontend" --> User: Hiển thị payment form
+  
+  User -> "Frontend": Chọn phương thức thanh toán
+  "Frontend" -> "API Gateway": POST /payments/process
+  "API Gateway" -> "Payment Service": Xử lý thanh toán
+  "Payment Service" -> "Payment Service": Gọi payment gateway (Stripe/VNPay)
+  "Payment Service" -> "PostgreSQL": Lưu payment record
+  
+  alt Thanh toán thành công
+    "PostgreSQL" --> "Payment Service": Payment saved
+    "Payment Service" --> "API Gateway": Success
+    "API Gateway" --> "Frontend": Payment confirmed
+  else Thanh toán thất bại
+    "Payment Service" --> "API Gateway": Lỗi payment failed
+    "API Gateway" --> "Frontend": Lỗi
+    "Frontend" --> User: Hiển thị lỗi thanh toán
+    break
+  end
+else Khóa học miễn phí
+  "Course Service" -> "Course Service": Bỏ qua thanh toán
+end
+
+"Course Service" -> "PostgreSQL": Tạo CourseEnrollment record
+"PostgreSQL" --> "Course Service": Enrollment created
+"Course Service" -> "PostgreSQL": Lấy tất cả lessons
+"PostgreSQL" --> "Course Service": Lesson list
+"Course Service" -> "PostgreSQL": Tạo LessonProgress cho tất cả lessons
+"PostgreSQL" --> "Course Service": All lesson progress created
+"Course Service" -> "PostgreSQL": Khởi tạo exercise attempt counters
+"PostgreSQL" --> "Course Service": Counters initialized
+
+"Course Service" -> "User Service": Cập nhật user learning stats
+"User Service" -> "PostgreSQL": Update total_courses_enrolled, learning_status
+"PostgreSQL" --> "User Service": Updated
+
+"Course Service" -> "Notification Service": Gửi email xác nhận
+"Notification Service" -> "PostgreSQL": Tạo notification
+"Notification Service" -> "Notification Service": Gửi email notification
+"Notification Service" -> "Notification Service": Gửi hướng dẫn học
+"PostgreSQL" --> "Notification Service": Notifications saved
+"Notification Service" --> "Course Service": Done
+
+"Course Service" --> "API Gateway": Enrollment complete
+"API Gateway" --> "Frontend": Success response
+"Frontend" --> User: Hiển thị thông báo thành công
+"Frontend" --> User: Chuyển đến trang khóa học
+User -> Frontend: Bắt đầu học bài đầu tiên
+
+@enduml

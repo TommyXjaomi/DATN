@@ -1,0 +1,756 @@
+@startuml
+title Sơ đồ Lớp Toàn Hệ Thống - Giai Đoạn Thiết Kế (Design Phase)
+skinparam classAttributeIconSize 0
+
+' ===== AUTH SERVICE ENTITIES =====
+class AuthUser {
+  -UUID id
+  -String email
+  -String passwordHash
+  -String role
+  -Boolean emailVerified
+  -Integer failedLoginAttempts
+  -Boolean isLocked
+  -LocalDateTime createdAt
+  -LocalDateTime updatedAt
+  --
+  +getId(): UUID
+  +getEmail(): String
+  +setPassword(String): void
+  +verifyEmail(): void
+  +incrementFailedAttempts(): void
+}
+
+class Role {
+  -Integer id
+  -String name
+  -String description
+  --
+  +getId(): Integer
+  +getName(): String
+}
+
+class EmailVerification {
+  -UUID id
+  -UUID userId
+  -String code
+  -Boolean isVerified
+  --
+  +getId(): UUID
+  +verifyCode(String): Boolean
+}
+
+class RefreshToken {
+  -UUID id
+  -UUID userId
+  -String tokenHash
+  -Boolean isRevoked
+  -LocalDateTime expiresAt
+  --
+  +getId(): UUID
+  +isValid(): Boolean
+  +revoke(): void
+}
+
+' ===== USER SERVICE ENTITIES =====
+class UserProfile {
+  -UUID userId
+  -String fullName
+  -String avatarUrl
+  -String email
+  -String phone
+  -String city
+  -String country
+  -String timezone
+  -LocalDateTime createdAt
+  -LocalDateTime updatedAt
+  --
+  +getId(): UUID
+  +getFullName(): String
+  +updateProfile(UserProfile): void
+}
+
+class LearningProgress {
+  -UUID id
+  -UUID userId
+  -Float totalStudyHours
+  -Integer totalLessonsCompleted
+  -Integer totalExercisesCompleted
+  -Float listeningProgress
+  -Float readingProgress
+  -Float writingProgress
+  -Float speakingProgress
+  -LocalDateTime updatedAt
+  --
+  +getId(): UUID
+  +updateProgress(String, Float): void
+  +getTotalProgress(): Float
+}
+
+class StudySession {
+  -UUID id
+  -UUID userId
+  -String sessionType
+  -String skillType
+  -Integer durationMinutes
+  -Boolean isCompleted
+  -LocalDateTime startTime
+  -LocalDateTime endTime
+  --
+  +getId(): UUID
+  +endSession(): void
+  +getDuration(): Integer
+}
+
+class Achievement {
+  -UUID id
+  -String code
+  -String name
+  -String description
+  -Integer badgePoints
+  -String iconUrl
+  --
+  +getId(): UUID
+  +getCode(): String
+  +getBadgePoints(): Integer
+}
+
+class UserAchievement {
+  -UUID id
+  -UUID userId
+  -UUID achievementId
+  -Boolean isUnlocked
+  -LocalDateTime earnedAt
+  --
+  +getId(): UUID
+  +unlock(): void
+  +isEarned(): Boolean
+}
+
+class StudyGoal {
+  -UUID id
+  -UUID userId
+  -String goalType
+  -String title
+  -Integer targetValue
+  -String skillType
+  -String status
+  -LocalDateTime targetDate
+  --
+  +getId(): UUID
+  +updateProgress(Integer): void
+  +isCompleted(): Boolean
+}
+
+class StudyReminder {
+  -UUID id
+  -UUID userId
+  -String title
+  -String reminderType
+  -String reminderTime
+  -Boolean isActive
+  -String frequency
+  --
+  +getId(): UUID
+  +activate(): void
+  +deactivate(): void
+}
+
+class StudyStreak {
+  -UUID id
+  -UUID userId
+  -Integer streakCount
+  -Integer longestStreak
+  -LocalDateTime lastActivityDate
+  -LocalDateTime createdAt
+  --
+  +getId(): UUID
+  +incrementStreak(): void
+  +resetStreak(): void
+}
+
+' ===== COURSE SERVICE ENTITIES =====
+class Course {
+  -UUID id
+  -String title
+  -String slug
+  -String skillType
+  -String level
+  -Float price
+  -Integer totalLessons
+  -Integer totalModules
+  -Float averageRating
+  -Boolean isPublished
+  -String description
+  -LocalDateTime createdAt
+  --
+  +getId(): UUID
+  +getTitle(): String
+  +getTotalModules(): Integer
+  +publish(): void
+}
+
+class Module {
+  -UUID id
+  -UUID courseId
+  -String title
+  -Integer totalLessons
+  -Integer totalExercises
+  -Boolean isPublished
+  -Integer moduleOrder
+  --
+  +getId(): UUID
+  +getTitle(): String
+  +isComplete(): Boolean
+}
+
+class Lesson {
+  -UUID id
+  -UUID moduleId
+  -UUID courseId
+  -String title
+  -String contentType
+  -Integer durationMinutes
+  -Boolean isFree
+  -Boolean isPublished
+  -Integer lessonOrder
+  --
+  +getId(): UUID
+  +getTitle(): String
+  +getDuration(): Integer
+  +isAccessible(UUID): Boolean
+}
+
+class LessonVideo {
+  -UUID id
+  -UUID lessonId
+  -String title
+  -String videoUrl
+  -String videoProvider
+  -Integer durationSeconds
+  --
+  +getId(): UUID
+  +getVideoUrl(): String
+  +getDuration(): Integer
+}
+
+class LessonMaterial {
+  -UUID id
+  -UUID lessonId
+  -String title
+  -String fileType
+  -String fileUrl
+  -Integer fileSizeBytes
+  --
+  +getId(): UUID
+  +getFileUrl(): String
+  +getFileSize(): Integer
+}
+
+class LessonTranscript {
+  -UUID id
+  -UUID lessonId
+  -UUID videoId
+  -String language
+  -String content
+  -String transcriptType
+  --
+  +getId(): UUID
+  +getContent(): String
+  +getLanguage(): String
+}
+
+class CourseEnrollment {
+  -UUID id
+  -UUID userId
+  -UUID courseId
+  -String enrollmentType
+  -Float progressPercentage
+  -Integer lessonsCompleted
+  -String status
+  -Boolean certificateIssued
+  -LocalDateTime enrolledAt
+  -LocalDateTime completedAt
+  --
+  +getId(): UUID
+  +getProgress(): Float
+  +updateProgress(Float): void
+  +isCompleted(): Boolean
+}
+
+class LessonProgress {
+  -UUID id
+  -UUID userId
+  -UUID lessonId
+  -UUID courseId
+  -String status
+  -Float progressPercentage
+  -Integer videoWatchedSeconds
+  -LocalDateTime startedAt
+  -LocalDateTime completedAt
+  --
+  +getId(): UUID
+  +updateWatchedTime(Integer): void
+  +markComplete(): void
+}
+
+class CourseReview {
+  -UUID id
+  -UUID userId
+  -UUID courseId
+  -Integer rating
+  -String reviewText
+  -LocalDateTime createdAt
+  -LocalDateTime updatedAt
+  --
+  +getId(): UUID
+  +getRating(): Integer
+  +getReviewText(): String
+}
+
+class CoursePrerequisite {
+  -UUID id
+  -UUID courseId
+  -UUID prerequisiteCourseId
+  --
+  +getId(): UUID
+  +getPrerequisiteId(): UUID
+}
+
+' ===== EXERCISE SERVICE ENTITIES =====
+class Exercise {
+  -UUID id
+  -String title
+  -String exerciseType
+  -String skillType
+  -Integer totalQuestions
+  -Integer totalSections
+  -String difficulty
+  -Float passingScore
+  -Boolean isFree
+  -Boolean isPublished
+  -String description
+  --
+  +getId(): UUID
+  +getTitle(): String
+  +getTotalQuestions(): Integer
+  +getPassingScore(): Float
+}
+
+class ExerciseSection {
+  -UUID id
+  -UUID exerciseId
+  -String title
+  -Integer sectionNumber
+  -Integer totalQuestions
+  -Integer durationMinutes
+  --
+  +getId(): UUID
+  +getTitle(): String
+  +getTotalQuestions(): Integer
+}
+
+class Question {
+  -UUID id
+  -UUID exerciseId
+  -UUID sectionId
+  -String questionText
+  -String questionType
+  -Float points
+  -String difficulty
+  -Integer questionNumber
+  --
+  +getId(): UUID
+  +getQuestionText(): String
+  +getPoints(): Float
+}
+
+class QuestionOption {
+  -UUID id
+  -UUID questionId
+  -String optionLabel
+  -String optionText
+  -Boolean isCorrect
+  --
+  +getId(): UUID
+  +getOptionText(): String
+  +isCorrect(): Boolean
+}
+
+class UserExerciseAttempt {
+  -UUID id
+  -UUID userId
+  -UUID exerciseId
+  -Integer attemptNumber
+  -String status
+  -Integer totalQuestions
+  -Integer correctAnswers
+  -Float score
+  -Float bandScore
+  -LocalDateTime startedAt
+  -LocalDateTime completedAt
+  --
+  +getId(): UUID
+  +getScore(): Float
+  +getBandScore(): Float
+  +isPassed(): Boolean
+}
+
+class SubmissionAnswer {
+  -UUID id
+  -UUID attemptId
+  -UUID questionId
+  -String answerText
+  -Boolean isCorrect
+  -Float pointsEarned
+  -LocalDateTime submittedAt
+  --
+  +getId(): UUID
+  +getAnswerText(): String
+  +getPoints(): Float
+}
+
+class ExerciseResult {
+  -UUID id
+  -UUID attemptId
+  -UUID exerciseId
+  -UUID userId
+  -Float finalScore
+  -Float bandScore
+  -Boolean passed
+  -LocalDateTime createdAt
+  --
+  +getId(): UUID
+  +getFinalScore(): Float
+  +isPassed(): Boolean
+}
+
+' ===== NOTIFICATION SERVICE ENTITIES =====
+class Notification {
+  -UUID id
+  -UUID userId
+  -String notificationType
+  -String title
+  -String body
+  -String channel
+  -Boolean isRead
+  -LocalDateTime sentAt
+  -LocalDateTime readAt
+  --
+  +getId(): UUID
+  +getTitle(): String
+  +markAsRead(): void
+  +isRead(): Boolean
+}
+
+class NotificationEvent {
+  -UUID id
+  -String eventType
+  -String description
+  -Boolean isActive
+  --
+  +getId(): UUID
+  +getEventType(): String
+  +isActive(): Boolean
+}
+
+class NotificationTemplate {
+  -UUID id
+  -String name
+  -String eventType
+  -String channel
+  -String titleTemplate
+  -String bodyTemplate
+  --
+  +getId(): UUID
+  +getName(): String
+  +getTitle(Map): String
+}
+
+class DeviceToken {
+  -UUID id
+  -UUID userId
+  -String token
+  -String deviceType
+  -String deviceOs
+  -Boolean isActive
+  -LocalDateTime createdAt
+  -LocalDateTime lastUsedAt
+  --
+  +getId(): UUID
+  +getToken(): String
+  +isActive(): Boolean
+}
+
+class ScheduledNotification {
+  -UUID id
+  -UUID userId
+  -String title
+  -String channel
+  -String frequency
+  -Boolean isActive
+  -LocalDateTime nextScheduleTime
+  --
+  +getId(): UUID
+  +getTitle(): String
+  +activate(): void
+}
+
+class NotificationPreference {
+  -UUID id
+  -UUID userId
+  -UUID notificationEventId
+  -Boolean emailEnabled
+  -Boolean pushEnabled
+  -LocalDateTime updatedAt
+  --
+  +getId(): UUID
+  +isEmailEnabled(): Boolean
+  +isPushEnabled(): Boolean
+}
+
+class NotificationLog {
+  -UUID id
+  -UUID notificationId
+  -UUID deviceTokenId
+  -String channel
+  -String status
+  -LocalDateTime sentAt
+  --
+  +getId(): UUID
+  +getStatus(): String
+  +getSentTime(): LocalDateTime
+}
+
+' ===== AI SERVICE ENTITIES =====
+class AIEvaluationRequest {
+  -UUID id
+  -UUID userId
+  -UUID exerciseAttemptId
+  -UUID questionId
+  -String skillType
+  -String taskType
+  -String content
+  -LocalDateTime createdAt
+  --
+  +getId(): UUID
+  +getContent(): String
+  +getSkillType(): String
+}
+
+class AIEvaluationResult {
+  -UUID id
+  -UUID requestId
+  -Float overallBandScore
+  -Float fluencyScore
+  -Float accuracyScore
+  -Map<String, Float> detailedScores
+  -LocalDateTime evaluatedAt
+  --
+  +getId(): UUID
+  +getOverallBandScore(): Float
+  +getDetailedScores(): Map
+}
+
+class AIEvaluationCache {
+  -UUID id
+  -String contentHash
+  -String skillType
+  -Float overallBandScore
+  -Integer hitCount
+  -LocalDateTime createdAt
+  --
+  +getId(): UUID
+  +getContentHash(): String
+  +incrementHitCount(): void
+}
+
+class AIEvaluationLog {
+  -UUID id
+  -UUID requestId
+  -String taskType
+  -Boolean cacheHit
+  -Integer processingTimeMs
+  -LocalDateTime evaluatedAt
+  --
+  +getId(): UUID
+  +getProcessingTime(): Integer
+  +wasCacheHit(): Boolean
+}
+
+class AIModel {
+  -UUID id
+  -String name
+  -String version
+  -String provider
+  -Boolean isActive
+  -LocalDateTime createdAt
+  --
+  +getId(): UUID
+  +getName(): String
+  +getVersion(): String
+}
+
+' ===== STORAGE SERVICE ENTITIES =====
+class StorageBucket {
+  -String name
+  -String region
+  -String policy
+  -Boolean isPublic
+  -Boolean isActive
+  -LocalDateTime createdAt
+  --
+  +getName(): String
+  +getRegion(): String
+  +isActive(): Boolean
+}
+
+class FileObject {
+  -String id
+  -String bucketName
+  -String objectName
+  -String url
+  -Long size
+  -String contentType
+  -LocalDateTime createdAt
+  -LocalDateTime updatedAt
+  --
+  +getId(): String
+  +getObjectName(): String
+  +getSize(): Long
+}
+
+class FileVersion {
+  -String id
+  -String objectId
+  -String bucketName
+  -Integer versionNumber
+  -Long size
+  -LocalDateTime createdAt
+  --
+  +getId(): String
+  +getVersionNumber(): Integer
+  +getSize(): Long
+}
+
+class FileAccess {
+  -UUID id
+  -String objectId
+  -UUID userId
+  -String accessType
+  -LocalDateTime accessedAt
+  --
+  +getId(): UUID
+  +getAccessType(): String
+  +getAccessedTime(): LocalDateTime
+}
+
+class FileMetadata {
+  -String id
+  -String objectId
+  -Map<String, Object> metadata
+  -String tags
+  -LocalDateTime updatedAt
+  --
+  +getId(): String
+  +getMetadata(): Map
+  +getTags(): String
+}
+
+class DeletedFile {
+  -UUID id
+  -String objectId
+  -UUID deletedBy
+  -String deletionReason
+  -LocalDateTime deletedAt
+  --
+  +getId(): UUID
+  +getObjectId(): String
+  +getDeletionReason(): String
+}
+
+class FileQuota {
+  -UUID id
+  -UUID userId
+  -Long totalQuotaBytes
+  -Long usedBytes
+  -LocalDateTime updatedAt
+  --
+  +getId(): UUID
+  +getTotalQuota(): Long
+  +getUsedBytes(): Long
+  +getRemainingBytes(): Long
+}
+
+' ===== AGGREGATION & COMPOSITION RELATIONSHIPS =====
+
+' === Auth Service ===
+AuthUser "1" *-- "1" UserProfile : creates
+AuthUser "1" *-- "1" Role : has_role
+AuthUser "1" *-- "0..*" EmailVerification : manages
+AuthUser "1" *-- "0..*" RefreshToken : generates
+
+' === User Service ===
+UserProfile "1" *-- "1" LearningProgress : aggregates
+UserProfile "1" o-- "0..*" StudySession : tracks
+UserProfile "1" o-- "0..*" UserAchievement : earns
+UserProfile "1" o-- "0..*" StudyGoal : sets
+UserProfile "1" o-- "0..*" StudyReminder : creates
+UserProfile "1" *-- "1" StudyStreak : maintains
+
+Achievement "1" o-- "0..*" UserAchievement : awarded_by
+
+' === Course Service ===
+Course "1" *-- "0..*" Module : contains
+Course "1" *-- "0..*" CoursePrerequisite : requires
+Module "1" *-- "0..*" Lesson : has
+Lesson "1" *-- "0..*" LessonVideo : includes
+Lesson "1" *-- "0..*" LessonMaterial : has
+LessonVideo "1" *-- "0..*" LessonTranscript : generates
+
+Course "1" o-- "0..*" CourseEnrollment : enrolls
+CourseEnrollment "1" *-- "0..*" LessonProgress : tracks
+Course "1" o-- "0..*" CourseReview : receives
+
+UserProfile "1" o-- "0..*" CourseEnrollment : registers_for
+UserProfile "1" o-- "0..*" LessonProgress : learns
+UserProfile "1" o-- "0..*" CourseReview : writes
+
+' === Exercise Service ===
+Exercise "1" *-- "0..*" ExerciseSection : contains
+ExerciseSection "1" *-- "0..*" Question : has
+Question "1" *-- "0..*" QuestionOption : has
+
+UserExerciseAttempt "*" -- "1" Exercise : attempts
+UserExerciseAttempt "1" *-- "0..*" SubmissionAnswer : contains
+UserExerciseAttempt "1" *-- "1" ExerciseResult : produces
+
+UserProfile "1" o-- "0..*" UserExerciseAttempt : takes_tests
+UserProfile "1" o-- "0..*" ExerciseResult : sees_results
+
+' === Notification Service ===
+UserProfile "1" o-- "0..*" Notification : receives
+UserProfile "1" o-- "0..*" DeviceToken : registers
+UserProfile "1" o-- "0..*" ScheduledNotification : schedules
+UserProfile "1" o-- "0..*" NotificationPreference : configures
+
+DeviceToken "1" *-- "0..*" NotificationLog : logs
+Notification "1" *-- "0..*" NotificationLog : logs
+NotificationEvent "1" o-- "0..*" NotificationTemplate : used_by
+NotificationEvent "1" o-- "0..*" NotificationPreference : configured_by
+
+' === AI Service ===
+UserExerciseAttempt "1" o-- "0..*" AIEvaluationRequest : triggers
+AIEvaluationRequest "1" *-- "1" AIEvaluationResult : generates
+AIEvaluationRequest "*" -- "1" AIModel : uses
+AIEvaluationRequest "1" *-- "0..*" AIEvaluationLog : logs
+
+' === Storage Service ===
+UserProfile "1" o-- "1" FileQuota : has_quota
+StorageBucket "1" *-- "0..*" FileObject : contains
+FileObject "1" *-- "0..*" FileVersion : has
+FileObject "1" *-- "0..*" FileAccess : accessed_by
+FileObject "1" *-- "1" FileMetadata : has
+FileObject "1" o-- "0..*" DeletedFile : tracked_deletion
+
+@enduml

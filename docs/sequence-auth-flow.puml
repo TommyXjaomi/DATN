@@ -1,0 +1,49 @@
+@startuml
+!theme plain
+title Sơ Đồ Luồng Giao Tiếp Hệ Thống - Chi Tiết Từng Tính Năng
+
+skinparam sequence {
+    ActorBackgroundColor #E1F5FF
+    ActorBorderColor #01579B
+    ParticipantBackgroundColor #B3E5FC
+    ParticipantBorderColor #0277BD
+    ParticipantFontColor #000000
+    ArrowColor #0277BD
+    LifeLineBorderColor #0277BD
+}
+
+' ===== SEQUENCE 1: REGISTRATION & LOGIN =====
+autonumber
+
+participant "Mobile App\n(Client)" as Mobile
+participant "API Gateway\nPort 8080" as Gateway
+participant "Auth Service\nPort 8082" as Auth
+participant "User Service\nPort 8081" as User
+participant "PostgreSQL\nDatabase" as DB
+participant "Redis\nCache" as Redis
+participant "Email Service\n(External)" as Email
+
+== 🔐 Quy Trình Đăng Ký (Registration) ==
+
+Mobile -[#FF6B6B]> Gateway: POST /auth/register\n(email, password, name)
+Gateway -[#FF6B6B]> Auth: Validate & Hash Password
+Auth -[#FF6B6B]> User: Create New User
+User -[#FF6B6B]> DB: INSERT User Record
+Auth -[#FF6B6B]> Email: Send Verification Email
+Email --[#90EE90]> Mobile: Verification Code
+Mobile -[#FF6B6B]> Gateway: POST /auth/verify-email\n(email, code)
+Gateway -[#FF6B6B]> Auth: Verify Code
+Auth -[#FF6B6B]> DB: Update EmailVerified = true
+Auth --[#90EE90]> Mobile: Success + JWT Token
+
+== 🔑 Quy Trình Đăng Nhập (Login) ==
+
+Mobile -[#4ECDC4]> Gateway: POST /auth/login\n(email, password)
+Gateway -[#4ECDC4]> Auth: Check Credentials
+Auth -[#4ECDC4]> DB: Query User
+DB --[#90EE90]> Auth: User Found
+Auth -[#4ECDC4]> Auth: Generate JWT & Refresh Token
+Auth -[#4ECDC4]> Redis: Cache Session
+Auth --[#90EE90]> Mobile: JWT Token + User Data
+
+@enduml

@@ -1,0 +1,29 @@
+@startuml UseCase_Overview
+left to right direction
+actor User
+actor Admin
+actor Guest
+
+User --> (Đăng ký tài khoản)
+User --> (Đăng nhập)
+User --> (Xem khóa học)
+User --> (Đăng ký khóa học)
+User --> (Làm bài tập)
+User --> (Quản lý hồ sơ)
+User --> (Nhận thông báo)
+User --> (Quản lý tiến độ học)
+
+Guest --> (Xem khóa học)
+Guest --> (Đăng ký tài khoản)
+
+Admin --> (Quản lý hệ thống)
+Admin --> (Quản lý khóa học)
+Admin --> (Quản lý người dùng)
+Admin --> (Quản lý bài tập)
+Admin --> (Quản lý thông báo)
+
+(Đăng ký tài khoản) .> (Đăng nhập) : <<include>>
+(Đăng nhập) .> (Quản lý hồ sơ) : <<include>>
+(Đăng ký khóa học) .> (Xem khóa học) : <<extend>>
+(Làm bài tập) .> (Quản lý tiến độ học) : <<extend>>
+@enduml

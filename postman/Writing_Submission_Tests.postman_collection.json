@@ -1,0 +1,296 @@
+{
+  "info": {
+    "_postman_id": "writing-submission-tests",
+    "name": "Writing Submission API Tests",
+    "description": "Test collection cho Writing Submission endpoints",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "item": [
+    {
+      "name": "1. Start Writing Submission",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "exec": [
+              "if (pm.response.code === 200) {",
+              "    var data = pm.response.json();",
+              "    pm.environment.set('submissionId', data.data.id);",
+              "    pm.test('Submission created', function() {",
+              "        pm.expect(data.success).to.be.true;",
+              "        pm.expect(data.data.id).to.exist;",
+              "    });",
+              "}"
+            ]
+          }
+        }
+      ],
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          },
+          {
+            "key": "Authorization",
+            "value": "Bearer {{token}}"
+          }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"exercise_id\": \"{{exerciseId}}\",\n  \"is_practice\": true\n}"
+        },
+        "url": {
+          "raw": "{{baseUrl}}/api/v1/submissions",
+          "host": ["{{baseUrl}}"],
+          "path": ["api", "v1", "submissions"]
+        }
+      }
+    },
+    {
+      "name": "2. Submit Writing Essay",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "exec": [
+              "pm.test('Status code is 200', function() {",
+              "    pm.expect(pm.response.code).to.equal(200);",
+              "});",
+              "",
+              "var data = pm.response.json();",
+              "pm.test('Submission successful', function() {",
+              "    pm.expect(data.success).to.be.true;",
+              "    pm.expect(data.data.message).to.include('submitted');",
+              "});",
+              "",
+              "pm.test('Response time is less than 5s', function() {",
+              "    pm.expect(pm.response.responseTime).to.be.below(5000);",
+              "});"
+            ]
+          }
+        }
+      ],
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          },
+          {
+            "key": "Authorization",
+            "value": "Bearer {{token}}"
+          }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"writing_data\": {\n    \"essay_text\": \"Technology has changed how we communicate in the modern world. Email, instant messaging, and video calls allow people to stay connected across continents. However, this technology also has drawbacks. Face-to-face communication is becoming less common, which may harm our social skills and mental health. Additionally, constant connectivity can lead to stress and anxiety.\\n\\nIn conclusion, while technology has revolutionized communication, we must balance digital interaction with in-person relationships. Society should encourage people to use technology wisely and maintain meaningful human connections.\",\n    \"word_count\": 120,\n    \"task_type\": \"task2\",\n    \"prompt_text\": \"Technology has changed our communication.\"\n  },\n  \"time_spent_seconds\": 1200,\n  \"is_official_test\": false\n}"
+        },
+        "url": {
+          "raw": "{{baseUrl}}/api/v1/submissions/{{submissionId}}/submit",
+          "host": ["{{baseUrl}}"],
+          "path": ["api", "v1", "submissions", "{{submissionId}}", "submit"]
+        }
+      }
+    },
+    {
+      "name": "3. Get Submission Result",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "exec": [
+              "pm.test('Status code is 200', function() {",
+              "    pm.expect(pm.response.code).to.equal(200);",
+              "});",
+              "",
+              "var data = pm.response.json();",
+              "pm.test('Has submission data', function() {",
+              "    pm.expect(data.data.submission).to.exist;",
+              "    pm.expect(data.data.submission.id).to.equal(pm.environment.get('submissionId'));",
+              "});",
+              "",
+              "if (data.data.ai_data) {",
+              "    pm.test('AI Evaluation available', function() {",
+              "        pm.expect(data.data.ai_data.overall_band).to.exist;",
+              "        pm.expect(data.data.ai_data.criteria_scores).to.exist;",
+              "    });",
+              "}"
+            ]
+          }
+        }
+      ],
+      "request": {
+        "method": "GET",
+        "header": [
+          {
+            "key": "Authorization",
+            "value": "Bearer {{token}}"
+          }
+        ],
+        "url": {
+          "raw": "{{baseUrl}}/api/v1/submissions/{{submissionId}}/result",
+          "host": ["{{baseUrl}}"],
+          "path": ["api", "v1", "submissions", "{{submissionId}}", "result"]
+        }
+      }
+    },
+    {
+      "name": "4. Poll for AI Result (with retry)",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "exec": [
+              "pm.test('Status code is 200', function() {",
+              "    pm.expect(pm.response.code).to.equal(200);",
+              "});",
+              "",
+              "var data = pm.response.json();",
+              "",
+              "if (data.data.ai_data && data.data.ai_data.evaluation_status === 'completed') {",
+              "    pm.test('AI evaluation completed', function() {",
+              "        pm.expect(data.data.ai_data.overall_band).to.exist;",
+              "        pm.expect(data.data.ai_data.overall_band).to.be.within(0, 9);",
+              "    });",
+              "    ",
+              "    pm.test('Criteria scores exist', function() {",
+              "        var scores = data.data.ai_data.criteria_scores;",
+              "        pm.expect(scores.task_achievement).to.exist;",
+              "        pm.expect(scores.coherence_cohesion).to.exist;",
+              "        pm.expect(scores.lexical_resource).to.exist;",
+              "        pm.expect(scores.grammatical_range).to.exist;",
+              "    });",
+              "    ",
+              "    pm.test('Feedback provided', function() {",
+              "        pm.expect(data.data.ai_data.strengths).to.be.an('array');",
+              "        pm.expect(data.data.ai_data.areas_for_improvement).to.be.an('array');",
+              "    });",
+              "} else {",
+              "    pm.test('AI evaluation still pending', function() {",
+              "        pm.expect(data.data.ai_data.evaluation_status).to.oneOf(['pending', 'processing']);",
+              "    });",
+              "}"
+            ]
+          }
+        }
+      ],
+      "request": {
+        "method": "GET",
+        "header": [
+          {
+            "key": "Authorization",
+            "value": "Bearer {{token}}"
+          }
+        ],
+        "url": {
+          "raw": "{{baseUrl}}/api/v1/submissions/{{submissionId}}/result",
+          "host": ["{{baseUrl}}"],
+          "path": ["api", "v1", "submissions", "{{submissionId}}", "result"]
+        }
+      }
+    },
+    {
+      "name": "5. Test Validation - Empty Essay",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "exec": [
+              "pm.test('Should reject empty essay', function() {",
+              "    pm.expect(pm.response.code).to.equal(400);",
+              "    var data = pm.response.json();",
+              "    pm.expect(data.success).to.be.false;",
+              "});"
+            ]
+          }
+        }
+      ],
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          },
+          {
+            "key": "Authorization",
+            "value": "Bearer {{token}}"
+          }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"writing_data\": {\n    \"essay_text\": \"\",\n    \"word_count\": 0,\n    \"task_type\": \"task1\"\n  },\n  \"time_spent_seconds\": 0\n}"
+        },
+        "url": {
+          "raw": "{{baseUrl}}/api/v1/submissions/{{submissionId}}/submit",
+          "host": ["{{baseUrl}}"],
+          "path": ["api", "v1", "submissions", "{{submissionId}}", "submit"]
+        }
+      }
+    },
+    {
+      "name": "6. Test Validation - Too Short Essay",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "exec": [
+              "pm.test('Should handle short essay gracefully', function() {",
+              "    var data = pm.response.json();",
+              "    // Backend may still accept but AI will flag as too short",
+              "    pm.expect(data.success).to.be.true;",
+              "});"
+            ]
+          }
+        }
+      ],
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          },
+          {
+            "key": "Authorization",
+            "value": "Bearer {{token}}"
+          }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"writing_data\": {\n    \"essay_text\": \"This is a very short essay that has less than 150 words total but we are submitting it anyway.\",\n    \"word_count\": 17,\n    \"task_type\": \"task1\"\n  },\n  \"time_spent_seconds\": 60\n}"
+        },
+        "url": {
+          "raw": "{{baseUrl}}/api/v1/submissions/{{submissionId}}/submit",
+          "host": ["{{baseUrl}}"],
+          "path": ["api", "v1", "submissions", "{{submissionId}}", "submit"]
+        }
+      }
+    }
+  ],
+  "variable": [
+    {
+      "key": "baseUrl",
+      "value": "http://localhost:8080",
+      "type": "string"
+    },
+    {
+      "key": "token",
+      "value": "your-auth-token-here",
+      "type": "string"
+    },
+    {
+      "key": "exerciseId",
+      "value": "writing-exercise-id",
+      "type": "string"
+    },
+    {
+      "key": "submissionId",
+      "value": "",
+      "type": "string"
+    }
+  ]
+}

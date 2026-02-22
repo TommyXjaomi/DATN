@@ -1,0 +1,133 @@
+@startuml
+skinparam classAttributeIconSize 0
+
+' ===== Handler Layer =====
+class StorageHandler {
+  - minioClient: MinIOClient
+  - config: Config
+  + HealthCheck(c: *gin.Context): void
+  + UploadAudio(c: *gin.Context): void
+  + DeleteAudio(c: *gin.Context): void
+  + GetAudioInfo(c: *gin.Context): void
+}
+
+' ===== MinIO Client Layer =====
+class MinIOClient {
+  - client: *minio.Client
+  - bucketName: string
+  + EnsureBucket(): error
+  + GetObjectInfo(objectName: string): (minio.ObjectInfo, error)
+  + DeleteObject(objectName: string): error
+  + UploadObject(objectName: string, reader: io.Reader, objectSize: int64, contentType: string): error
+  + GetBucketName(): string
+}
+
+' ===== Entity Layer =====
+class Bucket {
+  + name: string
+  + region: string
+  + policy: string
+  + created_at: timestamp
+}
+
+class FileObject {
+  + id: string
+  + bucket_name: string
+  + object_name: string
+  + url: string
+  + size: int64
+  + content_type: string
+  + etag: string
+  + uploaded_at: timestamp
+  + uploaded_by: UUID
+  + last_modified: timestamp
+}
+
+' ===== DTO Layer =====
+class UploadAudioRequest {
+  + user_id: string
+  + file: multipart.File
+  + file_header: multipart.FileHeader
+}
+
+class UploadAudioResponse {
+  + success: boolean
+  + data: UploadAudioData
+}
+
+class UploadAudioData {
+  + audio_url: string
+  + object_name: string
+  + content_type: string
+  + size: int64
+}
+
+class AudioInfoResponse {
+  + success: boolean
+  + data: AudioInfoData
+}
+
+class AudioInfoData {
+  + object_name: string
+  + size: int64
+  + content_type: string
+  + last_modified: int64
+  + etag: string
+}
+
+class DeleteAudioResponse {
+  + success: boolean
+  + message: string
+}
+
+' ===== Config Layer =====
+class Config {
+  + Server: ServerConfig
+  + MinIO: MinIOConfig
+}
+
+class ServerConfig {
+  + Port: string
+}
+
+class MinIOConfig {
+  + Endpoint: string
+  + AccessKey: string
+  + SecretKey: string
+  + BucketName: string
+  + UseSSL: boolean
+}
+
+' ===== Validation Layer =====
+class Validation {
+  + ValidateAudioExtension(filename: string): boolean
+  + getContentType(ext: string): string
+}
+
+' ===== Relationships =====
+StorageHandler --> MinIOClient : uses
+StorageHandler --> Config : uses
+StorageHandler ..> Validation : uses
+
+MinIOClient --> Config : uses
+MinIOClient --> Bucket : manages
+MinIOClient --> FileObject : manages
+
+Config --> ServerConfig : contains
+Config --> MinIOConfig : contains
+
+StorageHandler ..> UploadAudioRequest : receives
+StorageHandler ..> UploadAudioResponse : returns
+StorageHandler ..> AudioInfoResponse : returns
+StorageHandler ..> DeleteAudioResponse : returns
+
+UploadAudioResponse --> UploadAudioData : contains
+
+AudioInfoResponse --> AudioInfoData : contains
+
+Validation ..> FileObject : validates
+
+' ===== Entity Relationships =====
+Bucket "1" -- "0..*" FileObject : contains
+
+@enduml

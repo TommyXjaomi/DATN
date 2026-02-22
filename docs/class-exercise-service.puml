@@ -1,0 +1,118 @@
+@startuml
+title Exercise Service - Sơ đồ Lớp Phân Tích (Entities)
+skinparam classAttributeIconSize 0
+
+class Exercise {
+  -UUID id
+  -string title
+  -string description
+  -string exercise_type
+  -string skill_type
+  -int total_questions
+  -int total_sections
+  -string difficulty
+  -float passing_score
+  -bool is_free
+  -bool is_published
+  -int total_attempts
+  -float average_score
+  -int time_limit_minutes
+  -bool is_randomized
+  -time.Time published_at
+  -time.Time created_at
+  -time.Time updated_at
+}
+
+class ExerciseSection {
+  -UUID id
+  -UUID exercise_id
+  -string title
+  -string description
+  -int section_number
+  -int total_questions
+  -int time_limit_minutes
+  -int display_order
+  -time.Time created_at
+  -time.Time updated_at
+}
+
+class Question {
+  -UUID id
+  -UUID exercise_id
+  -UUID section_id
+  -string question_text
+  -string question_type
+  -float points
+  -string difficulty
+  -string explanation
+  -string hint
+  -int display_order
+  -bool is_randomized
+  -time.Time created_at
+  -time.Time updated_at
+}
+
+class QuestionOption {
+  -UUID id
+  -UUID question_id
+  -string option_label
+  -string option_text
+  -bool is_correct
+  -int display_order
+  -time.Time created_at
+}
+
+class UserExerciseAttempt {
+  -UUID id
+  -UUID user_id
+  -UUID exercise_id
+  -int attempt_number
+  -string status
+  -int total_questions
+  -int questions_answered
+  -int correct_answers
+  -float score
+  -float band_score
+  -int time_spent_seconds
+  -bool is_completed
+  -time.Time started_at
+  -time.Time completed_at
+  -time.Time created_at
+}
+
+class SubmissionAnswer {
+  -UUID id
+  -UUID attempt_id
+  -UUID question_id
+  -string answer_text
+  -UUID selected_option_id
+  -bool is_correct
+  -float points_earned
+  -int time_spent_seconds
+  -time.Time answered_at
+  -time.Time created_at
+}
+
+class ExerciseResult {
+  -UUID id
+  -UUID attempt_id
+  -UUID exercise_id
+  -UUID user_id
+  -float final_score
+  -float band_score
+  -int time_spent_minutes
+  -bool passed
+  -string feedback
+  -JSONB performance_data
+  -time.Time created_at
+}
+
+' ===== Relationships =====
+Exercise "1" -- "0..*" ExerciseSection : contains
+ExerciseSection "1" -- "0..*" Question : has
+Question "1" -- "0..*" QuestionOption : has_options
+UserExerciseAttempt "*" -- "1" Exercise : attempts
+UserExerciseAttempt "1" -- "0..*" SubmissionAnswer : contains
+UserExerciseAttempt "1" -- "1" ExerciseResult : produces
+
+@enduml

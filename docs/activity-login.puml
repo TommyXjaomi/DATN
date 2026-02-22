@@ -1,0 +1,46 @@
+@startuml
+title Quy trình Đăng nhập
+
+start
+:User nhập email và mật khẩu;
+
+if (Tài khoản tồn tại?) then (no)
+  :Tìm kiếm email trong DB;
+  :Kiểm tra status = active;
+  :Ghi log login attempt với email không tồn tại;
+  :Hiển thị lỗi email không tồn tại;
+else (yes)
+  :Tài khoản được tìm thấy;
+endif
+
+if (Mật khẩu đúng?) then (no)
+  :Lấy hash mật khẩu từ DB;
+  :Kiểm tra với bcrypt.CompareHashAndPassword;
+  :Tăng counter login failures;
+  :Ghi log failed login attempt;
+  :Hiển thị lỗi mật khẩu sai;
+else (yes)
+  :Mật khẩu được xác thực;
+endif
+
+if (Email đã xác thực?) then (no)
+  :Kiểm tra email_verified = true;
+  :Kiểm tra verification_expires_at;
+  :Ghi log unverified login attempt;
+  :Gửi lại email xác thực;
+  :Hiển thị lỗi cần xác thực email;
+else (yes)
+  :Email đã được xác thực;
+endif
+
+:Reset counter login failures;
+:Tạo JWT Access Token với TTL 1h;
+:Tạo JWT Refresh Token với TTL 7d;
+:Lưu Refresh Token hash vào DB;
+:Cập nhật last_login_at;
+:Lấy user profile và permissions;
+:Ghi log successful login;
+:Trả về token + user info cho client;
+:Chuyển đến trang chính;
+stop
+@enduml

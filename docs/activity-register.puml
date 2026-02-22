@@ -1,0 +1,44 @@
+@startuml
+title Quy trình Đăng ký tài khoản
+
+start
+:User nhập email và mật khẩu;
+
+if (Email hợp lệ?) then (no)
+  :Kiểm tra định dạng email;
+  :Kiểm tra độ dài email <= 255 ký tự;
+  :Hiển thị thông báo lỗi chi tiết;
+  :Ghi log validation error;
+else (yes)
+  :Email hợp lệ;
+endif
+
+if (Mật khẩu >= 8 ký tự?) then (no)
+  :Kiểm tra độ dài mật khẩu;
+  :Kiểm tra chứa số, chữ hoa, ký tự đặc biệt;
+  :Hiển thị yêu cầu mật khẩu mạnh;
+  :Ghi log validation error;
+else (yes)
+  :Mật khẩu đủ mạnh;
+endif
+
+if (Email đã tồn tại?) then (yes)
+  :Kiểm tra email trong DB;
+  :Ghi log email đã tồn tại;
+  :Đề xuất khôi phục tài khoản;
+  :Hiển thị lỗi email đã đăng ký;
+else (no)
+  :Email chưa được sử dụng;
+endif
+
+:Hash mật khẩu bằng bcrypt;
+:Tạo ID tài khoản duy nhất;
+:Tạo bản ghi User mới trong DB;
+:Tạo mã xác thực 6 ký tự;
+:Lưu mã xác thực với thời hạn 24h;
+:Gửi email xác thực;
+:Ghi log sự kiện đăng ký;
+:Thông báo đăng ký thành công;
+:Hướng dẫn user xác thực email;
+stop
+@enduml

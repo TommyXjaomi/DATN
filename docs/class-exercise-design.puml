@@ -1,0 +1,249 @@
+@startuml
+skinparam classAttributeIconSize 0
+
+class ExerciseHandler {
+    -exerciseService: ExerciseService
+    -attemptService: AttemptService
+    -resultService: ResultService
+    --
+    +getExercise(exerciseId: UUID): Exercise
+    +listExercises(filter: ExerciseFilter): Page<Exercise>
+    +startAttempt(userId: UUID, exerciseId: UUID): UserExerciseAttempt
+    +submitAnswer(attemptId: UUID, answer: SubmissionAnswer): void
+    +submitExercise(attemptId: UUID): ExerciseResult
+    +getAttemptResult(attemptId: UUID): ExerciseResult
+}
+  class ExerciseService {
+    -exerciseRepository: ExerciseRepository
+    -questionRepository: QuestionRepository
+    -sectionRepository: ExerciseSectionRepository
+    --
+    +getExercise(exerciseId: UUID): Exercise
+    +listExercises(filter: ExerciseFilter): Page<Exercise>
+    +createExercise(exercise: Exercise): Exercise
+    +publishExercise(exerciseId: UUID): void
+    +getQuestions(exerciseId: UUID): List<Question>
+    +getExerciseSections(exerciseId: UUID): List<ExerciseSection>
+  }
+
+  class AttemptService {
+    -attemptRepository: UserExerciseAttemptRepository
+    -answerRepository: SubmissionAnswerRepository
+    --
+    +startAttempt(userId: UUID, exerciseId: UUID): UserExerciseAttempt
+    +saveAnswer(attemptId: UUID, answer: SubmissionAnswer): void
+    +getAttemptAnswers(attemptId: UUID): List<SubmissionAnswer>
+    +calculateScore(attemptId: UUID): Float
+    +completeAttempt(attemptId: UUID): void
+  }
+
+  class ResultService {
+    -resultRepository: ExerciseResultRepository
+    -aiService: AIEvaluationService
+    --
+    +createResult(attempt: UserExerciseAttempt, score: Float): ExerciseResult
+    +evaluateWritingExercise(attemptId: UUID): ExerciseResult
+    +getResult(resultId: UUID): ExerciseResult
+    +calculateBandScore(score: Float, skillType: String): Float
+  }
+
+  class ScoringService {
+    -resultRepository: ExerciseResultRepository
+    --
+    +scoreMultipleChoice(questions: List<Question>, answers: List<SubmissionAnswer>): Float
+    +scoreExercise(attemptId: UUID): Float
+    +calculateFinalScore(correctAnswers: Integer, totalQuestions: Integer): Float
+  }
+interface IExerciseRepository {
+    +findById(id: UUID): Exercise
+    +findAll(filter: ExerciseFilter): Page<Exercise>
+    +save(exercise: Exercise): Exercise
+    +update(exercise: Exercise): Exercise
+  }
+
+  class ExerciseRepository implements IExerciseRepository {
+    -dbConnection: Connection
+    --
+    +findById(id: UUID): Exercise
+    +findAll(filter: ExerciseFilter): Page<Exercise>
+    +save(exercise: Exercise): Exercise
+    +update(exercise: Exercise): Exercise
+    +findBySkillType(skillType: String): List<Exercise>
+  }
+
+  interface IQuestionRepository {
+    +findById(id: UUID): Question
+    +findByExerciseId(exerciseId: UUID): List<Question>
+    +save(question: Question): Question
+    +update(question: Question): Question
+  }
+
+  class QuestionRepository implements IQuestionRepository {
+    -dbConnection: Connection
+    --
+    +findById(id: UUID): Question
+    +findByExerciseId(exerciseId: UUID): List<Question>
+    +save(question: Question): Question
+    +update(question: Question): Question
+  }
+
+  interface IUserExerciseAttemptRepository {
+    +save(attempt: UserExerciseAttempt): UserExerciseAttempt
+    +findById(id: UUID): UserExerciseAttempt
+    +findByUserId(userId: UUID): List<UserExerciseAttempt>
+    +update(attempt: UserExerciseAttempt): UserExerciseAttempt
+  }
+
+  class UserExerciseAttemptRepository implements IUserExerciseAttemptRepository {
+    -dbConnection: Connection
+    --
+    +save(attempt: UserExerciseAttempt): UserExerciseAttempt
+    +findById(id: UUID): UserExerciseAttempt
+    +findByUserId(userId: UUID): List<UserExerciseAttempt>
+    +update(attempt: UserExerciseAttempt): UserExerciseAttempt
+  }
+
+  interface ISubmissionAnswerRepository {
+    +save(answer: SubmissionAnswer): SubmissionAnswer
+    +findByAttemptId(attemptId: UUID): List<SubmissionAnswer>
+    +saveAll(answers: List<SubmissionAnswer>): void
+  }
+
+  class SubmissionAnswerRepository implements ISubmissionAnswerRepository {
+    -dbConnection: Connection
+    --
+    +save(answer: SubmissionAnswer): SubmissionAnswer
+    +findByAttemptId(attemptId: UUID): List<SubmissionAnswer>
+    +saveAll(answers: List<SubmissionAnswer>): void
+  }
+
+  interface IExerciseResultRepository {
+    +save(result: ExerciseResult): ExerciseResult
+    +findById(id: UUID): ExerciseResult
+    +findByAttemptId(attemptId: UUID): ExerciseResult
+    +findByUserId(userId: UUID): List<ExerciseResult>
+  }
+
+  class ExerciseResultRepository implements IExerciseResultRepository {
+    -dbConnection: Connection
+    --
+    +save(result: ExerciseResult): ExerciseResult
+    +findById(id: UUID): ExerciseResult
+    +findByAttemptId(attemptId: UUID): ExerciseResult
+    +findByUserId(userId: UUID): List<ExerciseResult>
+  }
+}
+
+class Exercise {
+    -id: UUID
+    -title: String
+    -exerciseType: String
+    -skillType: String
+    -totalQuestions: Integer
+    -totalSections: Integer
+    -difficulty: String
+    -passingScore: Float
+    -isPublished: Boolean
+    --
+    +getId(): UUID
+    +getTitle(): String
+    +getTotalQuestions(): Integer
+  }
+
+  class ExerciseSection {
+    -id: UUID
+    -exerciseId: UUID
+    -title: String
+    -sectionNumber: Integer
+    -totalQuestions: Integer
+    --
+    +getId(): UUID
+    +getTitle(): String
+  }
+
+  class Question {
+    -id: UUID
+    -exerciseId: UUID
+    -sectionId: UUID
+    -questionText: String
+    -questionType: String
+    -points: Float
+    -difficulty: String
+    --
+    +getId(): UUID
+    +getQuestionText(): String
+    +getPoints(): Float
+  }
+
+  class UserExerciseAttempt {
+    -id: UUID
+    -userId: UUID
+    -exerciseId: UUID
+    -attemptNumber: Integer
+    -status: String
+    -totalQuestions: Integer
+    -correctAnswers: Integer
+    -score: Float
+    -bandScore: Float
+    -startedAt: LocalDateTime
+    -completedAt: LocalDateTime
+    --
+    +getId(): UUID
+    +getScore(): Float
+    +getBandScore(): Float
+    +isPassed(): Boolean
+  }
+
+  class SubmissionAnswer {
+    -id: UUID
+    -attemptId: UUID
+    -questionId: UUID
+    -answerText: String
+    -isCorrect: Boolean
+    -pointsEarned: Float
+    --
+    +getId(): UUID
+    +getAnswerText(): String
+    +getPoints(): Float
+  }
+
+  class ExerciseResult {
+    -id: UUID
+    -attemptId: UUID
+    -exerciseId: UUID
+    -userId: UUID
+    -finalScore: Float
+    -bandScore: Float
+    -passed: Boolean
+    --
+    +getId(): UUID
+    +getFinalScore(): Float
+    +isPassed(): Boolean
+  }
+}
+
+' ===== RELATIONSHIPS =====
+ExerciseHandler -- ExerciseService : uses
+ExerciseHandler -- AttemptService : uses
+ExerciseHandler -- ResultService : uses
+
+ExerciseService -- ExerciseRepository : uses
+ExerciseService -- QuestionRepository : uses
+AttemptService -- UserExerciseAttemptRepository : uses
+AttemptService -- SubmissionAnswerRepository : uses
+ResultService -- ExerciseResultRepository : uses
+ResultService -- ScoringService : uses
+
+ExerciseRepository -- Exercise : manages
+QuestionRepository -- Question : manages
+UserExerciseAttemptRepository -- UserExerciseAttempt : manages
+SubmissionAnswerRepository -- SubmissionAnswer : manages
+ExerciseResultRepository -- ExerciseResult : manages
+
+Exercise "1" *-- "0..*" ExerciseSection : contains
+ExerciseSection "1" *-- "0..*" Question : has
+UserExerciseAttempt "*" -- "1" Exercise : attempts
+UserExerciseAttempt "1" *-- "0..*" SubmissionAnswer : contains
+UserExerciseAttempt "1" *-- "1" ExerciseResult : produces
+
+@enduml

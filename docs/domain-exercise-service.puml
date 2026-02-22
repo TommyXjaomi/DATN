@@ -1,0 +1,118 @@
+@startuml
+title Exercise Domain - Sơ đồ Lớp Entities (Private Attributes)
+skinparam classAttributeIconSize 0
+
+class Exercise {
+  -id: UUID
+  -title: string
+  -description: string
+  -exercise_type: string
+  -skill_type: string
+  -total_questions: int
+  -total_sections: int
+  -difficulty: string
+  -passing_score: float
+  -is_free: bool
+  -is_published: bool
+  -total_attempts: int
+  -average_score: float
+  -time_limit_minutes: int
+  -is_randomized: bool
+  -published_at: time.Time
+  -created_at: time.Time
+  -updated_at: time.Time
+}
+
+class ExerciseSection {
+  -id: UUID
+  -exercise_id: UUID
+  -title: string
+  -description: string
+  -section_number: int
+  -total_questions: int
+  -time_limit_minutes: int
+  -display_order: int
+  -created_at: time.Time
+  -updated_at: time.Time
+}
+
+class Question {
+  -id: UUID
+  -exercise_id: UUID
+  -section_id: UUID
+  -question_text: string
+  -question_type: string
+  -points: float
+  -difficulty: string
+  -explanation: string
+  -hint: string
+  -display_order: int
+  -is_randomized: bool
+  -created_at: time.Time
+  -updated_at: time.Time
+}
+
+class QuestionOption {
+  -id: UUID
+  -question_id: UUID
+  -option_label: string
+  -option_text: string
+  -is_correct: bool
+  -display_order: int
+  -created_at: time.Time
+}
+
+class UserExerciseAttempt {
+  -id: UUID
+  -user_id: UUID
+  -exercise_id: UUID
+  -attempt_number: int
+  -status: string
+  -total_questions: int
+  -questions_answered: int
+  -correct_answers: int
+  -score: float
+  -band_score: float
+  -time_spent_seconds: int
+  -is_completed: bool
+  -started_at: time.Time
+  -completed_at: time.Time
+  -created_at: time.Time
+}
+
+class SubmissionAnswer {
+  -id: UUID
+  -attempt_id: UUID
+  -question_id: UUID
+  -answer_text: string
+  -selected_option_id: UUID
+  -is_correct: bool
+  -points_earned: float
+  -time_spent_seconds: int
+  -answered_at: time.Time
+  -created_at: time.Time
+}
+
+class ExerciseResult {
+  -id: UUID
+  -attempt_id: UUID
+  -exercise_id: UUID
+  -user_id: UUID
+  -final_score: float
+  -band_score: float
+  -time_spent_minutes: int
+  -passed: bool
+  -feedback: string
+  -performance_data: JSONB
+  -created_at: time.Time
+}
+
+' ===== Relationships =====
+Exercise "1" -- "0..*" ExerciseSection 
+ExerciseSection "1" -- "0..*" Question 
+Question "1" -- "0..*" QuestionOption 
+UserExerciseAttempt "*" -- "1" Exercise 
+UserExerciseAttempt "1" -- "0..*" SubmissionAnswer 
+UserExerciseAttempt "1" -- "1" ExerciseResult 
+
+@enduml

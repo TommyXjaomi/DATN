@@ -1,0 +1,196 @@
+@startuml
+left to right direction
+!theme plain
+skinparam activity {
+  BackgroundColor #E8F4F8
+  BorderColor #2E86AB
+  FontColor #000000
+}
+skinparam swimlane {
+  BackgroundColor #F0F0F0
+  BorderColor #2E86AB
+  TitleBackgroundColor #2E86AB
+  TitleFontColor #FFFFFF
+}
+
+title Nộp Bài Speaking - Audio Upload & AI Evaluation
+
+|#LightBlue|Student|
+start
+:Chọn Speaking exercise;
+:Click "Bắt đầu làm bài";
+:Hiển thị đề bài;
+:Ghi âm hoặc upload audio file;
+
+:Click "Nộp bài";
+
+|#LightGreen|API Gateway|
+:Validate JWT token;
+:Extract user_id;
+:Route request đến Storage Service\n(cho upload);
+
+|#LightMagenta|Storage Service|
+:Validate file extension\n(.mp3, .wav, .m4a, .ogg, .webm);
+if (Invalid extension?) then (yes)
+  :Trả về lỗi "Invalid file format";
+  stop
+else (no)
+endif
+
+:Validate file size\n(max 25MB);
+if (File quá lớn?) then (yes)
+  :Trả về lỗi "File too large";
+  stop
+else (no)
+endif
+
+:Generate unique object name\n(audio/{user_id}/{uuid}.ext);
+:Upload file lên MinIO;
+if (Upload failed?) then (yes)
+  :Trả về lỗi "Upload failed";
+  stop
+else (no)
+endif
+
+:Trả về audio_url\ncho Student;
+
+|#LightBlue|Student|
+:Submit với audio_url,\naudio_duration, speaking_part;
+
+|#LightGreen|API Gateway|
+:Route request đến Exercise Service;
+
+|#LightYellow|Exercise Service|
+:Validate exercise_id;
+:Load exercise từ database;
+if (Exercise không tồn tại?) then (yes)
+  :Trả về lỗi "Exercise not found";
+  stop
+else (no)
+endif
+
+:Validate audio_url;
+if (Audio URL rỗng?) then (yes)
+  :Trả về lỗi "Audio URL required";
+  stop
+else (no)
+endif
+
+:Validate audio duration\n(1-5 minutes);
+if (Duration invalid?) then (yes)
+  :Trả về lỗi "Invalid duration";
+  stop
+else (no)
+endif
+
+:Create UserExerciseAttempt\nvới status = "in_progress";
+:Save audio_url, audio_duration,\nspeaking_part_number;
+:Update evaluation_status = "processing";
+
+:Trả về submission_id\ncho Student;
+
+|#LightBlue|Student|
+:Hiển thị "Đang xử lý...";
+:Polling hoặc SSE để check status;
+
+|#LightYellow|Exercise Service|
+fork
+  :Start async processing;
+  
+  |#LightCyan|AI Service|
+  :Step 1: Transcribe Audio;
+  :Download audio từ Storage Service;
+  if (Download failed?) then (yes)
+    :Set evaluation_status = "failed";
+    stop
+  else (no)
+  endif
+  
+  :Call OpenAI Whisper API\n(transcription);
+  if (Transcription failed?) then (yes)
+    :Retry (max 3 attempts);
+    if (All retries failed?) then (yes)
+      :Set evaluation_status = "failed";
+      stop
+    else (no)
+    endif
+  else (no)
+  endif
+  
+  :Get transcript text;
+  
+  :Step 2: Evaluate Speaking;
+  :Generate cache key\n(audio_url + transcript + part);
+  :Check cache;
+  if (Cache hit?) then (yes)
+    :Lấy kết quả từ cache;
+    :Trả về cached evaluation;
+  else (no)
+    :Cache miss;
+    :Call OpenAI GPT-4o API\n(evaluation);
+    :Evaluate 4 criteria:\n- Fluency & Coherence\n- Lexical Resource\n- Grammar\n- Pronunciation;
+    :Calculate overall band score;
+    :Generate feedback;
+    :Save to cache\n(async, non-blocking);
+    :Trả về evaluation result;
+  endif
+  
+  |#LightYellow|Exercise Service|
+  :Update submission với transcript;
+  :Update submission với AI result;
+  :Set evaluation_status = "completed";
+  :Set status = "completed";
+  :Set band_score;
+  :Set detailed_scores (JSON);
+  :Set ai_feedback;
+  :Set transcript_text;
+  :Set completed_at = NOW();
+  
+  fork
+    |#LightPink|User Service|
+    :Record practice activity;
+    :Update Speaking band score;
+    :Update skill statistics;
+    :Check achievements;
+  end fork
+  
+  fork
+    |#LightCoral|Notification Service|
+    :Gửi notification\n"Kết quả Speaking đã có";
+    :Lưu notification;
+  end fork
+  
+end fork
+
+|#LightBlue|Student|
+if (Polling status?) then (yes)
+  :Check submission status;
+  if (Status = completed?) then (yes)
+    :Load kết quả chi tiết;
+  else (no)
+    :Tiếp tục polling;
+  endif
+else (no)
+  :Nhận notification;
+  :Click để xem kết quả;
+endif
+
+:Hiển thị kết quả:\n- Transcript text\n- Band score\n- 4 criteria scores\n- Feedback\n- Strengths\n- Weaknesses\n- Pronunciation analysis;
+stop
+
+note right
+  **Retry Logic:**
+  - Transcription: Max 3 attempts
+  - Evaluation: Max 3 attempts
+  - Exponential backoff
+  - Nếu fail: evaluation_status = "failed"
+end note
+
+note right
+  **Cache Strategy:**
+  - Cache key: audio_url + transcript + part
+  - TTL: 7 days
+  - Async save (non-blocking)
+end note
+
+@enduml

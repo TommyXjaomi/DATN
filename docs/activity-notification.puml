@@ -1,0 +1,81 @@
+@startuml
+title Quy trình Gửi thông báo
+
+start
+:Sự kiện xảy ra trong hệ thống;
+
+if (Hoàn thành bài tập?) then (yes)
+  :Kiểm tra exercise attempt record;
+  :Tính toán điểm;
+  if (Có kết quả đánh giá?) then (no)
+    :Kiểm tra AI evaluation status;
+    :Chờ AI Service hoàn thành;
+  else (yes)
+    :Đã có kết quả đầy đủ;
+  endif
+  :Tạo nội dung thông báo kết quả;
+  :Bao gồm điểm số chi tiết;
+  :Thêm feedback từ AI nếu có;
+else
+  if (Hoàn thành lesson?) then (yes)
+    :Kiểm tra lesson progress;
+    :Tính completion percentage;
+    :Tạo nội dung thông báo khuyến khích;
+    :Gợi ý lesson tiếp theo;
+  else
+    if (Nhắc nhở bài tập hôm nay?) then (yes)
+      :Lấy danh sách bài tập trong ngày;
+      :Kiểm tra user schedule;
+      if (User bật reminder?) then (no)
+        :Kiểm tra notification settings;
+        :Ghi log user disabled reminder;
+      else (yes)
+        :Lấy preferred time để gửi;
+        :Tạo nội dung thông báo nhắc nhở;
+        :Danh sách bài tập hôm nay;
+      endif
+    else (no)
+      :Bỏ qua sự kiện;
+    endif
+  endif
+endif
+
+:Lấy thông tin user;
+:Lấy user ID từ sự kiện;
+:Kiểm tra user account status;
+:Cài đặt thông báo của user;
+
+if (User bật thông báo?) then (no)
+  :Kiểm tra notification_enabled flag;
+  :Kiểm tra notification_paused_until;
+  :Ghi log notification disabled;
+else (yes)
+  :User cho phép thông báo;
+endif
+
+:Tạo bản ghi Notification trong DB;
+:Ghi notification_type, title, body;
+:Ghi created_at timestamp;
+
+:Lấy device token của user;
+:Kiểm tra active devices;
+
+if (Có device token?) then (yes)
+  :Lấy FCM token;
+  :Gửi push notification qua Firebase Cloud Messaging;
+  :Ghi push_status = sent;
+  :Cập nhật device last_activity_at;
+else (no)
+  :Không có device token;
+  :Ghi push_status = skipped;
+endif
+
+:Gửi email thông báo;
+:Ghi email_sent_at;
+:Ghi log email delivery;
+:Tăng notification_count;
+:Đánh dấu thông báo đã gửi;
+:Ghi log sự kiện;
+:Thống kê delivery metrics;
+stop
+@enduml

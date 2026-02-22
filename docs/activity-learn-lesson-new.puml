@@ -1,0 +1,93 @@
+@startuml
+title Biểu đồ Hoạt Động - Học Bài Học
+
+start
+:User truy cập khóa học;
+:User chọn bài học;
+:Load lesson details;
+
+:Kiểm tra quyền truy cập;
+if (User có quyền?) then (no)
+  :Kiểm tra enrollment;
+  :Kiểm tra lesson_prerequisite;
+  :Hiển thị lỗi: Chưa có quyền;
+  stop
+else (yes)
+  :Người dùng có quyền truy cập bài học;
+endif
+
+:Tạo hoặc cập nhật LessonProgress;
+:Ghi start_time;
+:Hiển thị lesson content;
+
+if (Lesson có video?) then (yes)
+  :Tải video player;
+  :Load video metadata;
+  :Hiển thị video;
+  
+  :Vòng lặp: User xem video;
+  repeat
+    :Ghi watched_duration;
+    :Ghi current_position;
+    :Kiểm tra progress percentage;
+  repeat while (Video chưa xem xong?)
+  
+  :Đánh dấu video_watched = true;
+else (no)
+  :Video không có, bỏ qua phần này;
+endif
+
+if (Lesson có transcript?) then (yes)
+  :Tải transcript;
+  :Cho phép chọn ngôn ngữ;
+  :Sync với video;
+else (no)
+  :Không có transcript;
+endif
+
+:Hiển thị reading materials;
+if (Có materials?) then (yes)
+  :Tải tài liệu;
+  :Ghi materials_read = true;
+else (no)
+  :Không có tài liệu bổ sung;
+endif
+
+:Vòng lặp: Hiển thị content sections;
+repeat
+  :User đọc content;
+  :Ghi reading_time;
+repeat while (Còn section?)
+
+:Tính completion_percentage;
+
+if (Completion >= 80%?) then (yes)
+  :Đánh dấu lesson = completed;
+  :Unlock lesson tiếp theo;
+  :Unlock exercises;
+else (no)
+  :Đánh dấu lesson = in_progress;
+  :Cho phép học tiếp lần sau;
+endif
+
+:Cập nhật LessonProgress;
+:Ghi completion_date;
+:Cập nhật user learning stats;
+:Cập nhật study streaks;
+
+:Kiểm tra course completion;
+if (Hoàn thành tất cả lessons?) then (yes)
+  :Đánh dấu course = completed;
+  :Tạo certificate;
+else (no)
+  :Còn lessons chưa hoàn thành;
+endif
+
+:Ghi log lesson completion;
+:Gửi notification;
+:Hiển thị completion summary;
+:Cung cấp nút "Lesson tiếp theo";
+:Cung cấp nút "Bài tập";
+
+stop
+@enduml

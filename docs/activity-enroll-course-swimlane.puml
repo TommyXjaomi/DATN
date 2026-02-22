@@ -1,0 +1,62 @@
+@startuml
+title Biểu đồ Hoạt Động - Đăng Ký Khóa Học
+
+start
+note right : Frontend
+:User xem danh sách khóa học;
+:User chọn khóa học;
+:Hiển thị chi tiết khóa học;
+:User bấm Đăng ký;
+
+note right : Course Service
+:Lấy thông tin khóa học;
+:Kiểm tra prerequisite;
+if (Có yêu cầu tiên quyết?) then (yes)
+  if (User hoàn thành?) then (no)
+    :Trả về lỗi;
+    stop
+  else (yes)
+  endif
+else (no)
+endif
+
+:Kiểm tra enrollment có tồn tại;
+if (Đã đăng ký?) then (yes)
+  :Trả về lỗi;
+  stop
+else (no)
+endif
+
+:Kiểm tra loại khóa học;
+
+note right : Payment Service
+if (Khóa học trả phí?) then (yes)
+  :Hiển thị payment gateway;
+  :Xử lý thanh toán;
+  if (Thanh toán thành công?) then (yes)
+    :Lưu payment record;
+  else (no)
+    :Trả về lỗi;
+    stop
+  endif
+else (no)
+endif
+
+note right : Course Service
+:Tạo CourseEnrollment record;
+:Tạo LessonProgress cho tất cả lessons;
+:Khởi tạo exercise attempt counters;
+
+note right : User Service
+:Cập nhật user learning stats;
+
+note right : Notification Service
+:Gửi email xác nhận đăng ký;
+:Gửi email hướng dẫn;
+:Tạo notification;
+
+note right : Frontend
+:Hiển thị thông báo thành công;
+:Chuyển đến trang khóa học;
+stop
+@enduml

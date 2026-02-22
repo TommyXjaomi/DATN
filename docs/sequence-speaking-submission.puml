@@ -1,0 +1,119 @@
+@startuml
+!theme plain
+title Sơ Đồ Luồng Tương Tác - Nộp Bài Tập Speaking (Speaking Submission Flow)
+
+skinparam sequence {
+    ActorBackgroundColor #E1F5FF
+    ActorBorderColor #01579B
+    ParticipantBackgroundColor #B3E5FC
+    ParticipantBorderColor #0277BD
+    ParticipantFontColor #000000
+    ArrowColor #0277BD
+    LifeLineBorderColor #0277BD
+}
+
+participant "Mobile App\n(Recording)" as Mobile
+participant "API Gateway\nPort 8080" as Gateway
+participant "Storage Service\nPort 8087" as Storage
+participant "MinIO\n(S3 Storage)" as MinIO
+participant "Exercise Service\nPort 8084" as Exercise
+participant "AI Service\nPort 8085" as AI
+participant "OpenAI API\n(External)" as OpenAI
+participant "PostgreSQL\nDatabase" as DB
+participant "Redis\nCache" as Redis
+
+== 🎤 Phase 1: Recording & Upload Audio ==
+
+Mobile -[#FF6B6B]> Mobile: User Records Audio\n(WebM/Opus Format)
+activate Mobile
+Mobile -[#FF6B6B]> Gateway: POST /storage/audio/upload\n+ user_id\n+ audio_file (multipart)
+deactivate Mobile
+
+Gateway -[#FF6B6B]> Storage: Forward Upload Request
+Storage -[#FF6B6B]> MinIO: Upload File to Bucket\n(Path: audio/{user_id}/{uuid}.webm)
+MinIO --[#90EE90]> Storage: Upload Success\n+ Object Metadata
+
+Storage -[#FF6B6B]> Storage: Generate URLs
+note right of Storage
+  - Internal URL: http://minio:9000/...
+  - Public Presigned URL: http://localhost:9000/...?X-Amz-*
+end note
+Storage --[#90EE90]> Mobile: UploadAudioResponse\n(internalAudioUrl)
+
+== ✏️ Phase 2: Submit Exercise with Audio ==
+
+Mobile -[#4ECDC4]> Gateway: POST /exercises/{id}/submit\n+ audioUrl (internal)\n+ partNumber\n+ timeSpent
+
+Gateway -[#4ECDC4]> Exercise: Submit Speaking Exercise
+Exercise -[#4ECDC4]> Exercise: Create Submission Record
+Exercise -[#4ECDC4]> DB: Store Submission\n(status: PENDING)
+Exercise -[#4ECDC4]> Redis: Cache Submission ID
+
+Exercise --[#90EE90]> Mobile: Submission Created\n(Start Polling Result)
+
+== 🤖 Phase 3: AI Processing (Async) ==
+
+activate Exercise
+Exercise -[#FF9500]> AI: POST /ai/speaking/evaluate\n(submissionId, audioUrl, prompt)
+deactivate Exercise
+
+activate AI
+AI -[#FF9500]> MinIO: Download Audio\n(using internalAudioUrl)
+MinIO --[#90EE90]> AI: Audio File Stream
+
+AI -[#FF9500]> TS: Transcribe Audio
+note right of AI
+  AI calls OpenAI Speech-to-Text API
+  to transcribe audio to text
+end note
+AI -[#FF9500]> OpenAI: POST /audio/transcriptions\n(audio_file, model: whisper-1)
+OpenAI --[#90EE90]> AI: Transcription Result\n(text, duration)
+
+AI -[#FF9500]> EE: Evaluate Speaking\n(transcription, prompt)
+AI -[#FF9500]> OpenAI: POST /chat/completions\n(evaluate response quality)
+OpenAI --[#90EE90]> AI: Evaluation Result\n(band score, feedback)
+
+AI -[#FF9500]> DB: Store Result\n(transcription, score, feedback)
+AI -[#FF9500]> Redis: Cache Result\n(key: submission_id)
+deactivate AI
+
+== 📊 Phase 4: Result Polling ==
+
+loop Every 2 seconds (Max 30 retries)
+  Mobile -[#95E1D3]> Gateway: GET /submissions/{id}/result
+  Gateway -[#95E1D3]> Exercise: Query Result
+  Exercise -[#95E1D3]> Redis: Check Cache
+  
+  alt Result Ready
+    Redis --[#90EE90]> Exercise: Return Cached Result
+    Exercise --[#90EE90]> Mobile: SpeakingResult\n(band score, feedback)
+    Mobile -[#95E1D3]> Mobile: Display Results & Stop Polling
+  else Still Processing
+    Redis --[#FFB6C1]> Exercise: Cache Miss
+    Exercise -[#95E1D3]> DB: Query Database
+    DB --[#FFB6C1]> Exercise: status: PENDING
+    Exercise --[#FFB6C1]> Mobile: Not Ready (HTTP 202)\nContinue Polling
+  end
+end
+
+== ✅ Phase 5: Display Results ==
+
+activate Mobile
+Mobile -[#90EE90]> Mobile: Show SpeakingResult Activity\n- Band Score (IELTS 0-9)\n- Transcription Text\n- Detailed Feedback\n- Grammar Analysis
+deactivate Mobile
+
+note over Mobile,OpenAI
+  Complete Flow Summary:
+  1️⃣ User records audio (WebM format)
+  2️⃣ Upload to MinIO via Storage Service
+  3️⃣ Submit exercise with internal URL
+  4️⃣ AI service transcribes + evaluates
+  5️⃣ App polls for results (async)
+  6️⃣ Display band score & feedback
+  
+  Critical Point: Use internalAudioUrl (http://minio:9000/...)
+  NOT publicAudioUrl (http://localhost:9000/...)
+  so AI service can download from Docker network
+end note
+
+@enduml

@@ -1,0 +1,69 @@
+# 🔴 TABLET ERROR FIX - QUICK SOLUTION
+
+## ❌ **Error Message**
+```
+Toast: "Failed to connect to /10.20.4.99:8081"
+Network error
+```
+
+---
+
+## ✅ **ROOT CAUSE**
+**Windows Firewall đang chặn port 8081**
+
+```
+Firewall Status:
+Domain:  Enabled ✓ (BLOCKING)
+Private: Enabled ✓ (BLOCKING)
+Public:  Enabled ✓ (BLOCKING)
+```
+
+---
+
+## 🚀 **QUICK FIX (2 STEPS)**
+
+### **Step 1: Open PowerShell as ADMIN**
+```
+Windows Start → PowerShell → Right-click → Run as Administrator
+```
+
+### **Step 2: Run the Script**
+```powershell
+cd D:\nam4_2025\DATN
+.\open-firewall-ports.ps1
+```
+
+**Done!** ✅
+
+---
+
+## 📱 **Then Test on Tablet**
+```
+Browser: http://10.20.4.99:3000
+Expected: IELTS Platform login page loads successfully
+```
+
+---
+
+## 📋 **What the Script Does**
+- ✅ Opens port 8080 (API Gateway)
+- ✅ Opens port 8081 (Auth Service)
+- ✅ Opens ports 8082-8087 (Other Services)
+- ✅ Opens port 3000 (Frontend)
+- ✅ Opens ports for databases & tools
+
+---
+
+## 🎯 **Expected Result**
+```
+BEFORE:  ❌ Failed to connect to /10.20.4.99:8081
+AFTER:   ✅ Login page loads, can authenticate
+```
+
+---
+
+**Important:** 
+- Must run PowerShell as **ADMINISTRATOR**
+- Script needs permission to modify firewall rules
+- Restart app on tablet after opening firewall
+

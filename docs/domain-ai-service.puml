@@ -1,0 +1,92 @@
+@startuml
+title AI Domain - Sơ đồ Lớp Entities (Private Attributes)
+skinparam classAttributeIconSize 0
+
+class AIEvaluationRequest {
+  -id: UUID
+  -user_id: UUID
+  -exercise_attempt_id: UUID
+  -question_id: UUID
+  -skill_type: string
+  -task_type: string
+  -content: string
+  -ai_model_name: string
+  -status: string
+  -created_at: time.Time
+}
+
+class AIEvaluationResult {
+  -id: UUID
+  -request_id: UUID
+  -overall_band_score: float
+  -fluency_score: float
+  -accuracy_score: float
+  -pronunciation_score: float
+  -detailed_scores: JSONB
+  -feedback: string
+  -improvements: string
+  -processing_time_ms: int
+  -ai_model_version: string
+  -confidence_score: float
+  -created_at: time.Time
+}
+
+class AIEvaluationCache {
+  -id: UUID
+  -content_hash: string
+  -skill_type: string
+  -task_type: string
+  -overall_band_score: float
+  -detailed_scores: JSONB
+  -feedback: JSONB
+  -ai_model_name: string
+  -ai_model_version: string
+  -processing_time_ms: int
+  -confidence_score: float
+  -hit_count: int
+  -last_hit_at: time.Time
+  -expires_at: time.Time
+  -created_at: time.Time
+}
+
+class AIEvaluationLog {
+  -id: UUID
+  -request_id: UUID
+  -skill_type: string
+  -task_type: string
+  -content_hash: string
+  -cache_hit: bool
+  -band_score: float
+  -processing_time_ms: int
+  -prompt_tokens: int
+  -completion_tokens: int
+  -cost_usd: float
+  -success: bool
+  -error_message: string
+  -ai_model_name: string
+  -created_at: time.Time
+}
+
+class AIModel {
+  -id: UUID
+  -name: string
+  -version: string
+  -provider: string
+  -model_type: string
+  -is_active: bool
+  -api_cost_per_request: float
+  -max_tokens: int
+  -temperature: float
+  -max_retry_attempts: int
+  -created_at: time.Time
+  -updated_at: time.Time
+}
+
+' ===== Relationships =====
+AIEvaluationRequest "1" -- "1" AIEvaluationResult   
+AIEvaluationRequest "0..*" -- "1" AIEvaluationCache     
+AIEvaluationRequest "1" -- "0..*" AIEvaluationLog   
+AIEvaluationResult "1" -- "0..*" AIEvaluationLog    
+AIEvaluationRequest "*" -- "1" AIModel  
+
+@enduml

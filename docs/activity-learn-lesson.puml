@@ -1,0 +1,95 @@
+@startuml
+title Quy trình Học một Lesson
+
+start
+:User truy cập khóa học;
+:Load danh sách lessons;
+:User chọn lesson muốn học;
+:Load nội dung lesson từ DB;
+
+if (User có quyền truy cập?) then (no)
+  :Kiểm tra enrollment status;
+  :Kiểm tra lesson_prerequisite;
+  :Kiểm tra enrollment_date vs lesson_release_date;
+  :Ghi log unauthorized access;
+  :Hiển thị lỗi chưa được phép truy cập;
+else (yes)
+  :User có quyền;
+endif
+
+if (Lesson có video?) then (yes)
+  :Lấy video URL từ DB;
+  :Kiểm tra video availability;
+  :Lấy video duration;
+  :Tạo bản ghi LessonProgress;
+  :Ghi start_time;
+  :Hiển thị video player;
+  
+  repeat
+    :User xem video;
+    :Ghi watched_duration;
+    :Kiểm tra video completion (90%);
+  repeat while (Xem video chưa xong?)
+  
+  :Cập nhật watched_duration;
+  :Kiểm tra completion percentage;
+  :Đánh dấu video_watched = true;
+else (no)
+  :Lesson không có video;
+endif
+
+:Hiển thị nội dung text/tài liệu;
+:Tải reading materials nếu có;
+:Tải PDF/document từ storage;
+:Cập nhật materials_read = true;
+
+if (Lesson có transcript?) then (yes)
+  :Tải transcript từ DB;
+  :Hiển thị options: Vietnamese / English;
+  :User chọn ngôn ngữ transcript;
+  :Hiển thị transcript synchronize với video;
+  :Ghi log transcript_accessed;
+else (no)
+endif
+
+:Kiểm tra user scroll section;
+
+repeat
+  :Hiển thị section nội dung;
+  :User đọc nội dung chi tiết;
+  :Ghi log reading_time;
+  :Kiểm tra user interaction;
+repeat while (Còn section tiếp theo?)
+
+:Tính completion percentage;
+
+if (Có bài tập cuối lesson?) then (yes)
+  :Tải exercise list của lesson;
+  :Kiểm tra exercise_required;
+  :Hiển thị exercise preview;
+  :Ghi log exercise_shown;
+else (no)
+endif
+
+:Cập nhật LessonProgress;
+:Ghi completion_date;
+:Ghi total_reading_time;
+:Tính final completion score;
+
+if (Completed >= 80%?) then (yes)
+  :Đánh dấu lesson_status = completed;
+  :Cập nhật user_learning_progress;
+  :Unlock bài tập (nếu có);
+  :Unlock lesson tiếp theo;
+else (no)
+  :Đánh dấu lesson_status = in_progress;
+endif
+
+:Ghi log lesson completion;
+:Hiển thị completion summary;
+:Cung cấp nút "Bài tập tiếp theo";
+:Cung cấp nút "Lesson tiếp theo";
+:Gửi notification về lesson completion;
+:Chuyển sang lesson tiếp theo hoặc bài tập;
+stop
+@enduml

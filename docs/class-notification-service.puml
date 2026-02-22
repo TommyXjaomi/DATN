@@ -1,0 +1,102 @@
+@startuml
+title Notification Service - Sơ đồ Lớp Phân Tích (Entities)
+skinparam classAttributeIconSize 0
+
+class Notification {
+  -UUID id
+  -UUID user_id
+  -string notification_type
+  -string title
+  -string body
+  -string channel
+  -JSONB data
+  -bool is_read
+  -time.Time read_at
+  -time.Time sent_at
+  -time.Time created_at
+}
+
+class NotificationEvent {
+  -UUID id
+  -string event_type
+  -string description
+  -bool is_active
+  -time.Time created_at
+}
+
+class NotificationTemplate {
+  -UUID id
+  -string name
+  -string description
+  -string event_type
+  -string channel
+  -string title_template
+  -string body_template
+  -bool is_active
+  -time.Time created_at
+  -time.Time updated_at
+}
+
+class DeviceToken {
+  -UUID id
+  -UUID user_id
+  -string token
+  -string device_type
+  -string device_os
+  -string app_version
+  -bool is_active
+  -time.Time last_used_at
+  -time.Time registered_at
+  -time.Time created_at
+  -time.Time updated_at
+}
+
+class ScheduledNotification {
+  -UUID id
+  -UUID user_id
+  -string title
+  -string body
+  -string channel
+  -string frequency
+  -string days_of_week
+  -string time_of_day
+  -bool is_active
+  -time.Time scheduled_time
+  -time.Time last_sent_at
+  -time.Time next_send_at
+  -time.Time created_at
+  -time.Time updated_at
+}
+
+class NotificationPreference {
+  -UUID id
+  -UUID user_id
+  -UUID notification_event_id
+  -bool email_enabled
+  -bool push_enabled
+  -bool sms_enabled
+  -time.Time created_at
+  -time.Time updated_at
+}
+
+class NotificationLog {
+  -UUID id
+  -UUID notification_id
+  -UUID device_token_id
+  -string channel
+  -string status
+  -string error_message
+  -int retry_count
+  -time.Time sent_at
+  -time.Time created_at
+}
+
+' ===== Relationships =====
+Notification "*" -- "1" DeviceToken : sent_via
+NotificationEvent "1" -- "0..*" NotificationTemplate : used_by
+NotificationTemplate "1" -- "0..*" Notification : generates
+ScheduledNotification "*" -- "1" NotificationEvent : triggers
+Notification "1" -- "0..*" NotificationLog : has_logs
+NotificationEvent "1" -- "0..*" NotificationPreference : configured_by
+
+@enduml

@@ -1,0 +1,102 @@
+@startuml
+title Notification Domain - Sơ đồ Lớp Entities (Private Attributes)
+skinparam classAttributeIconSize 0
+
+class Notification {
+  -id: UUID
+  -user_id: UUID
+  -notification_type: string
+  -title: string
+  -body: string
+  -channel: string
+  -data: JSONB
+  -is_read: bool
+  -read_at: time.Time
+  -sent_at: time.Time
+  -created_at: time.Time
+}
+
+class NotificationEvent {
+  -id: UUID
+  -event_type: string
+  -description: string
+  -is_active: bool
+  -created_at: time.Time
+}
+
+class NotificationTemplate {
+  -id: UUID
+  -name: string
+  -description: string
+  -event_type: string
+  -channel: string
+  -title_template: string
+  -body_template: string
+  -is_active: bool
+  -created_at: time.Time
+  -updated_at: time.Time
+}
+
+class DeviceToken {
+  -id: UUID
+  -user_id: UUID
+  -token: string
+  -device_type: string
+  -device_os: string
+  -app_version: string
+  -is_active: bool
+  -last_used_at: time.Time
+  -registered_at: time.Time
+  -created_at: time.Time
+  -updated_at: time.Time
+}
+
+class ScheduledNotification {
+  -id: UUID
+  -user_id: UUID
+  -title: string
+  -body: string
+  -channel: string
+  -frequency: string
+  -days_of_week: string
+  -time_of_day: string
+  -is_active: bool
+  -scheduled_time: time.Time
+  -last_sent_at: time.Time
+  -next_send_at: time.Time
+  -created_at: time.Time
+  -updated_at: time.Time
+}
+
+class NotificationPreference {
+  -id: UUID
+  -user_id: UUID
+  -notification_event_id: UUID
+  -email_enabled: bool
+  -push_enabled: bool
+  -sms_enabled: bool
+  -created_at: time.Time
+  -updated_at: time.Time
+}
+
+class NotificationLog {
+  -id: UUID
+  -notification_id: UUID
+  -device_token_id: UUID
+  -channel: string
+  -status: string
+  -error_message: string
+  -retry_count: int
+  -sent_at: time.Time
+  -created_at: time.Time
+}
+
+' ===== Relationships =====
+Notification "*" -- "1" DeviceToken 
+NotificationEvent "1" -- "0..*" NotificationTemplate 
+NotificationTemplate "1" -- "0..*" Notification 
+ScheduledNotification "*" -- "1" NotificationEvent 
+Notification "1" -- "0..*" NotificationLog 
+NotificationEvent "1" -- "0..*" NotificationPreference 
+
+@enduml

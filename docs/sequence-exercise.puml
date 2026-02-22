@@ -1,0 +1,84 @@
+@startuml
+title Sơ đồ Tuần Tự - Làm Bài Tập
+
+actor User
+participant "Frontend"
+participant "API Gateway"
+participant "Exercise Service"
+participant "PostgreSQL"
+participant "AI Service"
+participant "Notification Service"
+
+User -> "Frontend": Chọn bài tập
+"Frontend" -> "API Gateway": GET /exercises/:id
+"API Gateway" -> "Exercise Service": Lấy chi tiết bài tập
+"Exercise Service" -> "PostgreSQL": Query exercise & questions
+"PostgreSQL" --> "Exercise Service": Exercise data
+"Exercise Service" --> "API Gateway": Exercise details
+"API Gateway" --> "Frontend": Questions & options
+
+"Frontend" -> "API Gateway": POST /exercises/:id/attempts
+"API Gateway" -> "Exercise Service": Tạo attempt mới
+"Exercise Service" -> "PostgreSQL": Kiểm tra quyền truy cập
+alt User có quyền
+  "Exercise Service" -> "PostgreSQL": Tạo UserExerciseAttempt
+  "PostgreSQL" --> "Exercise Service": Attempt ID
+  "Exercise Service" --> "API Gateway": Attempt created
+  "API Gateway" --> "Frontend": Attempt created successfully
+else User không có quyền
+  "Exercise Service" --> "API Gateway": Lỗi unauthorized
+  "API Gateway" --> "Frontend": Lỗi
+  "Frontend" --> User: Hiển thị lỗi
+  break
+end
+"API Gateway" --> "Frontend": Attempt started
+
+loop Làm từng câu hỏi
+  User -> "Frontend": Chọn/nhập đáp án
+  "Frontend" -> "Frontend": Lưu submission tạm thời
+end
+
+User -> "Frontend": Nộp bài
+"Frontend" -> "API Gateway": POST /attempts/:id/submit
+"API Gateway" -> "Exercise Service": Nộp bài
+"Exercise Service" -> "PostgreSQL": Lưu SubmissionAnswers
+"PostgreSQL" --> "Exercise Service": Saved
+"Exercise Service" -> "Exercise Service": Tính điểm multiple choice
+
+alt Bài có writing/speaking
+  "Exercise Service" -> "AI Service": Gửi content để đánh giá
+  "AI Service" -> "AI Service": Phân tích bài viết/nói
+  "AI Service" --> "Exercise Service": Band score, feedback
+  "Exercise Service" -> "PostgreSQL": Lưu AI evaluation result
+else Chỉ có multiple choice
+  "Exercise Service" -> "PostgreSQL": Tính final_score từ MC
+end
+
+"PostgreSQL" --> "Exercise Service": Saved results
+"Exercise Service" -> "PostgreSQL": Tạo ExerciseResult
+
+alt Score >= passing_score
+  "Exercise Service" -> "PostgreSQL": Mark passed
+  "Exercise Service" -> "PostgreSQL": Unlock next exercise
+  "Exercise Service" -> "PostgreSQL": Cập nhật user stats (listening/reading/writing/speaking)
+  "Exercise Service" -> "PostgreSQL": Kiểm tra achievement unlock
+else Score < passing_score
+  "Exercise Service" -> "PostgreSQL": Mark failed
+  "Exercise Service" -> "PostgreSQL": Cho phép làm lại
+end
+
+"PostgreSQL" --> "Exercise Service": All updates done
+"Exercise Service" -> "Notification Service": Gửi notification
+"Notification Service" -> "PostgreSQL": Tạo notification record
+"PostgreSQL" --> "Notification Service": Saved
+"Notification Service" --> "Exercise Service": OK
+"Exercise Service" --> "API Gateway": Result ready
+"API Gateway" --> "Frontend": Exercise result
+
+"Frontend" -> "Frontend": Hiển thị kết quả
+"Frontend" -> "Frontend": Hiển thị giải thích đáp án
+"Frontend" -> "Frontend": Hiển thị band score (nếu có)
+"Frontend" --> User: Completion summary
+"Frontend" --> User: Suggest next steps
+
+@enduml

@@ -1,0 +1,258 @@
+@startuml
+skinparam classAttributeIconSize 0
+
+class NotificationHandler {
+  -notificationService: NotificationService
+  -templateService: TemplateService
+  -preferenceService: PreferenceService
+  --
+  +sendNotification(request: NotificationRequest): Notification
+  +getNotifications(userId: UUID): Page<Notification>
+  +markAsRead(notificationId: UUID): void
+  +getUnreadCount(userId: UUID): Integer
+  +getPreferences(userId: UUID): NotificationPreference
+  +updatePreferences(userId: UUID, pref: NotificationPreference): void
+}
+
+class NotificationService {
+  -notificationRepository: NotificationRepository
+  -deviceTokenRepository: DeviceTokenRepository
+  -eventRepository: NotificationEventRepository
+  --
+  +sendNotification(notification: Notification): Notification
+  +sendPushNotification(userId: UUID, message: String): void
+  +getNotifications(userId: UUID, page: Integer): Page<Notification>
+  +markAsRead(notificationId: UUID): void
+  +markAllAsRead(userId: UUID): void
+  +getUnreadCount(userId: UUID): Integer
+}
+
+class TemplateService {
+  -templateRepository: TemplateRepository
+  --
+  +getTemplate(code: String): NotificationTemplate
+  +renderTemplate(template: NotificationTemplate, data: Map): String
+  +saveTemplate(template: NotificationTemplate): void
+  +listTemplates(): List<NotificationTemplate>
+}
+
+class PreferenceService {
+  -preferenceRepository: PreferenceRepository
+  --
+  +getPreference(userId: UUID): NotificationPreference
+  +savePreference(preference: NotificationPreference): void
+  +isNotificationEnabled(userId: UUID, type: String): Boolean
+  +updatePreference(userId: UUID, pref: NotificationPreference): void
+}
+
+class ScheduleService {
+  -scheduledRepository: ScheduledNotificationRepository
+  --
+  +scheduleNotification(notification: ScheduledNotification): void
+  +getScheduledNotifications(userId: UUID): List<ScheduledNotification>
+  +updateSchedule(notificationId: UUID, newTime: LocalDateTime): void
+  +cancelSchedule(notificationId: UUID): void
+}
+
+class EventService {
+  -eventRepository: NotificationEventRepository
+  -logRepository: LogRepository
+  --
+  +logEvent(event: NotificationEvent): void
+  +processEvent(event: NotificationEvent): void
+  +getEventLog(userId: UUID): List<NotificationEvent>
+}
+
+interface INotificationRepository {
+  +save(notification: Notification): Notification
+  +findById(id: UUID): Notification
+  +findByUserId(userId: UUID): Page<Notification>
+  +update(notification: Notification): Notification
+}
+
+class NotificationRepository implements INotificationRepository {
+  -dbConnection: Connection
+  --
+  +save(notification: Notification): Notification
+  +findById(id: UUID): Notification
+  +findByUserId(userId: UUID): Page<Notification>
+  +update(notification: Notification): Notification
+  +findUnread(userId: UUID): List<Notification>
+}
+
+interface IDeviceTokenRepository {
+  +save(token: DeviceToken): DeviceToken
+  +findByUserId(userId: UUID): List<DeviceToken>
+  +delete(tokenId: UUID): void
+}
+
+class DeviceTokenRepository implements IDeviceTokenRepository {
+  -dbConnection: Connection
+  --
+  +save(token: DeviceToken): DeviceToken
+  +findByUserId(userId: UUID): List<DeviceToken>
+  +delete(tokenId: UUID): void
+}
+
+interface ITemplateRepository {
+  +findByCode(code: String): NotificationTemplate
+  +findAll(): List<NotificationTemplate>
+  +save(template: NotificationTemplate): void
+}
+
+class TemplateRepository implements ITemplateRepository {
+  -dbConnection: Connection
+  --
+  +findByCode(code: String): NotificationTemplate
+  +findAll(): List<NotificationTemplate>
+  +save(template: NotificationTemplate): void
+}
+
+interface IPreferenceRepository {
+  +findByUserId(userId: UUID): NotificationPreference
+  +save(preference: NotificationPreference): void
+  +update(preference: NotificationPreference): void
+}
+
+class PreferenceRepository implements IPreferenceRepository {
+  -dbConnection: Connection
+  --
+  +findByUserId(userId: UUID): NotificationPreference
+  +save(preference: NotificationPreference): void
+  +update(preference: NotificationPreference): void
+}
+
+interface IScheduledNotificationRepository {
+  +save(scheduled: ScheduledNotification): void
+  +findById(id: UUID): ScheduledNotification
+  +findByUserId(userId: UUID): List<ScheduledNotification>
+  +delete(id: UUID): void
+}
+
+class ScheduledNotificationRepository implements IScheduledNotificationRepository {
+  -dbConnection: Connection
+  --
+  +save(scheduled: ScheduledNotification): void
+  +findById(id: UUID): ScheduledNotification
+  +findByUserId(userId: UUID): List<ScheduledNotification>
+  +delete(id: UUID): void
+}
+
+interface INotificationEventRepository {
+  +save(event: NotificationEvent): void
+  +findByUserId(userId: UUID): List<NotificationEvent>
+}
+
+class NotificationEventRepository implements INotificationEventRepository {
+  -dbConnection: Connection
+  --
+  +save(event: NotificationEvent): void
+  +findByUserId(userId: UUID): List<NotificationEvent>
+}
+
+class Notification {
+  -id: UUID
+  -userId: UUID
+  -title: String
+  -message: String
+  -notificationType: String
+  -relatedEntityId: UUID
+  -isRead: Boolean
+  -createdAt: LocalDateTime
+  -readAt: LocalDateTime
+  --
+  +getId(): UUID
+  +getTitle(): String
+  +markAsRead(): void
+  +isRead(): Boolean
+}
+
+class NotificationTemplate {
+  -id: UUID
+  -code: String
+  -title: String
+  -messageTemplate: String
+  -variables: Map<String, String>
+  --
+  +getId(): UUID
+  +getCode(): String
+  +getTitle(): String
+}
+
+class DeviceToken {
+  -id: UUID
+  -userId: UUID
+  -token: String
+  -deviceType: String
+  -isActive: Boolean
+  -createdAt: LocalDateTime
+  --
+  +getId(): UUID
+  +getToken(): String
+  +isActive(): Boolean
+}
+
+class NotificationPreference {
+  -id: UUID
+  -userId: UUID
+  -emailNotification: Boolean
+  -pushNotification: Boolean
+  -smsNotification: Boolean
+  -inAppNotification: Boolean
+  -notificationFrequency: String
+  -updatedAt: LocalDateTime
+  --
+  +getId(): UUID
+  +isEmailEnabled(): Boolean
+  +updatePreferences(): void
+}
+
+class ScheduledNotification {
+  -id: UUID
+  -userId: UUID
+  -notificationId: UUID
+  -scheduledTime: LocalDateTime
+  -status: String
+  -createdAt: LocalDateTime
+  --
+  +getId(): UUID
+  +getScheduledTime(): LocalDateTime
+  +reschedule(time: LocalDateTime): void
+}
+
+class NotificationEvent {
+  -id: UUID
+  -eventType: String
+  -userId: UUID
+  -triggerSource: String
+  -eventData: Map
+  -createdAt: LocalDateTime
+  --
+  +getId(): UUID
+  +getEventType(): String
+}
+
+' ===== RELATIONSHIPS =====
+NotificationHandler -- NotificationService : uses
+NotificationHandler -- TemplateService : uses
+NotificationHandler -- PreferenceService : uses
+
+NotificationService -- NotificationRepository : uses
+NotificationService -- DeviceTokenRepository : uses
+TemplateService -- TemplateRepository : uses
+PreferenceService -- PreferenceRepository : uses
+ScheduleService -- ScheduledNotificationRepository : uses
+EventService -- NotificationEventRepository : uses
+
+NotificationRepository -- Notification : manages
+DeviceTokenRepository -- DeviceToken : manages
+TemplateRepository -- NotificationTemplate : manages
+PreferenceRepository -- NotificationPreference : manages
+ScheduledNotificationRepository -- ScheduledNotification : manages
+NotificationEventRepository -- NotificationEvent : manages
+
+DeviceToken "0..*" -- "1" Notification : receives
+ScheduledNotification "1" *-- "1" Notification : schedules
+NotificationEvent "0..*" -- "1" Notification : triggers
+
+@enduml

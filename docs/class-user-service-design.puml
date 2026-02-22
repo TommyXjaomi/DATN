@@ -1,0 +1,667 @@
+@startuml
+skinparam classAttributeIconSize 0
+
+' ===== Handler Layer =====
+class UserHandler {
+  - service: UserService
+  + HealthCheck(c: *gin.Context): void
+  + GetProfile(c: *gin.Context): void
+  + GetPublicProfile(c: *gin.Context): void
+  + UpdateProfile(c: *gin.Context): void
+  + UpdateAvatar(c: *gin.Context): void
+  + GetProgress(c: *gin.Context): void
+  + StartSession(c: *gin.Context): void
+  + EndSession(c: *gin.Context): void
+  + GetHistory(c: *gin.Context): void
+  + CreateGoal(c: *gin.Context): void
+  + GetGoals(c: *gin.Context): void
+  + GetGoalByID(c: *gin.Context): void
+  + UpdateGoal(c: *gin.Context): void
+  + CompleteGoal(c: *gin.Context): void
+  + DeleteGoal(c: *gin.Context): void
+  + GetStatistics(c: *gin.Context): void
+  + GetSkillStatistics(c: *gin.Context): void
+  + GetAchievements(c: *gin.Context): void
+  + GetEarnedAchievements(c: *gin.Context): void
+  + GetPreferences(c: *gin.Context): void
+  + UpdatePreferences(c: *gin.Context): void
+  + CreateReminder(c: *gin.Context): void
+  + GetReminders(c: *gin.Context): void
+  + UpdateReminder(c: *gin.Context): void
+  + DeleteReminder(c: *gin.Context): void
+  + ToggleReminder(c: *gin.Context): void
+  + GetLeaderboard(c: *gin.Context): void
+  + GetUserRank(c: *gin.Context): void
+  + FollowUser(c: *gin.Context): void
+  + UnfollowUser(c: *gin.Context): void
+  + RemoveFollower(c: *gin.Context): void
+  + GetFollowers(c: *gin.Context): void
+  + GetFollowing(c: *gin.Context): void
+  + GetPublicAchievements(c: *gin.Context): void
+}
+
+class InternalHandler {
+  - userService: UserService
+  + CreateProfileInternal(c: *gin.Context): void
+  + UpdateProgressInternal(c: *gin.Context): void
+  + UpdateSkillStatisticsInternal(c: *gin.Context): void
+  + StartSessionInternal(c: *gin.Context): void
+  + EndSessionInternal(c: *gin.Context): void
+  + RecordCompletedSessionInternal(c: *gin.Context): void
+}
+
+class ScoringHandler {
+  - service: UserService
+  + RecordTestResultInternal(c: *gin.Context): void
+  + RecordPracticeActivityInternal(c: *gin.Context): void
+  + GetUserTestHistory(c: *gin.Context): void
+  + GetUserPracticeStatistics(c: *gin.Context): void
+}
+
+' ===== Service Layer =====
+class UserService {
+  - repo: UserRepository
+  - notificationClient: NotificationServiceClient
+  + GetOrCreateProfile(userID: UUID): (*UserProfile, error)
+  + GetPublicProfile(targetUserID: UUID, requestingUserID: *UUID): (map[string]interface{}, error)
+  + UpdateProfile(userID: UUID, req: *UpdateProfileRequest): (*UserProfile, error)
+  + UpdateAvatar(userID: UUID, avatarURL: string): error
+  + GetProgressStats(userID: UUID): (*ProgressStatsResponse, error)
+  + StartStudySession(req: *StudySessionRequest, userID: UUID, deviceType: *string): (*StudySession, error)
+  + EndStudySession(sessionID: UUID, req: *EndSessionRequest): error
+  + GetStudyHistory(userID: UUID, page: int, limit: int): ([]StudySession, int, error)
+  + CreateGoal(userID: UUID, req: *CreateGoalRequest): (*StudyGoal, error)
+  + GetUserGoals(userID: UUID): ([]*GoalResponse, error)
+  + GetGoalByID(goalID: UUID, userID: UUID): (*GoalResponse, error)
+  + UpdateGoal(goalID: UUID, userID: UUID, req: *UpdateGoalRequest): (*StudyGoal, error)
+  + CompleteGoal(goalID: UUID, userID: UUID): error
+  + DeleteGoal(goalID: UUID, userID: UUID): error
+  + GetDetailedStatistics(userID: UUID): (*StatisticsResponse, error)
+  + GetSkillStatistics(userID: UUID, skillType: string): (*SkillStatistics, error)
+  + GetAllAchievements(userID: UUID): ([]*AchievementWithProgress, error)
+  + GetEarnedAchievements(userID: UUID): ([]UserAchievement, error)
+  + UnlockAchievement(userID: UUID, achievementID: UUID): error
+  + GetPreferences(userID: UUID): (*UserPreferences, error)
+  + UpdatePreferences(userID: UUID, req: *UpdatePreferencesRequest): (*UserPreferences, error)
+  + CreateReminder(userID: UUID, req: *CreateReminderRequest): (*StudyReminder, error)
+  + GetUserReminders(userID: UUID): ([]StudyReminder, error)
+  + UpdateReminder(reminderID: UUID, userID: UUID, req: *UpdateReminderRequest): (*StudyReminder, error)
+  + DeleteReminder(reminderID: UUID, userID: UUID): error
+  + ToggleReminder(reminderID: UUID, userID: UUID): (*StudyReminder, error)
+  + GetLeaderboard(period: string, page: int, limit: int): ([]LeaderboardEntry, int, error)
+  + GetUserRank(userID: UUID): (*LeaderboardEntry, error)
+  + FollowUser(followerID: UUID, followingID: UUID): error
+  + UnfollowUser(followerID: UUID, followingID: UUID): error
+  + RemoveFollower(followingID: UUID, followerID: UUID): error
+  + GetFollowers(userID: UUID, requestingUserID: *UUID, page: int, limit: int): ([]UserFollowInfo, int, error)
+  + GetFollowing(userID: UUID, requestingUserID: *UUID, page: int, limit: int): ([]UserFollowInfo, int, error)
+  + GetPublicAchievements(userID: UUID): ([]UserAchievement, error)
+  + CreateProfile(profile: *UserProfile): error
+  + CreateProfileWithData(userID: UUID, fullName: string, targetBandScore: float64): error
+  + UpdateProgress(userID: UUID, updates: map[string]interface{}): error
+  + UpdateSkillStatistics(userID: UUID, skillType: string, updates: map[string]interface{}): error
+  + StartSession(session: *StudySession): (*UUID, error)
+  + EndSession(sessionID: UUID, isCompleted: bool, score: float64): error
+  + RecordCompletedSession(session: *StudySession): error
+  + RecordOfficialTestResult(result: *OfficialTestResult): error
+  + RecordPracticeActivity(activity: *PracticeActivity): error
+  - enrichGoalResponse(goal: *StudyGoal): *GoalResponse
+  - syncPushNotificationPreference(userID: UUID, pushEnabled: bool): error
+}
+
+' ===== Repository Layer =====
+class UserRepository {
+  - db: *Database
+  - config: *Config
+  + BeginTx(): (*sql.Tx, error)
+  + CreateOfficialTestResultTx(tx: *sql.Tx, result: *OfficialTestResult): error
+  + UpdateLearningProgressWithTestScoreTx(tx: *sql.Tx, userID: UUID, skillType: string, bandScore: float64, incrementTestCount: bool): error
+  + GetLearningProgressTx(tx: *sql.Tx, userID: UUID): (*LearningProgress, error)
+  + CreateProfile(userID: UUID): error
+  + CreateProfileWithData(userID: UUID, fullName: string, targetBandScore: float64): error
+  + GetProfileByUserID(userID: UUID): (*UserProfile, error)
+  + UpdateProfile(userID: UUID, req: *UpdateProfileRequest): error
+  + UpdateAvatar(userID: UUID, avatarURL: string): error
+  + GetLearningProgress(userID: UUID): (*LearningProgress, error)
+  + CreateLearningProgress(userID: UUID): error
+  + UpdateLearningProgress(userID: UUID, updates: map[string]interface{}): error
+  + UpdateLearningProgressAtomic(userID: UUID, updates: map[string]interface{}): error
+  + CreateStudySession(session: *StudySession): error
+  + CreateCompletedStudySession(session: *StudySession): error
+  + EndStudySession(sessionID: UUID, completionPercentage: *float64, score: *float64): error
+  + GetRecentSessions(userID: UUID, page: int, limit: int): ([]StudySession, int, error)
+  + GetUserAchievements(userID: UUID): ([]UserAchievement, error)
+  + CreateFollow(followerID: UUID, followingID: UUID): error
+  + DeleteFollow(followerID: UUID, followingID: UUID): error
+  + RemoveFollower(followingID: UUID, followerID: UUID): error
+  + IsFollowing(followerID: UUID, followingID: UUID): (bool, error)
+  + GetFollowersCount(userID: UUID): (int, error)
+  + GetFollowingCount(userID: UUID): (int, error)
+  + GetFollowers(userID: UUID, page: int, limit: int): ([]UserFollowInfo, int, error)
+  + GetFollowing(userID: UUID, page: int, limit: int): ([]UserFollowInfo, int, error)
+  + CreateGoal(goal: *StudyGoal): error
+  + GetUserGoals(userID: UUID): ([]StudyGoal, error)
+  + GetGoalByID(goalID: UUID, userID: UUID): (*StudyGoal, error)
+  + UpdateGoal(goal: *StudyGoal): error
+  + UpdateGoalProgress(goalID: UUID, userID: UUID, currentValue: int): error
+  + CompleteGoal(goalID: UUID, userID: UUID): error
+  + DeleteGoal(goalID: UUID, userID: UUID): error
+  + GetSkillStatistics(userID: UUID, skillType: string): (*SkillStatistics, error)
+  + CreateSkillStatistics(userID: UUID, skillType: string): error
+  + UpdateSkillStatistics(userID: UUID, skillType: string, updates: map[string]interface{}): error
+  + GetAllSkillStatistics(userID: UUID): (map[string]*SkillStatistics, error)
+  + UpsertSkillStatistics(stats: *SkillStatistics): error
+  + GetAllAchievements(): ([]Achievement, error)
+  + UnlockAchievement(userID: UUID, achievementID: UUID): error
+  + CheckAchievementUnlocked(userID: UUID, achievementID: UUID): (bool, error)
+  + GetPreferences(userID: UUID): (*UserPreferences, error)
+  + CreateDefaultPreferences(userID: UUID): (*UserPreferences, error)
+  + UpdatePreferences(prefs: *UserPreferences): error
+  + CreateReminder(reminder: *StudyReminder): error
+  + GetUserReminders(userID: UUID): ([]StudyReminder, error)
+  + GetReminderByID(reminderID: UUID, userID: UUID): (*StudyReminder, error)
+  + UpdateReminder(reminder: *StudyReminder): error
+  + DeleteReminder(reminderID: UUID, userID: UUID): error
+  + ToggleReminder(reminderID: UUID, userID: UUID): (*StudyReminder, error)
+  + GetTopLearners(period: string, page: int, limit: int): ([]LeaderboardEntry, int, error)
+  + GetUserRank(userID: UUID): (*LeaderboardEntry, error)
+  + CreateOfficialTestResult(result: *OfficialTestResult): error
+  + GetUserTestHistory(userID: UUID, skillType: *string, page: int, limit: int): ([]OfficialTestResult, int, error)
+  + GetUserTestStatistics(userID: UUID): (map[string]interface{}, error)
+  + CreatePracticeActivity(activity: *PracticeActivity): error
+  + GetUserPracticeActivities(userID: UUID, skillType: *string, page: int, limit: int): ([]PracticeActivity, int, error)
+  + GetUserPracticeStatistics(userID: UUID, skillType: *string): (map[string]interface{}, error)
+  + UpdateLearningProgressWithTestScore(userID: UUID, skillType: string, bandScore: float64, incrementTestCount: bool): error
+  - getDBLinkConnectionString(dbName: string): string
+  - calculateIELTSOverallScore(average: float64): float64
+}
+
+' ===== Entity Layer =====
+class UserProfile {
+  - UserID: UUID
+  - FirstName: *string
+  - LastName: *string
+  - FullName: *string
+  - DateOfBirth: *time.Time
+  - Gender: *string
+  - Phone: *string
+  - Address: *string
+  - City: *string
+  - Country: *string
+  - Timezone: string
+  - AvatarURL: *string
+  - CoverImageURL: *string
+  - CurrentLevel: *string
+  - TargetBandScore: *float64
+  - TargetExamDate: *time.Time
+  - Bio: *string
+  - LearningPreferences: *string
+  - LanguagePreference: string
+  - CreatedAt: time.Time
+  - UpdatedAt: time.Time
+}
+
+class LearningProgress {
+  - ID: int64
+  - UserID: UUID
+  - TotalStudyHours: float64
+  - TotalLessonsCompleted: int
+  - TotalExercisesCompleted: int
+  - ListeningProgress: float64
+  - ReadingProgress: float64
+  - WritingProgress: float64
+  - SpeakingProgress: float64
+  - ListeningScore: *float64
+  - ReadingScore: *float64
+  - WritingScore: *float64
+  - SpeakingScore: *float64
+  - OverallScore: *float64
+  - CurrentStreakDays: int
+  - LongestStreakDays: int
+  - LastStudyDate: *time.Time
+  - CreatedAt: time.Time
+  - UpdatedAt: time.Time
+}
+
+class StudySession {
+  - ID: UUID
+  - UserID: UUID
+  - SessionType: string
+  - SkillType: *string
+  - ResourceID: *UUID
+  - ResourceType: *string
+  - StartedAt: time.Time
+  - EndedAt: *time.Time
+  - DurationMinutes: *int
+  - IsCompleted: bool
+  - CompletionPercentage: *float64
+  - Score: *float64
+  - DeviceType: *string
+  - CreatedAt: time.Time
+}
+
+class Achievement {
+  - ID: int
+  - Code: string
+  - Name: string
+  - Description: *string
+  - CriteriaType: string
+  - CriteriaValue: int
+  - IconURL: *string
+  - BadgeColor: *string
+  - Points: int
+  - CreatedAt: time.Time
+}
+
+class UserAchievement {
+  - ID: int64
+  - UserID: UUID
+  - AchievementID: int
+  - EarnedAt: time.Time
+}
+
+class SkillStatistics {
+  - ID: int64
+  - UserID: UUID
+  - SkillType: string
+  - TotalPractices: int
+  - CompletedPractices: int
+  - AverageScore: float64
+  - BestScore: float64
+  - TotalTimeMinutes: int
+  - LastPracticeDate: *time.Time
+  - LastPracticeScore: *float64
+  - ScoreTrend: *string
+  - WeakAreas: *string
+  - CreatedAt: time.Time
+  - UpdatedAt: time.Time
+}
+
+class StudyGoal {
+  - ID: UUID
+  - UserID: UUID
+  - GoalType: string
+  - Title: string
+  - Description: *string
+  - TargetValue: int
+  - TargetUnit: string
+  - CurrentValue: int
+  - SkillType: *string
+  - StartDate: time.Time
+  - EndDate: time.Time
+  - Status: string
+  - CompletedAt: *time.Time
+  - ReminderEnabled: bool
+  - ReminderTime: *string
+  - CreatedAt: time.Time
+  - UpdatedAt: time.Time
+}
+
+class UserPreferences {
+  - UserID: UUID
+  - EmailNotifications: bool
+  - PushNotifications: bool
+  - StudyReminders: bool
+  - WeeklyReport: bool
+  - Theme: string
+  - FontSize: string
+  - Locale: string
+  - AutoPlayNextLesson: bool
+  - ShowAnswerExplanation: bool
+  - PlaybackSpeed: float64
+  - ProfileVisibility: string
+  - ShowStudyStats: bool
+  - UpdatedAt: time.Time
+}
+
+class StudyReminder {
+  - ID: UUID
+  - UserID: UUID
+  - Title: string
+  - Message: *string
+  - ReminderType: string
+  - ReminderTime: string
+  - DaysOfWeek: *string
+  - IsActive: bool
+  - LastSentAt: *time.Time
+  - NextSendAt: *time.Time
+  - CreatedAt: time.Time
+  - UpdatedAt: time.Time
+}
+
+class UserFollow {
+  - ID: int64
+  - FollowerID: UUID
+  - FollowingID: UUID
+  - CreatedAt: time.Time
+}
+
+class OfficialTestResult {
+  - ID: UUID
+  - UserID: UUID
+  - TestType: string
+  - SkillType: string
+  - IELTSVariant: *string
+  - BandScore: float64
+  - RawScore: *int
+  - TotalQuestions: *int
+  - SourceService: *string
+  - SourceTable: *string
+  - SourceID: *UUID
+  - TestDate: time.Time
+  - TestDurationMinutes: *int
+  - CompletionStatus: string
+  - TestSource: *string
+  - Notes: *string
+  - CreatedAt: time.Time
+  - UpdatedAt: time.Time
+}
+
+class PracticeActivity {
+  - ID: UUID
+  - UserID: UUID
+  - Skill: string
+  - ActivityType: string
+  - ExerciseID: *UUID
+  - ExerciseTitle: *string
+  - Score: *float64
+  - MaxScore: *float64
+  - BandScore: *float64
+  - CorrectAnswers: int
+  - TotalQuestions: *int
+  - AccuracyPercentage: *float64
+  - TimeSpentSeconds: *int
+  - StartedAt: *time.Time
+  - CompletedAt: *time.Time
+  - CompletionStatus: string
+  - AIEvaluated: bool
+  - AIFeedbackSummary: *string
+  - DifficultyLevel: *string
+  - Tags: pq.StringArray
+  - Notes: *string
+  - CreatedAt: time.Time
+  - UpdatedAt: time.Time
+}
+
+' ===== DTO Layer =====
+class UpdateProfileRequest {
+  - FullName: *string
+  - FirstName: *string
+  - LastName: *string
+  - DateOfBirth: *time.Time
+  - Gender: *string
+  - Phone: *string
+  - Address: *string
+  - City: *string
+  - Country: *string
+  - Timezone: *string
+  - CurrentLevel: *string
+  - TargetBandScore: *float64
+  - TargetExamDate: *time.Time
+  - Bio: *string
+  - LearningPreferences: *string
+  - LanguagePreference: *string
+}
+
+class StudySessionRequest {
+  - SessionType: string
+  - SkillType: *string
+  - ResourceID: *string
+  - ResourceType: *string
+  - DeviceType: *string
+}
+
+class EndSessionRequest {
+  - CompletionPercentage: *float64
+  - Score: *float64
+}
+
+class ProgressStatsResponse {
+  - Profile: *UserProfile
+  - Progress: *LearningProgress
+  - RecentSessions: []StudySession
+  - Achievements: []UserAchievement
+  - TotalPoints: int
+  - Rank: int
+}
+
+class LeaderboardEntry {
+  - Rank: int
+  - UserID: UUID
+  - FullName: string
+  - AvatarURL: *string
+  - TotalPoints: int
+  - CurrentStreakDays: int
+  - TotalStudyHours: float64
+  - AchievementsCount: int
+}
+
+class Response {
+  - Success: bool
+  - Message: string
+  - Data: interface{}
+  - Error: *ErrorInfo
+}
+
+class ErrorInfo {
+  - Code: string
+  - Message: string
+  - Details: string
+}
+
+class CreateGoalRequest {
+  - GoalType: string
+  - Title: string
+  - Description: *string
+  - TargetValue: int
+  - TargetUnit: string
+  - SkillType: *string
+  - EndDate: string
+}
+
+class UpdateGoalRequest {
+  - Title: *string
+  - Description: *string
+  - TargetValue: *int
+  - CurrentValue: *int
+  - EndDate: *string
+  - Status: *string
+}
+
+class GoalResponse {
+  - StudyGoal: *StudyGoal
+  - CompletionPercentage: float64
+  - DaysRemaining: *int
+  - StatusMessage: string
+}
+
+class UpdatePreferencesRequest {
+  - EmailNotifications: *bool
+  - PushNotifications: *bool
+  - StudyReminders: *bool
+  - WeeklyReport: *bool
+  - Theme: *string
+  - FontSize: *string
+  - Locale: *string
+  - AutoPlayNextLesson: *bool
+  - ShowAnswerExplanation: *bool
+  - PlaybackSpeed: *float64
+  - ProfileVisibility: *string
+  - ShowStudyStats: *bool
+}
+
+class CreateReminderRequest {
+  - Title: string
+  - Message: *string
+  - ReminderType: string
+  - ReminderTime: string
+  - DaysOfWeek: *string
+}
+
+class UpdateReminderRequest {
+  - Title: *string
+  - Message: *string
+  - ReminderTime: *string
+  - DaysOfWeek: *string
+  - IsActive: *bool
+}
+
+class StatisticsResponse {
+  - TotalPractices: int
+  - CompletedPractices: int
+  - AverageAccuracy: float64
+  - TotalTimeMinutes: int
+  - SkillBreakdown: map[string]*SkillStatistics
+  - WeakSkills: []string
+  - StrongSkills: []string
+}
+
+class AchievementWithProgress {
+  - Achievement: *Achievement
+  - IsEarned: bool
+  - EarnedAt: *time.Time
+  - Progress: int
+  - ProgressPercentage: float64
+}
+
+class UserFollowInfo {
+  - UserID: UUID
+  - FullName: string
+  - AvatarURL: *string
+  - Bio: *string
+  - Level: int
+  - Points: int
+  - FollowedAt: time.Time
+}
+
+class RecordTestResultRequest {
+  - TestType: string
+  - SkillType: string
+  - IELTSVariant: *string
+  - BandScore: float64
+  - RawScore: *int
+  - TotalQuestions: *int
+  - SourceService: string
+  - SourceTable: string
+  - SourceID: *UUID
+  - TestDate: time.Time
+  - TestSource: string
+  - Notes: *string
+}
+
+class RecordPracticeActivityRequest {
+  - Skill: string
+  - ActivityType: string
+  - ExerciseID: *UUID
+  - ExerciseTitle: *string
+  - Score: *float64
+  - MaxScore: *float64
+  - BandScore: *float64
+  - CorrectAnswers: int
+  - TotalQuestions: *int
+  - AccuracyPercentage: *float64
+  - TimeSpentSeconds: *int
+  - StartedAt: *time.Time
+  - CompletedAt: *time.Time
+  - CompletionStatus: string
+  - AIEvaluated: bool
+  - AIFeedbackSummary: *string
+  - DifficultyLevel: *string
+  - Notes: *string
+}
+
+' ===== Config Layer =====
+class Config {
+  - ServerPort: string
+  - DBHost: string
+  - DBPort: string
+  - DBUser: string
+  - DBPassword: string
+  - DBName: string
+  - AuthServiceURL: string
+  - JWTSecret: string
+  - InternalAPIKey: string
+  - NotificationServiceURL: string
+  + LoadConfig(): *Config
+}
+
+' ===== Middleware Layer =====
+class AuthMiddleware {
+  - jwtSecret: string
+  - internalAPIKey: string
+  + AuthRequired(): gin.HandlerFunc
+  + RequireRole(allowedRoles: ...string): gin.HandlerFunc
+  + OptionalAuth(): gin.HandlerFunc
+  + InternalAuth(): gin.HandlerFunc
+}
+
+' ===== Relationships =====
+UserHandler --> UserService : uses
+InternalHandler --> UserService : uses
+ScoringHandler --> UserService : uses
+
+UserService --> UserRepository : uses
+UserService --> NotificationServiceClient : uses
+
+UserRepository --> UserProfile : CRUD
+UserRepository --> LearningProgress : CRUD
+UserRepository --> StudySession : CRUD
+UserRepository --> Achievement : CRUD
+UserRepository --> UserAchievement : CRUD
+UserRepository --> SkillStatistics : CRUD
+UserRepository --> StudyGoal : CRUD
+UserRepository --> UserPreferences : CRUD
+UserRepository --> StudyReminder : CRUD
+UserRepository --> UserFollow : CRUD
+UserRepository --> OfficialTestResult : CRUD
+UserRepository --> PracticeActivity : CRUD
+
+UserHandler ..> UpdateProfileRequest : uses
+UserHandler ..> StudySessionRequest : uses
+UserHandler ..> EndSessionRequest : uses
+UserHandler ..> ProgressStatsResponse : returns
+UserHandler ..> CreateGoalRequest : uses
+UserHandler ..> GoalResponse : returns
+UserHandler ..> UpdateGoalRequest : uses
+UserHandler ..> StatisticsResponse : returns
+UserHandler ..> UpdatePreferencesRequest : uses
+UserHandler ..> CreateReminderRequest : uses
+UserHandler ..> UpdateReminderRequest : uses
+UserHandler ..> LeaderboardEntry : returns
+UserHandler ..> Response : returns
+UserHandler ..> ErrorInfo : returns
+
+InternalHandler ..> Response : returns
+InternalHandler ..> ErrorInfo : returns
+
+ScoringHandler ..> RecordTestResultRequest : uses
+ScoringHandler ..> RecordPracticeActivityRequest : uses
+
+UserService ..> UpdateProfileRequest : uses
+UserService ..> StudySessionRequest : uses
+UserService ..> EndSessionRequest : uses
+UserService ..> CreateGoalRequest : uses
+UserService ..> UpdateGoalRequest : uses
+UserService ..> UpdatePreferencesRequest : uses
+UserService ..> CreateReminderRequest : uses
+UserService ..> UpdateReminderRequest : uses
+UserService ..> OfficialTestResult : uses
+UserService ..> PracticeActivity : uses
+
+AuthMiddleware ..> Config : uses
+
+' ===== Entity Relationships =====
+UserProfile "1" -- "1" LearningProgress : has
+UserProfile "1" -- "0..*" StudySession : creates
+UserProfile "1" -- "0..*" UserAchievement : earns
+UserProfile "1" -- "1" UserPreferences : has
+UserProfile "1" -- "0..*" StudyGoal : sets
+UserProfile "1" -- "0..*" StudyReminder : creates
+UserProfile "1" -- "0..*" SkillStatistics : tracks
+UserProfile "1" -- "0..*" OfficialTestResult : records
+UserProfile "1" -- "0..*" PracticeActivity : performs
+Achievement "1" -- "0..*" UserAchievement : unlocks
+UserFollow "*" -- "1" UserProfile : follower
+UserFollow "*" -- "1" UserProfile : following
+
+@enduml

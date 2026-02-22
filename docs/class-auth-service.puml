@@ -1,0 +1,82 @@
+@startuml
+title Auth Service - Sơ đồ Lớp Phân Tích (Entities)
+skinparam classAttributeIconSize 0
+
+' ===== Auth Service Entities =====
+class AuthUser {
+  -UUID id
+  -string email
+  -string password_hash
+  -string role
+  -bool email_verified
+  -int failed_login_attempts
+  -bool is_locked
+  -time.Time locked_until
+  -time.Time last_login_at
+  -string last_login_ip
+  -string last_login_user_agent
+  -time.Time created_at
+  -time.Time updated_at
+}
+
+class Role {
+  -int id
+  -string name
+  -string description
+  -time.Time created_at
+}
+
+class EmailVerification {
+  -UUID id
+  -UUID user_id
+  -string code
+  -bool is_verified
+  -time.Time expires_at
+  -time.Time verified_at
+  -time.Time created_at
+}
+
+class RefreshToken {
+  -UUID id
+  -UUID user_id
+  -string token_hash
+  -string ip_address
+  -string user_agent
+  -bool is_revoked
+  -time.Time expires_at
+  -time.Time revoked_at
+  -time.Time created_at
+}
+
+class PasswordReset {
+  -UUID id
+  -UUID user_id
+  -string reset_code
+  -bool is_used
+  -time.Time expires_at
+  -time.Time used_at
+  -time.Time created_at
+}
+
+class Permission {
+  -int id
+  -string name
+  -string description
+  -time.Time created_at
+}
+
+class RolePermission {
+  -int role_id
+  -int permission_id
+  -time.Time created_at
+}
+
+' ===== Relationships =====
+AuthUser "1" -- "0..*" EmailVerification : has
+AuthUser "1" -- "0..*" RefreshToken : generates
+AuthUser "1" -- "0..*" PasswordReset : requests
+AuthUser "*" -- "1" Role : assigned
+Role "1" -- "0..*" RolePermission : grants
+Permission "1" -- "0..*" RolePermission : belongs
+
+@enduml

@@ -1,0 +1,257 @@
+@startuml
+!theme plain
+skinparam classAttributeIconSize 0
+skinparam backgroundColor #FFFFFF
+skinparam shadowing false
+
+title Thứ Tự Các Layer Trong Sơ Đồ Lớp Pha Thiết Kế
+
+' ============================================
+' 1. HANDLER LAYER (Presentation Layer)
+' ============================================
+' Vị trí: Trên cùng
+' Vai trò: Entry point, xử lý HTTP requests/responses
+' Dependency: Phụ thuộc vào Service Layer
+
+package "1. Handler Layer (Presentation)" #FFE5E5 {
+  class ServiceHandler {
+    - service: ServiceService
+    + HandleMethod1(c: *gin.Context): void
+    + HandleMethod2(c: *gin.Context): void
+    + HealthCheck(c: *gin.Context): void
+  }
+  
+  note right of ServiceHandler
+    **Vai trò:**
+    - Nhận HTTP requests
+    - Validate input
+    - Gọi Service Layer
+    - Trả về HTTP responses
+    - Serialize JSON
+  end note
+}
+
+' ============================================
+' 2. SERVICE LAYER (Business Logic Layer)
+' ============================================
+' Vị trí: Sau Handler Layer
+' Vai trò: Business logic, orchestration
+' Dependency: Phụ thuộc vào Repository Layer
+
+package "2. Service Layer (Business Logic)" #E5F3FF {
+  class ServiceService {
+    - repo: ServiceRepository
+    - externalClient: ExternalServiceClient
+    + BusinessMethod1(req: *RequestDTO): (*ResponseDTO, error)
+    + BusinessMethod2(id: UUID): (*Entity, error)
+    - privateHelperMethod(): void
+  }
+  
+  class ExternalServiceClient {
+    - baseURL: string
+    - apiKey: string
+    + CallExternalAPI(): (*Response, error)
+  }
+  
+  note right of ServiceService
+    **Vai trò:**
+    - Business logic
+    - Orchestration
+    - Validation business rules
+    - Gọi Repository Layer
+    - Gọi External Services
+  end note
+}
+
+' ============================================
+' 3. REPOSITORY LAYER (Data Access Layer)
+' ============================================
+' Vị trí: Sau Service Layer
+' Vai trò: Tương tác với database
+' Dependency: Phụ thuộc vào Entity Layer
+
+package "3. Repository Layer (Data Access)" #E5FFE5 {
+  class ServiceRepository {
+    - db: *sql.DB
+    + GetEntity(id: UUID): (*Entity, error)
+    + CreateEntity(entity: *Entity): error
+    + UpdateEntity(id: UUID, updates: map): error
+    + DeleteEntity(id: UUID): error
+    + GetEntities(query: *QueryDTO): ([]Entity, int, error)
+  }
+  
+  note right of ServiceRepository
+    **Vai trò:**
+    - CRUD operations
+    - Database queries
+    - Transaction management
+    - Làm việc với Entities
+  end note
+}
+
+' ============================================
+' 4. ENTITY LAYER (Domain Model Layer)
+' ============================================
+' Vị trí: Sau Repository Layer
+' Vai trò: Domain models, database entities
+' Dependency: Độc lập (không phụ thuộc layer nào)
+
+package "4. Entity Layer (Domain Models)" #FFF5E5 {
+  class Entity {
+    + ID: UUID
+    + Name: string
+    + Description: *string
+    + Status: string
+    + CreatedAt: time.Time
+    + UpdatedAt: time.Time
+  }
+  
+  class RelatedEntity {
+    + ID: UUID
+    + EntityID: UUID
+    + Data: string
+    + CreatedAt: time.Time
+  }
+  
+  note right of Entity
+    **Vai trò:**
+    - Đại diện database schema
+    - Domain models
+    - Độc lập, không phụ thuộc
+    - Có thể có relationships
+  end note
+}
+
+' ============================================
+' 5. DTO LAYER (Data Transfer Objects)
+' ============================================
+' Vị trí: Sau Entity Layer
+' Vai trò: Transfer data giữa các layer
+' Dependency: Độc lập, nhưng Response DTOs chứa Entities
+
+package "5. DTO Layer (Data Transfer)" #F0E5FF {
+  class CreateEntityRequest {
+    + Name: string
+    + Description: *string
+    + Status: string
+  }
+  
+  class UpdateEntityRequest {
+    + Name: *string
+    + Description: *string
+    + Status: *string
+  }
+  
+  class EntityDetailResponse {
+    + Entity: Entity
+    + RelatedData: []RelatedEntity
+    + Metadata: map[string]interface{}
+  }
+  
+  class EntityListQuery {
+    + Page: int
+    + Limit: int
+    + Search: string
+    + Filter: string
+  }
+  
+  note right of CreateEntityRequest
+    **Vai trò:**
+    - Request DTOs: Nhận từ client
+    - Response DTOs: Trả về cho client
+    - Query DTOs: Filter, pagination
+    - Tách biệt API contract
+  end note
+}
+
+' ============================================
+' 6. CONFIG LAYER (Configuration Layer)
+' ============================================
+' Vị trí: Cuối cùng (trước Relationships)
+' Vai trò: Cấu hình service
+' Dependency: Hoàn toàn độc lập
+
+package "6. Config Layer (Configuration)" #E5E5E5 {
+  class Config {
+    + ServerPort: string
+    + DBHost: string
+    + DBPort: string
+    + DBUser: string
+    + DBPassword: string
+    + DBName: string
+    + JWTSecret: string
+    + ExternalServiceURL: string
+    + InternalAPIKey: string
+  }
+  
+  note right of Config
+    **Vai trò:**
+    - Cấu hình service
+    - Environment variables
+    - Được inject vào các layer
+    - Hoàn toàn độc lập
+  end note
+}
+
+' ============================================
+' 7. RELATIONSHIPS (Dependencies)
+' ============================================
+' Vị trí: Cuối cùng
+' Vai trò: Định nghĩa mối quan hệ giữa các classes
+
+' Handler Layer Relationships
+ServiceHandler --> ServiceService : uses
+
+' Service Layer Relationships
+ServiceService --> ServiceRepository : uses
+ServiceService --> ExternalServiceClient : uses
+ServiceService --> CreateEntityRequest : receives
+ServiceService --> EntityDetailResponse : returns
+
+' Repository Layer Relationships
+ServiceRepository --> Entity : CRUD
+ServiceRepository --> RelatedEntity : CRUD
+
+' Entity Layer Relationships
+Entity "1" -- "0..*" RelatedEntity : has
+
+' DTO Layer Relationships
+EntityDetailResponse --> Entity : contains
+EntityDetailResponse --> RelatedEntity : contains
+
+' Config Layer Relationships
+ServiceHandler ..> Config : uses
+ServiceService ..> Config : uses
+ServiceRepository ..> Config : uses
+
+' ============================================
+' Dependency Flow Visualization
+' ============================================
+
+legend right
+  |<#FFE5E5> **1. Handler Layer** |
+  Entry point, HTTP handling
+  
+  |<#E5F3FF> **2. Service Layer** |
+  Business logic, orchestration
+  
+  |<#E5FFE5> **3. Repository Layer** |
+  Data access, CRUD operations
+  
+  |<#FFF5E5> **4. Entity Layer** |
+  Domain models, database schema
+  
+  |<#F0E5FF> **5. DTO Layer** |
+  Data transfer objects
+  
+  |<#E5E5E5> **6. Config Layer** |
+  Configuration, settings
+  
+  **Thứ tự:** Từ trên xuống dưới
+  **Nguyên tắc:** Dependency flow
+  (Layer phụ thuộc → Layer được phụ thuộc)
+endlegend
+
+@enduml
+
+

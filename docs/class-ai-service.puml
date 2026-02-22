@@ -1,0 +1,46 @@
+@startuml
+skinparam classAttributeIconSize 0
+
+class AIEvaluationCache {
+  - UUID id
+  - string content_hash
+  - string skill_type
+  - string task_type
+  - float overall_band_score
+  - JSONB detailed_scores
+  - JSONB feedback
+  - string ai_model_name
+  - string ai_model_version
+  - int processing_time_ms
+  - float confidence_score
+  - int prompt_tokens
+  - int completion_tokens
+  - float total_cost_usd
+  - time.Time created_at
+  - time.Time expires_at
+  - int hit_count
+  - time.Time last_hit_at
+  - string notes
+}
+
+class AIEvaluationLogs {
+  - UUID id
+  - string skill_type
+  - string task_type
+  - string content_hash
+  - bool cache_hit
+  - float band_score
+  - int processing_time_ms
+  - int prompt_tokens
+  - int completion_tokens
+  - float cost_usd
+  - bool success
+  - string error_message
+  - string ai_model_name
+  - time.Time created_at
+}
+
+' Relationships
+AIEvaluationCache "1" -- "0..*" AIEvaluationLogs : logs
+
+@enduml

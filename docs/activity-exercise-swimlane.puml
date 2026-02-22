@@ -1,0 +1,66 @@
+@startuml
+title Biểu đồ Hoạt Động - Làm Bài Tập
+
+start
+note right : Frontend
+:User chọn bài tập;
+:Hiển thị form bài tập;
+
+note right : Exercise Service
+:Load nội dung bài tập;
+:Kiểm tra quyền truy cập;
+if (User có quyền?) then (no)
+  :Trả về lỗi;
+  stop
+else (yes)
+endif
+
+:Tạo UserExerciseAttempt;
+:Ghi start_time;
+
+note right : Frontend
+:Vòng lặp: Hiển thị câu hỏi;
+repeat
+  :User chọn/nhập đáp án;
+  :Lưu submission tạm thời;
+  :Chuyển câu hỏi tiếp theo;
+repeat while (Còn câu hỏi?)
+:User bấm Nộp bài;
+
+note right : Exercise Service
+:Ghi end_time;
+:Lưu SubmissionAnswers;
+:Tính điểm multiple choice;
+
+note right : AI Service
+if (Bài có writing/speaking?) then (yes)
+  :Gửi content đến AI;
+  :Chờ AI evaluation;
+  :Nhận band score từ AI;
+else (no)
+endif
+
+note right : Exercise Service
+:Tạo ExerciseResult;
+:Tính final_score;
+
+if (Score >= passing_score?) then (yes)
+  :Đánh dấu exercise passed;
+  :Unlock bài tập tiếp theo;
+else (no)
+  :Đánh dấu exercise failed;
+endif
+
+:Cập nhật LessonProgress;
+:Cập nhật user learning stats;
+
+note right : Notification Service
+:Gửi notification;
+:Cập nhật user achievements;
+
+note right : Frontend
+:Hiển thị kết quả chi tiết;
+:Hiển thị giải thích đáp án;
+:Chuyển đến bài tập tiếp theo;
+stop
+@enduml

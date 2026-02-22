@@ -1,0 +1,63 @@
+@startuml
+title Quy trình Đăng ký khóa học
+
+start
+:User xem danh sách khóa học;
+:Load thông tin khóa học;
+:User chọn khóa học muốn đăng ký;
+:Hiển thị chi tiết khóa học;
+
+if (User đã xác thực?) then (no)
+  :Kiểm tra user authentication token;
+  :Kiểm tra token expiration;
+  :Ghi log unauthenticated request;
+  :Yêu cầu user đăng nhập;
+else (yes)
+  :User authenticated;
+endif
+
+if (Khóa học miễn phí?) then (no)
+  :Lấy giá khóa học từ DB;
+  :Kiểm tra discount/coupon;
+  :Tính giá cuối cùng;
+  :Hiển thị payment gateway;
+  if (Thanh toán thành công?) then (no)
+    :Kiểm tra payment status từ gateway;
+    :Ghi log transaction failed;
+    :Hiển thị lỗi thanh toán;
+  else (yes)
+    :Lưu payment record;
+    :Cập nhật balance/subscription;
+  endif
+else (yes)
+  :Khóa học miễn phí;
+endif
+
+if (Có điều kiện tiên quyết?) then (yes)
+  :Lấy prerequisite course IDs;
+  if (User đã hoàn thành?) then (no)
+    :Kiểm tra completion status của user;
+    :Lấy progress percentage;
+    :Ghi log prerequisite not met;
+    :Hiển thị lỗi chưa đủ điều kiện;
+  else (yes)
+    :Điều kiện đủ;
+  endif
+else (no)
+  :Không có prerequisite;
+endif
+
+:Kiểm tra user chưa đăng ký khóa học này;
+:Kiểm tra duplicate enrollment;
+:Tạo bản ghi CourseEnrollment;
+:Ghi enrollment_date;
+:Tạo LessonProgress cho tất cả lesson;
+:Khởi tạo exercise attempt counters;
+:Cập nhật user.total_enrolled_courses;
+:Cập nhật user.current_learning_level;
+:Ghi log sự kiện đăng ký;
+:Gửi email thông báo đăng ký thành công;
+:Gửi email hướng dẫn học tập;
+:Chuyển đến trang khóa học;
+stop
+@enduml

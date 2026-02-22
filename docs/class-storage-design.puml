@@ -1,0 +1,264 @@
+@startuml
+skinparam classAttributeIconSize 0
+
+class StorageHandler {
+    -storageService: StorageService
+    -quotaService: QuotaService
+    -accessService: AccessService
+    --
+    +uploadFile(file: MultipartFile, bucketId: UUID): FileObject
+    +downloadFile(fileId: UUID): FileObject
+    +deleteFile(fileId: UUID): void
+    +getFileVersions(fileId: UUID): List<FileVersion>
+    +getQuotaInfo(userId: UUID): FileQuota
+    +getAccessLog(fileId: UUID): List<FileAccess>
+}
+
+class StorageService {
+    -bucketRepository: StorageBucketRepository
+    -fileRepository: FileObjectRepository
+    -metadataRepository: FileMetadataRepository
+    --
+    +uploadFile(file: MultipartFile, bucketId: UUID): FileObject
+    +downloadFile(fileId: UUID): InputStream
+    +deleteFile(fileId: UUID): void
+    +copyFile(sourceId: UUID, destBucketId: UUID): FileObject
+    +getFile(fileId: UUID): FileObject
+    +listFiles(bucketId: UUID): List<FileObject>
+  }
+
+  class VersionService {
+    -versionRepository: FileVersionRepository
+    -fileRepository: FileObjectRepository
+    --
+    +createVersion(fileId: UUID): FileVersion
+    +getVersions(fileId: UUID): List<FileVersion>
+    +restoreVersion(versionId: UUID): void
+    +deleteVersion(versionId: UUID): void
+    +getLatestVersion(fileId: UUID): FileVersion
+  }
+
+  class QuotaService {
+    -quotaRepository: FileQuotaRepository
+    -fileRepository: FileObjectRepository
+    --
+    +getQuota(userId: UUID): FileQuota
+    +checkQuotaAvailable(userId: UUID, fileSize: Long): Boolean
+    +updateQuotaUsage(userId: UUID, size: Long): void
+    +setQuotaLimit(userId: UUID, limit: Long): void
+  }
+
+  class AccessService {
+    -accessRepository: FileAccessRepository
+    -fileRepository: FileObjectRepository
+    --
+    +grantAccess(fileId: UUID, userId: UUID, permission: String): void
+    +revokeAccess(fileId: UUID, userId: UUID): void
+    +getAccessList(fileId: UUID): List<FileAccess>
+    +logAccess(fileId: UUID, userId: UUID, action: String): void
+  }
+interface IStorageBucketRepository {
+    +findById(id: UUID): StorageBucket
+    +findByUserId(userId: UUID): List<StorageBucket>
+    +save(bucket: StorageBucket): StorageBucket
+  }
+
+  class StorageBucketRepository implements IStorageBucketRepository {
+    -dbConnection: Connection
+    --
+    +findById(id: UUID): StorageBucket
+    +findByUserId(userId: UUID): List<StorageBucket>
+    +save(bucket: StorageBucket): StorageBucket
+  }
+
+  interface IFileObjectRepository {
+    +save(file: FileObject): FileObject
+    +findById(id: UUID): FileObject
+    +findByBucketId(bucketId: UUID): Page<FileObject>
+    +update(file: FileObject): void
+    +delete(id: UUID): void
+  }
+
+  class FileObjectRepository implements IFileObjectRepository {
+    -dbConnection: Connection
+    --
+    +save(file: FileObject): FileObject
+    +findById(id: UUID): FileObject
+    +findByBucketId(bucketId: UUID): Page<FileObject>
+    +update(file: FileObject): void
+    +delete(id: UUID): void
+  }
+
+  interface IFileVersionRepository {
+    +save(version: FileVersion): void
+    +findByFileId(fileId: UUID): List<FileVersion>
+    +findById(id: UUID): FileVersion
+  }
+
+  class FileVersionRepository implements IFileVersionRepository {
+    -dbConnection: Connection
+    --
+    +save(version: FileVersion): void
+    +findByFileId(fileId: UUID): List<FileVersion>
+    +findById(id: UUID): FileVersion
+  }
+
+  interface IFileMetadataRepository {
+    +save(metadata: FileMetadata): void
+    +findByFileId(fileId: UUID): FileMetadata
+    +update(metadata: FileMetadata): void
+  }
+
+  class FileMetadataRepository implements IFileMetadataRepository {
+    -dbConnection: Connection
+    --
+    +save(metadata: FileMetadata): void
+    +findByFileId(fileId: UUID): FileMetadata
+    +update(metadata: FileMetadata): void
+  }
+
+  interface IFileAccessRepository {
+    +save(access: FileAccess): void
+    +findByFileId(fileId: UUID): List<FileAccess>
+    +delete(fileId: UUID, userId: UUID): void
+  }
+
+  class FileAccessRepository implements IFileAccessRepository {
+    -dbConnection: Connection
+    --
+    +save(access: FileAccess): void
+    +findByFileId(fileId: UUID): List<FileAccess>
+    +delete(fileId: UUID, userId: UUID): void
+  }
+
+  interface IFileQuotaRepository {
+    +findByUserId(userId: UUID): FileQuota
+    +save(quota: FileQuota): void
+    +update(quota: FileQuota): void
+  }
+
+  class FileQuotaRepository implements IFileQuotaRepository {
+    -dbConnection: Connection
+    --
+    +findByUserId(userId: UUID): FileQuota
+    +save(quota: FileQuota): void
+    +update(quota: FileQuota): void
+  }
+}
+
+class StorageBucket {
+    -id: UUID
+    -userId: UUID
+    -name: String
+    -bucketPath: String
+    -storageSize: Long
+    -maxSize: Long
+    -isPublic: Boolean
+    -createdAt: LocalDateTime
+    --
+    +getId(): UUID
+    +getName(): String
+    +getStorageSize(): Long
+    +isPublic(): Boolean
+  }
+
+  class FileObject {
+    -id: UUID
+    -bucketId: UUID
+    -fileName: String
+    -fileSize: Long
+    -mimeType: String
+    -filePath: String
+    -uploadedBy: UUID
+    -uploadedAt: LocalDateTime
+    -updatedAt: LocalDateTime
+    --
+    +getId(): UUID
+    +getFileName(): String
+    +getFileSize(): Long
+    +getMimeType(): String
+  }
+
+  class FileVersion {
+    -id: UUID
+    -fileId: UUID
+    -versionNumber: Integer
+    -filePath: String
+    -fileSize: Long
+    -createdAt: LocalDateTime
+    -uploadedBy: UUID
+    --
+    +getId(): UUID
+    +getVersionNumber(): Integer
+    +getFileSize(): Long
+  }
+
+  class FileMetadata {
+    -id: UUID
+    -fileId: UUID
+    -description: String
+    -tags: List<String>
+    -customMetadata: Map
+    -updatedAt: LocalDateTime
+    --
+    +getId(): UUID
+    +getDescription(): String
+    +getTags(): List<String>
+  }
+
+  class FileAccess {
+    -id: UUID
+    -fileId: UUID
+    -userId: UUID
+    -permission: String
+    -grantedAt: LocalDateTime
+    -grantedBy: UUID
+    --
+    +getId(): UUID
+    +getPermission(): String
+    +isReadable(): Boolean
+    +isWritable(): Boolean
+  }
+
+  class FileQuota {
+    -id: UUID
+    -userId: UUID
+    -quotaLimit: Long
+    -quotaUsed: Long
+    -lastUpdated: LocalDateTime
+    --
+    +getId(): UUID
+    +getQuotaLimit(): Long
+    +getQuotaUsed(): Long
+    +getAvailableSpace(): Long
+  }
+}
+
+' ===== RELATIONSHIPS =====
+StorageHandler -- StorageService : uses
+StorageHandler -- VersionService : uses
+StorageHandler -- QuotaService : uses
+StorageHandler -- AccessService : uses
+
+StorageService -- StorageBucketRepository : uses
+StorageService -- FileObjectRepository : uses
+StorageService -- FileMetadataRepository : uses
+VersionService -- FileVersionRepository : uses
+VersionService -- FileObjectRepository : uses
+QuotaService -- FileQuotaRepository : uses
+AccessService -- FileAccessRepository : uses
+
+StorageBucketRepository -- StorageBucket : manages
+FileObjectRepository -- FileObject : manages
+FileVersionRepository -- FileVersion : manages
+FileMetadataRepository -- FileMetadata : manages
+FileAccessRepository -- FileAccess : manages
+FileQuotaRepository -- FileQuota : manages
+
+StorageBucket "1" *-- "0..*" FileObject : contains
+FileObject "1" *-- "0..*" FileVersion : has-versions
+FileObject "1" *-- "1" FileMetadata : has-metadata
+FileObject "1" *-- "0..*" FileAccess : has-access
+StorageBucket "1" -- "1" FileQuota : has-quota
+
+@enduml

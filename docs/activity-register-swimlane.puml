@@ -1,0 +1,68 @@
+@startuml
+title Biểu đồ Hoạt Động - Đăng Ký Tài Khoản
+
+start
+note right : Frontend
+:User nhập email và mật khẩu;
+:User bấm Đăng ký;
+
+note right : Auth Service
+:Kiểm tra định dạng email;
+if (Email hợp lệ?) then (no)
+  :Trả về lỗi;
+  stop
+else (yes)
+endif
+
+:Kiểm tra độ mạnh mật khẩu;
+if (Mật khẩu >= 8 ký tự?) then (no)
+  :Trả về lỗi;
+  stop
+else (yes)
+endif
+
+:Kiểm tra email đã tồn tại;
+if (Email đã đăng ký?) then (yes)
+  :Trả về lỗi;
+  stop
+else (yes)
+endif
+
+:Hash mật khẩu bằng bcrypt;
+:Tạo bản ghi AuthUser;
+:Tạo mã xác thực email;
+
+note right : Email Service
+:Gửi email xác thực;
+
+note right : Frontend
+:Thông báo đăng ký thành công;
+:Hướng dẫn user kiểm tra email;
+:Chuyển đến trang xác thực email;
+
+note right : User
+:Nhấn link xác thực trong email;
+
+note right : Auth Service
+:Verify mã xác thực;
+if (Mã đúng?) then (no)
+  :Trả về lỗi;
+  stop
+else (yes)
+endif
+
+if (Mã chưa hết hạn?) then (no)
+  :Trả về lỗi;
+  stop
+else (yes)
+endif
+
+:Cập nhật email_verified = true;
+:Xóa bản ghi xác thực;
+:Tạo UserProfile;
+
+note right : Frontend
+:Thông báo email đã xác thực;
+:Chuyển đến trang đăng nhập;
+stop
+@enduml

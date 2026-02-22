@@ -1,0 +1,218 @@
+@startuml
+skinparam classAttributeIconSize 0
+
+class UserHandler {
+    -userService: UserService
+    -progressService: LearningProgressService
+    --
+    +getProfile(userId: UUID): UserProfile
+    +updateProfile(userId: UUID, profile: UserProfile): UserProfile
+    +getProgress(userId: UUID): LearningProgress
+    +getAchievements(userId: UUID): List<UserAchievement>
+    +getGoals(userId: UUID): List<StudyGoal>
+    +createGoal(userId: UUID, goal: StudyGoal): StudyGoal
+}
+
+class UserService {
+    -userRepository: UserRepository
+    -roleRepository: RoleRepository
+    --
+    +getUserProfile(userId: UUID): UserProfile
+    +updateUserProfile(userId: UUID, profile: UserProfile): UserProfile
+    +deleteUserProfile(userId: UUID): void
+    +getUserByEmail(email: String): UserProfile
+}
+
+class LearningProgressService {
+    -progressRepository: LearningProgressRepository
+    --
+    +getProgress(userId: UUID): LearningProgress
+    +updateProgress(userId: UUID, progress: LearningProgress): LearningProgress
+    +calculateTotalProgress(userId: UUID): Float
+}
+
+class AchievementService {
+    -achievementRepository: AchievementRepository
+    -userAchievementRepository: UserAchievementRepository
+    --
+    +unlockAchievement(userId: UUID, achievementId: UUID): UserAchievement
+    +getUserAchievements(userId: UUID): List<UserAchievement>
+    +checkAchievementUnlock(userId: UUID): List<Achievement>
+}
+
+class StudyGoalService {
+    -goalRepository: StudyGoalRepository
+    --
+    +createGoal(userId: UUID, goal: StudyGoal): StudyGoal
+    +updateGoal(goalId: UUID, goal: StudyGoal): StudyGoal
+    +getGoals(userId: UUID): List<StudyGoal>
+    +completeGoal(goalId: UUID): void
+}
+
+interface IUserRepository {
+    +findById(id: UUID): UserProfile
+    +findByEmail(email: String): UserProfile
+    +save(profile: UserProfile): UserProfile
+    +update(profile: UserProfile): UserProfile
+    +delete(id: UUID): void
+}
+
+class UserRepository implements IUserRepository {
+    -dbConnection: Connection
+    --
+    +findById(id: UUID): UserProfile
+    +findByEmail(email: String): UserProfile
+    +save(profile: UserProfile): UserProfile
+    +update(profile: UserProfile): UserProfile
+    +delete(id: UUID): void
+}
+
+interface ILearningProgressRepository {
+    +findByUserId(userId: UUID): LearningProgress
+    +save(progress: LearningProgress): LearningProgress
+    +update(progress: LearningProgress): LearningProgress
+}
+
+class LearningProgressRepository implements ILearningProgressRepository {
+    -dbConnection: Connection
+    --
+    +findByUserId(userId: UUID): LearningProgress
+    +save(progress: LearningProgress): LearningProgress
+    +update(progress: LearningProgress): LearningProgress
+}
+
+interface IAchievementRepository {
+    +findById(id: UUID): Achievement
+    +findAll(): List<Achievement>
+    +save(achievement: Achievement): Achievement
+}
+
+class AchievementRepository implements IAchievementRepository {
+    -dbConnection: Connection
+    --
+    +findById(id: UUID): Achievement
+    +findAll(): List<Achievement>
+    +save(achievement: Achievement): Achievement
+}
+
+interface IUserAchievementRepository {
+    +findByUserId(userId: UUID): List<UserAchievement>
+    +save(userAchievement: UserAchievement): UserAchievement
+    +findByUserAndAchievement(userId: UUID, achievementId: UUID): UserAchievement
+}
+
+class UserAchievementRepository implements IUserAchievementRepository {
+    -dbConnection: Connection
+    --
+    +findByUserId(userId: UUID): List<UserAchievement>
+    +save(userAchievement: UserAchievement): UserAchievement
+    +findByUserAndAchievement(userId: UUID, achievementId: UUID): UserAchievement
+}
+
+interface IStudyGoalRepository {
+    +findByUserId(userId: UUID): List<StudyGoal>
+    +save(goal: StudyGoal): StudyGoal
+    +update(goal: StudyGoal): StudyGoal
+    +delete(id: UUID): void
+}
+
+class StudyGoalRepository implements IStudyGoalRepository {
+    -dbConnection: Connection
+    --
+    +findByUserId(userId: UUID): List<StudyGoal>
+    +save(goal: StudyGoal): StudyGoal
+    +update(goal: StudyGoal): StudyGoal
+    +delete(id: UUID): void
+}
+
+class UserProfile {
+    -userId: UUID
+    -fullName: String
+    -avatarUrl: String
+    -email: String
+    -phone: String
+    -city: String
+    -country: String
+    -timezone: String
+    -createdAt: LocalDateTime
+    -updatedAt: LocalDateTime
+    --
+    +getId(): UUID
+    +getFullName(): String
+    +updateProfile(profile: UserProfile): void
+}
+
+class LearningProgress {
+    -userId: UUID
+    -totalStudyHours: Float
+    -skillProgress: Map
+    --
+    +getId(): UUID
+    +getTotalHours(): Float
+    +updateSkillProgress(skill: String, value: Float): void
+}
+
+class Achievement {
+    -id: UUID
+    -code: String
+    -name: String
+    -description: String
+    -badgePoints: Integer
+    -iconUrl: String
+    --
+    +getId(): UUID
+    +getCode(): String
+    +getName(): String
+}
+
+class UserAchievement {
+    -id: UUID
+    -userId: UUID
+    -achievementId: UUID
+    -isUnlocked: Boolean
+    -earnedAt: LocalDateTime
+    --
+    +getId(): UUID
+    +isUnlocked(): Boolean
+}
+
+class StudyGoal {
+    -id: UUID
+    -userId: UUID
+    -goalType: String
+    -title: String
+    -targetValue: Integer
+    -skillType: String
+    -status: String
+    -targetDate: LocalDate
+    --
+    +getId(): UUID
+    +getTitle(): String
+    +complete(): void
+    +updateProgress(value: Integer): void
+}
+
+' ===== RELATIONSHIPS =====
+UserHandler -- UserService : uses
+UserHandler -- LearningProgressService : uses
+UserHandler -- AchievementService : uses
+UserHandler -- StudyGoalService : uses
+
+UserService -- UserRepository : uses
+LearningProgressService -- LearningProgressRepository : uses
+AchievementService -- AchievementRepository : uses
+AchievementService -- UserAchievementRepository : uses
+StudyGoalService -- StudyGoalRepository : uses
+
+UserRepository -- UserProfile : manages
+LearningProgressRepository -- LearningProgress : manages
+AchievementRepository -- Achievement : manages
+UserAchievementRepository -- UserAchievement : manages
+StudyGoalRepository -- StudyGoal : manages
+
+UserProfile "1" *-- "1" LearningProgress : has
+UserProfile "1" o-- "0..*" UserAchievement : earns
+UserProfile "1" o-- "0..*" StudyGoal : sets
+Achievement "1" o-- "0..*" UserAchievement : awarded_by
+
+@enduml

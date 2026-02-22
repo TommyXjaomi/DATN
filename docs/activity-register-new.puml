@@ -1,0 +1,80 @@
+@startuml
+title Biểu đồ Hoạt Động - Đăng Ký Tài Khoản
+
+start
+:User nhập email và mật khẩu;
+
+:Kiểm tra định dạng email;
+if (Email hợp lệ?) then (no)
+  :Hiển thị lỗi: Email không hợp lệ;
+  :Ghi log validation error;
+  stop
+else (yes)
+  :Email hợp lệ, tiếp tục;
+endif
+
+:Kiểm tra độ mạnh mật khẩu;
+if (Mật khẩu >= 8 ký tự?) then (no)
+  :Hiển thị yêu cầu mật khẩu mạnh;
+  :Ghi log validation error;
+  stop
+else (yes)
+  :Mật khẩu hợp lệ, tiếp tục;
+endif
+
+:Kiểm tra email đã tồn tại;
+if (Email đã đăng ký?) then (yes)
+  :Hiển thị lỗi: Email đã tồn tại;
+  :Đề xuất khôi phục tài khoản;
+  :Ghi log duplicate email;
+  stop
+else (no)
+  :Email mới, có thể đăng ký;
+endif
+
+:Hash mật khẩu bằng bcrypt;
+:Tạo UUID tài khoản mới;
+:Tạo bản ghi AuthUser trong DB;
+
+if (Tạo thành công?) then (yes)
+  :Tạo mã xác thực email (6 chữ số);
+  :Lưu mã xác thực với TTL 24 giờ;
+  :Gửi email xác thực;
+  :Ghi log sự kiện đăng ký;
+  :Thông báo đăng ký thành công;
+  :Hướng dẫn user kiểm tra email;
+else (no)
+  :Hiển thị lỗi database;
+  :Ghi log error;
+  stop
+endif
+
+:Chuyển đến trang xác thực email;
+
+User -> Notification: Nhấn link xác thực trong email
+
+:Verify mã xác thực;
+if (Mã đúng?) then (no)
+  :Hiển thị lỗi: Mã xác thực sai;
+  stop
+else (yes)
+  :Mã xác thực đúng, kiểm tra TTL;
+endif
+
+if (Mã chưa hết hạn?) then (no)
+  :Hiển thị lỗi: Mã đã hết hạn;
+  :Gửi lại mã xác thực;
+  stop
+else (yes)
+  :Mã vẫn còn hiệu lực, tiếp tục;
+endif
+
+:Cập nhật email_verified = true;
+:Xóa bản ghi xác thực;
+:Tạo UserProfile từ AuthUser;
+:Ghi log email verification success;
+:Thông báo email đã xác thực;
+:Chuyển đến trang đăng nhập;
+
+stop
+@enduml

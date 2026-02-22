@@ -1,0 +1,81 @@
+@startuml
+left to right direction
+!theme plain
+skinparam activity {
+  BackgroundColor #E8F4F8
+  BorderColor #2E86AB
+  FontColor #000000
+}
+skinparam swimlane {
+  BackgroundColor #F0F0F0
+  BorderColor #2E86AB
+  TitleBackgroundColor #2E86AB
+  TitleFontColor #FFFFFF
+}
+
+title Đăng Ký Khóa Học (Course Enrollment)
+
+|#LightBlue|Student|
+start
+:Chọn khóa học từ danh sách;
+:Click "Đăng ký khóa học";
+:Điền thông tin enrollment\n(course_id, enrollment_type);
+
+|#LightGreen|API Gateway|
+:Validate JWT token;
+:Extract user_id từ token;
+:Route request đến Course Service;
+
+|#LightYellow|Course Service|
+:Validate request data;
+:Kiểm tra course tồn tại;
+if (Course không tồn tại?) then (yes)
+  :Trả về lỗi "Course not found";
+  stop
+else (no)
+endif
+
+:Kiểm tra enrollment_type;
+if (Course là premium?) then (yes)
+  if (Enrollment type = free?) then (yes)
+    :Trả về lỗi "Course requires payment";
+    stop
+  else (no)
+    :Xử lý thanh toán\n(optional - chưa implement);
+  endif
+else (no)
+  :Enrollment type = free;
+endif
+
+:Kiểm tra đã enroll chưa\n(ON CONFLICT trong DB);
+:Create enrollment record\nvới status = "active";
+if (Đã enroll trước đó?) then (yes)
+  :Database ON CONFLICT\nkhông insert;
+  :Lấy enrollment hiện tại;
+else (no)
+  :Tạo enrollment mới;
+endif
+
+:Update total_enrollments\ncủa course;
+
+fork
+  |#LightCoral|Notification Service|
+  :Gửi notification chào mừng\n"Đã đăng ký khóa học thành công";
+  :Lưu notification vào DB;
+  :Push notification đến client\n(nếu có device token);
+end fork
+
+fork
+  |#LightPink|User Service|
+  :Tạo initial progress records\ncho tất cả lessons\n(optional - có thể lazy load);
+end fork
+
+|#LightYellow|Course Service|
+:Trả về enrollment info\ncho Student;
+
+|#LightBlue|Student|
+:Hiển thị thông báo thành công;
+:Redirect đến course detail page;
+stop
+
+@enduml
